@@ -442,11 +442,19 @@ function drawVizParade(a){
     const fi2=constrain(map(px,width*0.03,width*0.18,0,1),0,1);push();translate(px,py);
     if(m.name==='human'){stroke(140,180,170,a*0.7*fi2);strokeWeight(1.5);noFill();circle(0,-m.h*0.8,9);line(0,-m.h*0.75,3,-m.h*0.4);line(3,-m.h*0.6,-6,-m.h*0.45);line(3,-m.h*0.6,9,-m.h*0.5);line(3,-m.h*0.4,-3+sin(frameCount*0.08)*3,0);line(3,-m.h*0.4,8-sin(frameCount*0.08)*3,0);
       noStroke();fill(140,180,170,a*0.6*fi2);textSize(13);textAlign(CENTER);text(m.cur,0,16);text(m.name,0,32);
+    }else if(m.name==='anglerfish'){
+      // Use actual SEA_DEVIL_SHAPE polygon, darker
+      const sdSc=m.w/142;push();scale(sdSc);
+      for(let l of SEA_DEVIL_SHAPE){noStroke();fill(l.col[0]*0.5,l.col[1]*0.5,l.col[2]*0.5,a*l.op*fi2);beginShape();for(let pt of l.pts)vertex(pt[0],pt[1]);endShape(CLOSE);}
+      pop();
+    }else if(m.name==='whale'){
+      // Use actual WHALE_SHAPE polygon, darker
+      const wSc=m.w/531;push();scale(wSc);
+      for(let l of WHALE_SHAPE){noStroke();fill(l.col[0]*0.5,l.col[1]*0.5,l.col[2]*0.5,a*l.op*fi2);beginShape();for(let pt of l.pts)vertex(pt[0],pt[1]);endShape(CLOSE);}
+      pop();
     }else{noStroke();fill(15,25,35,a*0.6*fi2);ellipse(0,0,m.w,m.h);stroke(60,120,130,a*0.35*fi2);strokeWeight(1);noFill();ellipse(0,0,m.w,m.h);
       noStroke();fill(180,100,50,a*0.8*fi2);circle(-m.w*0.3,-m.h*0.15,4+m.w*0.03);circle(-m.w*0.3,m.h*0.15,4+m.w*0.03);
       if(m.name==='sea spider'){stroke(50,100,100,a*0.4*fi2);strokeWeight(1);for(let i=0;i<10;i++){const la=(TWO_PI/10)*i,ll=m.w*0.5+sin(frameCount*0.03+i)*6;line(0,0,cos(la)*ll,sin(la)*ll);}}
-      if(m.name==='anglerfish'){noStroke();const lp=sin(frameCount*(TWO_PI/(4.7*60)))*0.4+0.6;fill(150,255,200,a*lp*fi2);circle(-m.w*0.15,-m.h*0.9,6);fill(150,160,140,a*0.5*fi2);for(let i=0;i<6;i++)triangle(m.w*0.1+i*m.w*0.06,-3,m.w*0.1+i*m.w*0.06+2,6,m.w*0.1+i*m.w*0.06-2,6);}
-      if(m.name==='whale'){stroke(40,80,90,a*0.3*fi2);strokeWeight(1.5);noFill();bezier(m.w*0.5,0,m.w*0.6,-m.h*0.35,m.w*0.7,-m.h*0.25,m.w*0.8,-m.h*0.5);bezier(m.w*0.5,0,m.w*0.6,m.h*0.35,m.w*0.7,m.h*0.25,m.w*0.8,m.h*0.5);}
       if(m.name==='giant sponge'){stroke(50,100,80,a*0.3*fi2);strokeWeight(0.5);for(let i=0;i<12;i++){const sx=random(-m.w*0.3,m.w*0.3),sy=random(-m.h*0.4,m.h*0.4);line(sx,sy,sx+random(-8,8),sy-random(5,15));}}
       noStroke();fill(120,180,180,a*0.6*fi2);textSize(14);textAlign(CENTER);text(m.name,0,m.h*0.5+22);
       if(m.anc){fill(100,160,160,a*0.45*fi2);textSize(12);text(m.anc+' → '+m.cur,0,m.h*0.5+40);}}pop();}
