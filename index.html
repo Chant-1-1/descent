@@ -311,6 +311,75 @@ function drawStationInterior(){
 }
 function drawFlashlight(mx,my){const ctx=drawingContext;ctx.save();const g=ctx.createRadialGradient(mx,my,30,mx,my,280);
   g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(0.4,'rgba(0,0,0,0.3)');g.addColorStop(0.7,'rgba(0,0,0,0.8)');g.addColorStop(1,'rgba(0,0,0,0.96)');ctx.fillStyle=g;ctx.fillRect(0,0,width,height);ctx.restore();}
+// ===================== EYE BACKGROUND =====================
+let eyeElements=[];
+function generateEyeElements(){
+  eyeElements=[];
+  // Dust particles floating in the beam
+  for(let i=0;i<80;i++)eyeElements.push({type:'dust',
+    x:width/2+random(-60,60),y:random(height),
+    size:random(0.5,2.5),speed:random(-0.15,0.15),drift:random(0.3,0.8),off:random(1000),bright:random(0.3,1)});
+  // Faint circular altar rings on floor
+  for(let i=0;i<5;i++)eyeElements.push({type:'ring',r:30+i*25,pulse:random(0.003,0.008),off:random(1000)});
+  // Ambient floating embers rising
+  for(let i=0;i<15;i++)eyeElements.push({type:'ember',x:width/2+random(-100,100),y:random(height*0.5,height),
+    size:random(1,3),speed:random(0.2,0.6),drift:random(0.5,1.5),off:random(1000),col:random()>0.5?'warm':'cool'});
+}
+function drawEyeBackground(){
+  const cx=width/2,cy=height*0.35;
+  // Beam from above — layered for soft edges
+  noStroke();
+  for(let i=12;i>=0;i--){
+    const w=8+i*12,a=2+i*0.6;
+    fill(200,185,120,a);rect(cx-w/2,0,w,height);
+  }
+  // Brighter core
+  for(let i=0;i<4;i++){fill(230,215,160,6-i);rect(cx-4-i*2,0,8+i*4,height);}
+
+  // Light source glow at top
+  fill(220,200,140,8);circle(cx,0,300);fill(230,210,150,14);circle(cx,0,150);fill(240,220,160,22);circle(cx,0,60);
+
+  // Floor glow where beam hits
+  fill(200,180,120,6);ellipse(cx,height*0.88,200,30);fill(220,200,140,10);ellipse(cx,height*0.88,100,15);
+
+  // Altar rings
+  for(let el of eyeElements)if(el.type==='ring'){
+    const pulse=sin(frameCount*el.pulse+el.off)*0.3+0.7;
+    stroke(180,165,110,12*pulse);strokeWeight(0.5);noFill();
+    ellipse(cx,height*0.88,el.r*2,el.r*0.4);
+  }
+
+  // Dust in beam
+  for(let el of eyeElements)if(el.type==='dust'){
+    const dx=sin(frameCount*0.005+el.off)*el.drift*40;
+    const dy=(el.y+frameCount*el.speed)%height;
+    // Only visible inside beam width
+    const distFromCenter=abs(cx+dx-cx+el.x-cx);
+    const beamW=70;
+    if(distFromCenter<beamW){
+      const inBeam=1-distFromCenter/beamW;
+      fill(220,210,170,35*inBeam*el.bright);noStroke();
+      circle(el.x+dx,dy,el.size);
+    }
+  }
+
+  // Rising embers
+  for(let el of eyeElements)if(el.type==='ember'){
+    const dx=sin(frameCount*0.004+el.off)*el.drift*25;
+    const dy=(el.y-frameCount*el.speed+el.off*3)%height;
+    const realY=dy<0?dy+height:dy;
+    noStroke();
+    if(el.col==='warm'){fill(200,150,60,25);circle(el.x+dx,realY,el.size);fill(220,170,70,10);circle(el.x+dx,realY,el.size*3);}
+    else{fill(140,170,190,18);circle(el.x+dx,realY,el.size);fill(120,150,170,8);circle(el.x+dx,realY,el.size*3);}
+  }
+
+  // Subtle vignette
+  const ctx=drawingContext;ctx.save();
+  const g=ctx.createRadialGradient(cx,height*0.4,min(width,height)*0.1,cx,height*0.4,max(width,height)*0.6);
+  g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(0.5,'rgba(0,0,0,0.3)');
+  g.addColorStop(0.8,'rgba(0,0,0,0.7)');g.addColorStop(1,'rgba(0,0,0,0.92)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,width,height);ctx.restore();
+}
 // ===================== VISUALIZATIONS =====================
 function drawVisualization(){
   if(!activeViz)return;const el=millis()-vizStart;
@@ -567,7 +636,8 @@ function buildScene(s){
     // 3 whales
     for(let i=0;i<3;i++)deepCreatures.push(new DeepCreature(WHALE_SHAPE,random(0.2,0.4),random(0.06,0.15),'whale'));
   }
-  if(s>=1)generateStationElements();
+  if(s===1)generateStationElements();
+  if(s===2)generateEyeElements();
   updateSceneAudio();updateMenu();
 }
 function genArch(s){
@@ -649,11 +719,11 @@ function draw(){
   const ac=scene===0?[120,180,180]:scene===1?[70,65,55]:[35,35,30];
   for(let l of archLines){stroke(ac[0],ac[1],ac[2],l.a);strokeWeight(0.5);line(l.x1,l.y1,l.x2,l.y2);}noStroke();
   if(scene===0&&stationBG)stationBG.display();
-  if(scene>=1){
+  if(scene===1){
     if(stationBgImg){push();tint(255,180);image(stationBgImg,0,0,width,height);noTint();pop();}
     drawStationInterior();
   }
-  if(scene===2){for(let i=0;i<6;i++){fill(220,200,140,(12-i*1.8));noStroke();rect(width/2-14-i*5,0,28+i*10,height);}}
+  if(scene===2)drawEyeBackground();
   for(let p of particles){p.update();p.display();}
   if(scene===0){
     for(let sw of fishSwarms){sw.update();sw.display();}
