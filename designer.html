@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DESCENT — Shape Editor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0a0e12;color:#b8d8d8;font-family:'Courier New',monospace;height:100vh;overflow:hidden;}
+h1{font-size:14px;letter-spacing:.3em;text-transform:lowercase;opacity:.85;padding:10px 16px 2px;}
+.sub{font-size:10px;opacity:.4;padding:0 16px 8px;letter-spacing:.1em;}
+.layout{display:grid;grid-template-columns:230px 1fr 220px;gap:8px;padding:0 8px 8px;height:calc(100vh - 52px);}
+@media(max-width:800px){.layout{grid-template-columns:1fr;height:auto;overflow-y:auto;}}
+.panel{background:#141a20;border:1px solid #2a3540;padding:10px;overflow-y:auto;}
+.panel h2{font-size:11px;letter-spacing:.2em;text-transform:lowercase;opacity:.85;margin:0 0 6px;}
+label{display:block;font-size:10px;opacity:.55;margin:6px 0 2px;letter-spacing:.08em;}
+select,input[type=text]{background:#0a0e12;color:#b8d8d8;border:1px solid #2a3540;padding:5px 6px;font-family:inherit;font-size:11px;width:100%;}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:#2a3540;border-radius:2px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:#b8d8d8;border-radius:50%;cursor:pointer;}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;background:#b8d8d8;border-radius:50%;cursor:pointer;border:none;}
+.row{display:flex;align-items:center;gap:6px;}
+.row input[type=range]{flex:1;}
+.val{font-size:10px;opacity:.5;min-width:24px;text-align:right;}
+input[type=color]{width:28px;height:22px;border:1px solid #2a3540;background:#0a0e12;cursor:pointer;padding:1px;}
+.chk{display:flex;align-items:center;gap:6px;font-size:10px;opacity:.7;margin:4px 0;cursor:pointer;}
+.chk input{cursor:pointer;}
+.btn{background:#2a3540;color:#b8d8d8;border:1px solid #3a4550;padding:6px 8px;cursor:pointer;font-family:inherit;font-size:10px;letter-spacing:.1em;text-transform:lowercase;margin-top:4px;}
+.btn:hover{background:#3a4550;}
+.btn.w{width:100%;}
+.btn.primary{background:#ff7755;color:#000;border-color:#ff7755;font-weight:bold;}
+.btn.primary:hover{background:#ff8866;}
+.btn.sm{padding:3px 7px;margin:0;font-size:9px;}
+.btn.danger:hover{background:#442222;border-color:#664444;}
+hr{border:none;border-top:1px solid #1e2830;margin:8px 0;}
+.canvas-wrap{position:relative;background:#030810;border:1px solid #2a3540;overflow:hidden;}
+#canvas{width:100%;height:100%;cursor:crosshair;display:block;}
+.canvas-info{position:absolute;bottom:4px;left:8px;font-size:9px;opacity:.4;pointer-events:none;}
+.canvas-hint{position:absolute;top:4px;left:8px;font-size:9px;opacity:.3;pointer-events:none;}
+/* Layers */
+.layer-item{display:flex;align-items:center;gap:4px;padding:4px 6px;margin-bottom:2px;border:1px solid transparent;cursor:pointer;font-size:10px;}
+.layer-item:hover{background:#1a2025;}
+.layer-item.active{border-color:#4a8a8a;background:#1a2530;}
+.layer-item .lsw{width:14px;height:14px;border:1px solid #2a3540;flex-shrink:0;}
+.layer-item .lnm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.layer-item .ldel{background:none;border:none;color:#665555;cursor:pointer;font-size:12px;font-family:inherit;padding:0 2px;}
+.layer-item .ldel:hover{color:#ff5555;}
+/* Saved */
+.saved-item{background:#1a2025;border:1px solid #2a3540;padding:6px 8px;margin-bottom:3px;display:flex;align-items:center;gap:6px;cursor:pointer;}
+.saved-item:hover{border-color:#3a4550;}
+.saved-item .sw{width:18px;height:18px;border:1px solid #2a3540;flex-shrink:0;}
+.saved-item .info{flex:1;min-width:0;}
+.saved-item .nm{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.saved-item .meta{font-size:8px;opacity:.35;}
+.saved-item .del{background:none;border:none;color:#665555;cursor:pointer;font-size:12px;font-family:inherit;padding:0 2px;}
+.saved-item .del:hover{color:#ff5555;}
+#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;align-items:center;justify-content:center;padding:16px;}
+#modal.show{display:flex;}
+.modal-inner{background:#141a20;border:1px solid #2a3540;padding:16px;max-width:620px;width:100%;}
+.modal-inner h3{font-size:11px;letter-spacing:.2em;opacity:.85;margin-bottom:10px;text-transform:lowercase;}
+textarea{width:100%;height:320px;background:#0a0e12;color:#b8d8d8;border:1px solid #2a3540;padding:10px;font-family:inherit;font-size:11px;line-height:1.5;resize:vertical;}
+.modal-actions{display:flex;gap:6px;margin-top:8px;justify-content:flex-end;}
+.modal-actions button{background:#2a3540;color:#b8d8d8;border:1px solid #3a4550;padding:6px 14px;cursor:pointer;font-family:inherit;font-size:10px;text-transform:lowercase;}
+.modal-actions button.primary{background:#ff7755;color:#000;border-color:#ff7755;}
+</style>
+</head>
+<body>
+<h1>descent — shape editor</h1>
+<p class="sub">click = add · drag point = move · double-tap point = delete · shift+drag inside = move all</p>
+<div class="layout">
+<div class="panel" id="left">
+  <h2>layers</h2>
+  <div id="layer-list"></div>
+  <div class="row" style="margin-top:4px;">
+    <button class="btn sm" onclick="addLayer()">+ layer</button>
+    <button class="btn sm danger" onclick="delLayer()">delete</button>
+  </div>
+  <hr>
+  <h2>active layer</h2>
+  <div class="row"><input type="color" id="fc" value="#0a0e14" oninput="sync();render();"><span style="font-size:10px;opacity:.5;flex:1">fill</span></div>
+  <label>opacity</label>
+  <div class="row"><input type="range" id="fo" min="5" max="100" value="70" oninput="document.getElementById('fov').textContent=this.value;sync();render();"><span class="val" id="fov">70</span></div>
+  <label class="chk"><input type="checkbox" id="so" onchange="sync();render();"> stroke</label>
+  <div class="row"><input type="color" id="sc" value="#1a3838" oninput="sync();render();"><span style="font-size:10px;opacity:.5;flex:1">stroke color</span></div>
+  <label>stroke width</label>
+  <div class="row"><input type="range" id="sw2" min="5" max="30" value="10" oninput="document.getElementById('swv').textContent=(this.value/10).toFixed(1);sync();render();"><span class="val" id="swv">1.0</span></div>
+  <div class="row" style="margin-top:4px;">
+    <button class="btn sm" onclick="undo()">undo</button>
+    <button class="btn sm" onclick="AL().points=[];render();">clear layer</button>
+  </div>
+  <hr>
+  <h2>swarm preview</h2>
+  <label class="chk"><input type="checkbox" id="sw-on" onchange="render()"> enable</label>
+  <label>anzahl</label>
+  <div class="row"><input type="range" id="sw-n" min="3" max="50" value="16" oninput="document.getElementById('sw-nv').textContent=this.value;render();"><span class="val" id="sw-nv">16</span></div>
+  <label>kreis-radius</label>
+  <div class="row"><input type="range" id="sw-rad" min="40" max="260" value="140" oninput="document.getElementById('sw-radv').textContent=this.value+'px';render();"><span class="val" id="sw-radv">140px</span></div>
+  <label>größe min</label>
+  <div class="row"><input type="range" id="sw-min" min="30" max="100" value="70" oninput="document.getElementById('sw-minv').textContent=this.value+'%';render();"><span class="val" id="sw-minv">70%</span></div>
+  <label>größe max</label>
+  <div class="row"><input type="range" id="sw-max" min="100" max="200" value="120" oninput="document.getElementById('sw-maxv').textContent=this.value+'%';render();"><span class="val" id="sw-maxv">120%</span></div>
+  <hr>
+  <h2>view</h2>
+  <label class="chk"><input type="checkbox" id="show-grid" onchange="render()"> grid</label>
+  <label class="chk"><input type="checkbox" id="show-mirror" onchange="render()"> mirror preview</label>
+  <hr>
+  <h2>speichern</h2>
+  <label>name für dieses design</label>
+  <input type="text" id="gname" placeholder="z.B. schwarm-fisch, große qualle">
+  <button class="btn primary w" onclick="saveGroup()">speichern</button>
+</div>
+
+<div class="canvas-wrap">
+  <svg id="canvas" viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div class="canvas-info" id="info">0 pts</div>
+  <div class="canvas-hint" id="hint">click to start drawing</div>
+</div>
+
+<div class="panel">
+  <h2>saved</h2>
+  <div id="saved-list"></div>
+  <button class="btn primary w" onclick="exportAll()" style="margin-top:8px;">export all</button>
+  <button class="btn danger w" onclick="if(confirm('Alle löschen?')){saved=[];renderSaved();}">clear all</button>
+</div>
+</div>
+
+<div id="modal"><div class="modal-inner"><h3>send this to claude</h3><textarea id="exp" readonly></textarea><div class="modal-actions"><button onclick="document.getElementById('modal').classList.remove('show')">close</button><button class="primary" id="cpbtn" onclick="copyExp()">copy</button></div></div></div>
+
+<script>
+const CX=300,CY=200,PR=6,svg=document.getElementById('canvas');
+let layers=[mkLayer('layer 1')],actIdx=0;
+let saved=[];
+let dragging=false,dragIdx=-1,moveAll=false,moveStart=null;
+let lastTap={time:0,idx:-1,moved:false};
+let mousePos={x:0,y:0};
+// Precompute swarm positions with seed
+let swarmSeed=[];for(let i=0;i<60;i++)swarmSeed.push({x:Math.random()*2-1,y:Math.random()*2-1,r:(Math.random()-0.5)*16,s:Math.random()});
+
+function mkLayer(name){return{name,points:[],color:'#0a0e14',opacity:70,strokeOn:false,strokeCol:'#1a3838',strokeW:1.0};}
+function AL(){return layers[actIdx];}
+
+function toSVG(e){const r=svg.getBoundingClientRect();const s=e.touches?e.touches[0]:e;return{x:Math.round((s.clientX-r.left)/r.width*600),y:Math.round((s.clientY-r.top)/r.height*400)};}
+function near(pos,pts,thr){for(let i=0;i<pts.length;i++){const dx=pts[i].x-pos.x,dy=pts[i].y-pos.y;if(Math.sqrt(dx*dx+dy*dy)<thr)return i;}return-1;}
+function insidePoly(pos,pts){if(pts.length<3)return false;let inside=false;for(let i=0,j=pts.length-1;i<pts.length;j=i++){const xi=pts[i].x,yi=pts[i].y,xj=pts[j].x,yj=pts[j].y;if((yi>pos.y)!==(yj>pos.y)&&pos.x<(xj-xi)*(pos.y-yi)/(yj-yi)+xi)inside=!inside;}return inside;}
+
+// --- EVENTS ---
+function handleDown(pos,isShift){
+  const pts=AL().points;
+  const idx=near(pos,pts,14);
+  // Double-tap → delete
+  if(idx>=0&&idx===lastTap.idx&&!lastTap.moved&&Date.now()-lastTap.time<400){
+    pts.splice(idx,1);lastTap={time:0,idx:-1,moved:false};render();return;
+  }
+  if(idx>=0){
+    lastTap={time:Date.now(),idx,moved:false};
+    dragging=true;dragIdx=idx;
+  } else if((isShift||moveAll)&&insidePoly(pos,pts)){
+    moveAll=true;moveStart={x:pos.x,y:pos.y};lastTap={time:0,idx:-1,moved:false};
+  } else {
+    pts.push({x:pos.x,y:pos.y});
+    dragging=true;dragIdx=pts.length-1;
+    lastTap={time:0,idx:-1,moved:false};
+  }
+  render();
+}
+function handleMove(pos){
+  mousePos=pos;
+  const pts=AL().points;
+  if(moveAll&&moveStart){
+    const dx=pos.x-moveStart.x,dy=pos.y-moveStart.y;
+    pts.forEach(p=>{p.x+=dx;p.y+=dy;});
+    moveStart={x:pos.x,y:pos.y};
+    render();
+  } else if(dragging&&dragIdx>=0){
+    lastTap.moved=true;
+    pts[dragIdx].x=pos.x;pts[dragIdx].y=pos.y;
+    render();
+  }
+  updateInfo();
+}
+function handleUp(){dragging=false;dragIdx=-1;moveAll=false;moveStart=null;}
+
+svg.addEventListener('mousedown',e=>{e.preventDefault();handleDown(toSVG(e),e.shiftKey);});
+svg.addEventListener('mousemove',e=>{handleMove(toSVG(e));});
+svg.addEventListener('mouseup',handleUp);
+svg.addEventListener('mouseleave',handleUp);
+svg.addEventListener('touchstart',e=>{e.preventDefault();handleDown(toSVG(e),false);},{passive:false});
+svg.addEventListener('touchmove',e=>{e.preventDefault();handleMove(toSVG(e));},{passive:false});
+svg.addEventListener('touchend',handleUp);
+svg.addEventListener('contextmenu',e=>{
+  e.preventDefault();const pos=toSVG(e);const idx=near(pos,AL().points,14);
+  if(idx>=0){AL().points.splice(idx,1);render();}
+});
+
+// --- RENDER ---
+function render(){
+  const showGrid=document.getElementById('show-grid').checked;
+  const showMirror=document.getElementById('show-mirror').checked;
+  const swOn=document.getElementById('sw-on').checked;
+  let h='<rect width="600" height="400" fill="#030810"/>';
+  if(showGrid){
+    for(let x=0;x<=600;x+=30)h+=`<line x1="${x}" y1="0" x2="${x}" y2="400" stroke="#1a2530" stroke-width="0.3"/>`;
+    for(let y=0;y<=400;y+=30)h+=`<line x1="0" y1="${y}" x2="600" y2="${y}" stroke="#1a2530" stroke-width="0.3"/>`;
+    h+=`<line x1="${CX}" y1="0" x2="${CX}" y2="400" stroke="#2a3540" stroke-width="0.5"/>`;
+    h+=`<line x1="0" y1="${CY}" x2="600" y2="${CY}" stroke="#2a3540" stroke-width="0.5"/>`;
+  }
+  h+='<circle cx="55" cy="35" r=".8" fill="#3aaa9a" opacity=".15"/><circle cx="520" cy="65" r="1" fill="#3aaa9a" opacity=".12"/><circle cx="170" cy="340" r=".9" fill="#3aaa9a" opacity=".1"/><circle cx="470" cy="310" r=".7" fill="#3aaa9a" opacity=".12"/>';
+
+  if(swOn){
+    h+=renderSwarm();
+  } else {
+    // Render all layers
+    layers.forEach((lay,li)=>{
+      if(lay.points.length<2)return;
+      const isAct=(li===actIdx);
+      const op=lay.opacity/100*(isAct?1:0.5);
+      const sa=lay.strokeOn?`stroke="${lay.strokeCol}" stroke-width="${lay.strokeW}"`:'stroke="none"';
+      const pd=mkPath(lay.points);
+      h+=`<path d="${pd}" fill="${lay.color}" opacity="${op}" ${sa}/>`;
+      if(showMirror&&lay.points.length>=3){
+        h+=`<g transform="translate(${CX*2},0) scale(-1,1)"><path d="${pd}" fill="${lay.color}" opacity="${op*0.35}" ${sa}/></g>`;
+      }
+    });
+    // Control points for active layer
+    const pts=AL().points;
+    for(let i=0;i<pts.length;i++){
+      const p=pts[i];
+      if(i<pts.length-1){const n=pts[i+1];h+=`<line x1="${p.x}" y1="${p.y}" x2="${n.x}" y2="${n.y}" stroke="#4a8a8a" stroke-width="0.5" opacity="0.3"/>`;}
+      const act=(dragIdx===i);
+      h+=`<circle cx="${p.x}" cy="${p.y}" r="${act?8:PR}" fill="${act?'#ff7755':'#4a8a8a'}" opacity="${act?.9:.6}" stroke="#b8d8d8" stroke-width="0.5"/>`;
+      h+=`<text x="${p.x}" y="${p.y-9}" text-anchor="middle" fill="#4a8a8a" font-size="8" font-family="Courier New" opacity="0.4">${i+1}</text>`;
+    }
+  }
+  svg.innerHTML=h;
+  updateInfo();
+  renderLayers();
+}
+
+function renderSwarm(){
+  const n=parseInt(document.getElementById('sw-n').value);
+  const rad=parseInt(document.getElementById('sw-rad').value);
+  const sMin=parseInt(document.getElementById('sw-min').value)/100;
+  const sMax=parseInt(document.getElementById('sw-max').value)/100;
+  let h='';
+
+  // Show circle boundary
+  h+=`<circle cx="${CX}" cy="${CY}" r="${rad}" fill="none" stroke="#2a3540" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.4"/>`;
+
+  // Place instances randomly within circle using seed
+  let positions=[];
+  for(let i=0;i<n;i++){
+    const seed=swarmSeed[i%60];
+    const angle=seed.x*Math.PI*2;
+    const dist=Math.sqrt(seed.s)*rad; // sqrt for uniform distribution
+    positions.push({
+      x:CX+Math.cos(angle)*dist,
+      y:CY+Math.sin(angle)*dist*0.7, // slightly elliptical
+      s:sMin+(sMax-sMin)*((seed.y+1)/2),
+      r:seed.r
+    });
+  }
+
+  // Render all layers for each instance
+  positions.forEach(pos=>{
+    layers.forEach(lay=>{
+      if(lay.points.length<3)return;
+      const cp=mkCentered(lay.points);
+      const op=lay.opacity/100*Math.min(pos.s,1);
+      const sa=lay.strokeOn?`stroke="${lay.strokeCol}" stroke-width="${lay.strokeW}"`:'stroke="none"';
+      h+=`<g transform="translate(${Math.round(pos.x)},${Math.round(pos.y)}) rotate(${pos.r.toFixed(1)}) scale(${pos.s.toFixed(2)})"><path d="${cp}" fill="${lay.color}" opacity="${op.toFixed(2)}" ${sa}/></g>`;
+    });
+  });
+  return h;
+}
+
+function mkPath(pts){if(pts.length<2)return'';return'M '+pts.map(p=>p.x+','+p.y).join(' L ')+' Z';}
+function mkCentered(pts){if(pts.length<2)return'';const cx=pts.reduce((s,p)=>s+p.x,0)/pts.length;const cy=pts.reduce((s,p)=>s+p.y,0)/pts.length;return'M '+pts.map(p=>Math.round(p.x-cx)+','+Math.round(p.y-cy)).join(' L ')+' Z';}
+function updateInfo(){const r={x:mousePos.x-CX,y:mousePos.y-CY};document.getElementById('info').textContent=`layer ${actIdx+1} · ${AL().points.length} pts · (${r.x}, ${r.y})`;document.getElementById('hint').textContent=AL().points.length<1?'click to start drawing':moveAll?'moving shape...':'shift+drag inside = move all';}
+function undo(){const pts=AL().points;if(pts.length>0){pts.pop();render();}}
+
+// --- LAYERS ---
+function renderLayers(){
+  const list=document.getElementById('layer-list');
+  list.innerHTML='';
+  layers.forEach((lay,i)=>{
+    const d=document.createElement('div');
+    d.className='layer-item'+(i===actIdx?' active':'');
+    d.innerHTML=`<div class="lsw" style="background:${lay.color};opacity:${lay.opacity/100}"></div><div class="lnm">${lay.name}</div>${layers.length>1?`<button class="ldel" onclick="event.stopPropagation();delLayerAt(${i})">×</button>`:''}`;
+    d.onclick=()=>setActive(i);
+    list.appendChild(d);
+  });
+}
+function setActive(i){actIdx=i;loadControls();render();}
+function addLayer(){
+  layers.push(mkLayer('layer '+(layers.length+1)));
+  actIdx=layers.length-1;loadControls();render();
+}
+function delLayer(){if(layers.length<=1)return;delLayerAt(actIdx);}
+function delLayerAt(i){layers.splice(i,1);if(actIdx>=layers.length)actIdx=layers.length-1;loadControls();render();}
+
+function loadControls(){
+  const l=AL();
+  document.getElementById('fc').value=l.color;
+  document.getElementById('fo').value=l.opacity;document.getElementById('fov').textContent=l.opacity;
+  document.getElementById('so').checked=l.strokeOn;
+  document.getElementById('sc').value=l.strokeCol;
+  document.getElementById('sw2').value=Math.round(l.strokeW*10);document.getElementById('swv').textContent=l.strokeW.toFixed(1);
+}
+function sync(){
+  const l=AL();
+  l.color=document.getElementById('fc').value;
+  l.opacity=parseInt(document.getElementById('fo').value);
+  l.strokeOn=document.getElementById('so').checked;
+  l.strokeCol=document.getElementById('sc').value;
+  l.strokeW=parseInt(document.getElementById('sw2').value)/10;
+}
+
+// --- SAVE ---
+function saveGroup(){
+  const name=document.getElementById('gname').value.trim();
+  if(!name){alert('Name eingeben.');return;}
+  const hasPoints=layers.some(l=>l.points.length>=3);
+  if(!hasPoints){alert('Mindestens 3 Punkte in einem Layer.');return;}
+  const swarmOn=document.getElementById('sw-on').checked;
+  saved.push({
+    name,
+    swarm: swarmOn ? {
+      count: parseInt(document.getElementById('sw-n').value),
+      radius: parseInt(document.getElementById('sw-rad').value),
+      sizeMin: parseInt(document.getElementById('sw-min').value),
+      sizeMax: parseInt(document.getElementById('sw-max').value)
+    } : null,
+    layers:layers.filter(l=>l.points.length>=3).map(l=>{
+      const cx=l.points.reduce((s,p)=>s+p.x,0)/l.points.length;
+      const cy=l.points.reduce((s,p)=>s+p.y,0)/l.points.length;
+      return{
+        name:l.name,
+        points:l.points.map(p=>({x:p.x,y:p.y})),
+        centered:l.points.map(p=>({x:Math.round(p.x-cx),y:Math.round(p.y-cy)})),
+        color:l.color,opacity:l.opacity,
+        strokeOn:l.strokeOn,strokeCol:l.strokeCol,strokeW:l.strokeW
+      };
+    })
+  });
+  document.getElementById('gname').value='';
+  renderSaved();
+}
+function renderSaved(){
+  const list=document.getElementById('saved-list');list.innerHTML='';
+  saved.forEach((g,i)=>{
+    const d=document.createElement('div');d.className='saved-item';
+    d.innerHTML=`<div class="sw" style="background:${g.layers[0].color};opacity:${g.layers[0].opacity/100}"></div><div class="info"><div class="nm">${g.name}</div><div class="meta">${g.layers.length} layer${g.layers.length>1?'s':''}</div></div><button class="del" onclick="event.stopPropagation();saved.splice(${i},1);renderSaved();">×</button>`;
+    d.onclick=()=>loadGroup(g);
+    list.appendChild(d);
+  });
+}
+function loadGroup(g){
+  layers=g.layers.map(l=>({name:l.name,points:l.points.map(p=>({x:p.x,y:p.y})),color:l.color,opacity:l.opacity,strokeOn:l.strokeOn,strokeCol:l.strokeCol,strokeW:l.strokeW}));
+  actIdx=0;document.getElementById('gname').value=g.name;
+  loadControls();render();
+}
+
+// --- EXPORT ---
+function exportAll(){
+  if(!saved.length){alert('Nichts gespeichert.');return;}
+  let t='DESCENT — Shape Designs\n====================================\nGenerated: '+new Date().toLocaleString()+'\n\n';
+  saved.forEach((g,i)=>{
+    t+=`[${i+1}] ${g.name.toUpperCase()}\n`;
+    if(g.swarm) t+=`  Swarm: ${g.swarm.count} stück, radius ${g.swarm.radius}px, größe ${g.swarm.sizeMin}%–${g.swarm.sizeMax}%\n`;
+    g.layers.forEach((l,li)=>{
+      t+=`  Layer ${li+1}: "${l.name}"\n`;
+      t+=`    Fill: ${l.color} @ ${l.opacity}%\n`;
+      if(l.strokeOn)t+=`    Stroke: ${l.strokeCol}, ${l.strokeW}px\n`;
+      const xs=l.centered.map(p=>p.x),ys=l.centered.map(p=>p.y);
+      t+=`    Size: ${Math.max(...xs)-Math.min(...xs)} × ${Math.max(...ys)-Math.min(...ys)}px\n`;
+      t+=`    Points: ${l.centered.map(p=>`(${p.x},${p.y})`).join(' ')}\n`;
+    });
+    t+='\n';
+  });
+  document.getElementById('exp').value=t;
+  document.getElementById('modal').classList.add('show');
+}
+function copyExp(){
+  const ta=document.getElementById('exp');ta.select();ta.setSelectionRange(0,99999);
+  try{document.execCommand('copy');}catch(e){}
+  if(navigator.clipboard)navigator.clipboard.writeText(ta.value).catch(()=>{});
+  document.getElementById('cpbtn').textContent='✓ copied';
+  setTimeout(()=>{document.getElementById('cpbtn').textContent='copy';},1500);
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='z'&&(e.ctrlKey||e.metaKey)){e.preventDefault();undo();}
+});
+
+loadControls();render();
+</script>
+</body>
+</html>
