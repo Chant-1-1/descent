@@ -49,7 +49,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 <script>
 let started=false,particles=[],hotspots=[],creatures=[],stationElements=[],fishSwarms=[],deepCreatures=[],stationBG=null;
-let seaDevilImg=null;
+let seaDevilImg=null,stationBgImg=null;
 let camDX=0,camDY=0,lastGlitch=0,lastInteract=0,idleWPlayed=false;
 let glitchFX,whisperN,whisperF,whisperG,hoverPing;
 let sceneBuses={},layerPlayers={},layerGains={},hotspotPlayers={},hotspotRev;
@@ -273,99 +273,41 @@ class StationSilhouette{
 // ===================== STATION INTERIOR =====================
 function generateStationElements(){
   stationElements=[];
-  // Tunnel rings (concentric depth)
-  for(let i=0;i<14;i++){const d=i/14;
-    stationElements.push({type:'ring',d,r:1-d*0.65,ox:random(-8,8),oy:random(-5,5)});}
-  // Rust streaks
-  for(let i=0;i<35;i++)stationElements.push({type:'rust',x:random(width),y1:random(height*0.05,height*0.3),y2:random(height*0.5,height*0.95),w:random(2,8),
-    col:[random(60,120),random(40,70),random(20,40)],drift:random(-0.3,0.3)});
-  // Horizontal pipes
-  for(let i=0;i<12;i++){const y=random(height);stationElements.push({type:'pipe',x1:0,y1:y,x2:width,y2:y+random(-15,15),thick:random(2,6),
-    col:[random(50,75),random(55,70),random(45,60)]});}
-  // Vertical pipes
-  for(let i=0;i<8;i++){const x=random(width);stationElements.push({type:'vpipe',x1:x,y1:0,x2:x+random(-10,10),y2:height,thick:random(2,5),
-    col:[random(45,70),random(50,65),random(40,55)]});}
-  // Pipe joints/connectors
-  for(let i=0;i<20;i++)stationElements.push({type:'joint',x:random(width),y:random(height),s:random(4,10)});
-  // Control panels
-  for(let i=0;i<5;i++){const lights=[];for(let j=0;j<Math.floor(random(2,6));j++)lights.push({dx:random(-18,18),dy:random(-8,8),rate:random(0.02,0.08),col:random()>0.6?'r':random()>0.3?'g':'y'});
-    stationElements.push({type:'controls',x:random(width*0.05,width*0.35),y:random(height*0.2,height*0.75),w:random(30,55),h:random(22,38),lights});}
-  // Gauges
-  for(let i=0;i<4;i++)stationElements.push({type:'gauge',x:random(width*0.1,width*0.4),y:random(height*0.15,height*0.55),r:random(8,16),needle:random(TWO_PI)});
-  // Drips/stalactites
-  for(let i=0;i<12;i++)stationElements.push({type:'drip',x:random(width),y:random(height*0.02,height*0.15),len:random(8,35),speed:random(0.3,1.5),offset:random(1000)});
-  // Floor debris
-  for(let i=0;i<15;i++)stationElements.push({type:'debris',x:random(width*0.15,width*0.85),y:random(height*0.82,height*0.95),w:random(5,20),h:random(3,10),
-    col:[random(30,55),random(35,55),random(30,50)]});
-  // Rivets along rings
-  for(let i=0;i<80;i++)stationElements.push({type:'rivet',x:random(width),y:random(height)});
+  // Blinking indicator lights
+  for(let i=0;i<8;i++)stationElements.push({type:'light',x:random(width*0.05,width*0.95),y:random(height*0.1,height*0.7),
+    rate:random(0.015,0.06),col:random(['r','r','r','g','y']),s:random(2,4)});
+  // Dripping water
+  for(let i=0;i<10;i++)stationElements.push({type:'drip',x:random(width),y:random(height*0.02,height*0.2),
+    speed:random(0.3,1.2),offset:random(1000)});
+  // Gauge needles
+  for(let i=0;i<3;i++)stationElements.push({type:'gauge',
+    x:random()>0.5?random(width*0.05,width*0.3):random(width*0.7,width*0.95),
+    y:random(height*0.15,height*0.5),r:random(6,12),needle:random(TWO_PI),speed:random(0.003,0.008)});
+  // Ambient mist wisps
+  for(let i=0;i<6;i++)stationElements.push({type:'mist',x:random(width),y:random(height*0.3,height*0.7),
+    w:random(60,180),h:random(20,50),drift:random(0.1,0.4),off:random(1000)});
 }
 function drawStationInterior(){
-  const cx=width/2,cy=height*0.46;
-  // Tunnel rings — concentric ellipses creating depth perspective
   for(let el of stationElements){
-    if(el.type==='ring'){
-      const r=el.r,d=el.d;const rw=width*0.52*r,rh=height*0.52*r;
-      const fade=1-d*0.7;
-      // Ring wall fill (darker toward center)
-      stroke(28+d*15,35+d*12,32+d*10,90*fade);strokeWeight(max(1,(1-d)*4));noFill();
-      ellipse(cx+el.ox*d,cy+el.oy*d,rw*2,rh*2);
-      // Inner shadow ring
-      stroke(15,20,18,50*fade);strokeWeight(max(1,(1-d)*8));
-      ellipse(cx+el.ox*d,cy+el.oy*d,rw*2-6,rh*2-6);
+    if(el.type==='light'){
+      const b=sin(frameCount*el.rate)*0.5+0.5;noStroke();
+      if(el.col==='r'){fill(180*b,20,12,200*b);circle(el.x,el.y,el.s);fill(180*b,20,12,40*b);circle(el.x,el.y,el.s*6);}
+      else if(el.col==='g'){fill(20,130*b,30,170*b);circle(el.x,el.y,el.s);fill(20,130*b,30,30*b);circle(el.x,el.y,el.s*5);}
+      else{fill(170*b,120*b,20,160*b);circle(el.x,el.y,el.s);fill(170*b,120*b,20,25*b);circle(el.x,el.y,el.s*5);}
+    }
+    else if(el.type==='drip'){
+      const dy=(frameCount*el.speed+el.offset)%(height*0.75);
+      noStroke();fill(50,85,90,max(0,35-dy*0.04));ellipse(el.x+sin(dy*0.012)*2,el.y+dy,1.5,3.5);
+    }
+    else if(el.type==='gauge'){
+      const na=el.needle+sin(frameCount*el.speed)*0.5;
+      stroke(150,60,30,50);strokeWeight(0.6);line(el.x,el.y,el.x+cos(na)*el.r,el.y+sin(na)*el.r);
+    }
+    else if(el.type==='mist'){
+      const dx=sin(frameCount*0.003+el.off)*el.drift*30;
+      noStroke();fill(30,45,42,sin(frameCount*0.005+el.off)*8+12);ellipse(el.x+dx,el.y,el.w,el.h);
     }
   }
-  // Warm center glow (distant light)
-  noStroke();fill(180,130,50,12);circle(cx,cy,90);fill(200,150,60,20);circle(cx,cy,40);fill(220,170,70,35);circle(cx,cy,14);fill(240,200,100,60);circle(cx,cy,5);
-  // Rust streaks
-  for(let el of stationElements){
-    if(el.type==='rust'){
-      stroke(el.col[0],el.col[1],el.col[2],30);strokeWeight(el.w);
-      const x2=el.x+el.drift*(el.y2-el.y1);line(el.x,el.y1,x2,el.y2);
-      // Drip blobs along streak
-      noStroke();for(let j=0;j<3;j++){const y3=el.y1+(el.y2-el.y1)*random();
-        fill(el.col[0]+20,el.col[1]+10,el.col[2],25);ellipse(el.x+el.drift*(y3-el.y1)+random(-2,2),y3,el.w*1.5,el.w*2.5);}
-    }
-  }
-  // Pipes
-  for(let el of stationElements){
-    if(el.type==='pipe'){stroke(el.col[0],el.col[1],el.col[2],100);strokeWeight(el.thick);line(el.x1,el.y1,el.x2,el.y2);
-      // Highlight line on top of pipe
-      stroke(el.col[0]+25,el.col[1]+25,el.col[2]+20,40);strokeWeight(max(1,el.thick*0.3));line(el.x1,el.y1-el.thick*0.3,el.x2,el.y2-el.thick*0.3);}
-    else if(el.type==='vpipe'){stroke(el.col[0],el.col[1],el.col[2],90);strokeWeight(el.thick);line(el.x1,el.y1,el.x2,el.y2);
-      stroke(el.col[0]+20,el.col[1]+20,el.col[2]+15,35);strokeWeight(max(1,el.thick*0.3));line(el.x1+el.thick*0.3,el.y1,el.x2+el.thick*0.3,el.y2);}
-    else if(el.type==='joint'){fill(55,58,50,80);noStroke();circle(el.x,el.y,el.s);stroke(70,72,62,60);strokeWeight(0.5);circle(el.x,el.y,el.s);}
-  }
-  // Controls, gauges
-  for(let el of stationElements){
-    if(el.type==='controls'){fill(18,22,20,90);noStroke();rect(el.x,el.y,el.w,el.h,2);stroke(45,50,45,70);strokeWeight(0.8);noFill();rect(el.x,el.y,el.w,el.h,2);
-      for(let l of el.lights){const b=sin(frameCount*l.rate)*0.5+0.5;
-        if(l.col==='r')fill(180*b,30,20,200*b);else if(l.col==='g')fill(30,140*b,40,180*b);else fill(180*b,140*b,30,180*b);
-        noStroke();circle(el.x+el.w/2+l.dx,el.y+el.h/2+l.dy,3);}}
-    else if(el.type==='gauge'){stroke(55,60,55,80);strokeWeight(1);noFill();circle(el.x,el.y,el.r*2);
-      fill(25,28,25,70);noStroke();circle(el.x,el.y,el.r*2-2);
-      stroke(180,80,40,90);strokeWeight(0.8);const na=el.needle+sin(frameCount*0.005)*0.3;
-      line(el.x,el.y,el.x+cos(na)*el.r*0.7,el.y+sin(na)*el.r*0.7);}
-  }
-  // Drips
-  for(let el of stationElements){
-    if(el.type==='drip'){
-      // Stalactite
-      noStroke();fill(60,75,70,60);triangle(el.x-2,el.y,el.x+2,el.y,el.x,el.y+el.len);
-      // Falling drop
-      const dy=(frameCount*el.speed+el.offset)%(height*0.7);
-      fill(70,110,120,50-dy*0.06);ellipse(el.x+sin(dy*0.02)*2,el.y+el.len+dy,2,4);}
-  }
-  // Rivets
-  for(let el of stationElements){
-    if(el.type==='rivet'){fill(65,62,55,45);noStroke();circle(el.x,el.y,2.5);}
-  }
-  // Floor debris
-  for(let el of stationElements){
-    if(el.type==='debris'){fill(el.col[0],el.col[1],el.col[2],60);noStroke();rect(el.x,el.y,el.w,el.h,1);}
-  }
-  // Floor line
-  stroke(40,45,40,40);strokeWeight(0.5);line(0,height*0.82,width,height*0.82);
 }
 function drawFlashlight(mx,my){const ctx=drawingContext;ctx.save();const g=ctx.createRadialGradient(mx,my,30,mx,my,280);
   g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(0.4,'rgba(0,0,0,0.3)');g.addColorStop(0.7,'rgba(0,0,0,0.8)');g.addColorStop(1,'rgba(0,0,0,0.96)');ctx.fillStyle=g;ctx.fillRect(0,0,width,height);ctx.restore();}
@@ -707,7 +649,10 @@ function draw(){
   const ac=scene===0?[120,180,180]:scene===1?[70,65,55]:[35,35,30];
   for(let l of archLines){stroke(ac[0],ac[1],ac[2],l.a);strokeWeight(0.5);line(l.x1,l.y1,l.x2,l.y2);}noStroke();
   if(scene===0&&stationBG)stationBG.display();
-  if(scene>=1)drawStationInterior();
+  if(scene>=1){
+    if(stationBgImg){push();tint(255,180);image(stationBgImg,0,0,width,height);noTint();pop();}
+    drawStationInterior();
+  }
   if(scene===2){for(let i=0;i<6;i++){fill(220,200,140,(12-i*1.8));noStroke();rect(width/2-14-i*5,0,28+i*10,height);}}
   for(let p of particles){p.update();p.display();}
   if(scene===0){
@@ -738,6 +683,7 @@ function navScene(target){if(transitioning||eyeActive||activeViz||target===scene
 document.getElementById('start-overlay').addEventListener('click',async()=>{await Tone.start();initAudio();document.getElementById('start-overlay').classList.add('fade');
   setTimeout(()=>document.getElementById('start-overlay').style.display='none',3000);
   loadImage('sea-devil.svg',img=>{seaDevilImg=img;},()=>{});
+  loadImage('station-bg.png',img=>{stationBgImg=img;},()=>{});
   setTimeout(()=>{started=true;showSub("you wake.\nthe air is heavy. wet.\nyou have never seen the surface.",6000);},2500);});
 // ===================== PRESENTATION MODE (step-by-step) =====================
 let presMode=false,presStep=-1;
