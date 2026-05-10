@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DESCENT — Sound Mixer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0e12;
+    color: #b8d8d8;
+    font-family: 'Courier New', monospace;
+    padding: 20px;
+    min-height: 100vh;
+  }
+  h1 { font-size: 16px; letter-spacing: 0.3em; text-transform: lowercase; opacity: 0.85; margin-bottom: 4px; }
+  .sub { font-size: 11px; opacity: 0.4; margin-bottom: 24px; letter-spacing: 0.1em; }
+
+  /* === MASTER BAR === */
+  #master-bar {
+    background: #141a20;
+    border: 1px solid #2a3540;
+    padding: 16px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  #start-audio {
+    background: #ff7755;
+    color: #000;
+    border: none;
+    padding: 14px 28px;
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 0.25em;
+    cursor: pointer;
+    text-transform: lowercase;
+    font-weight: bold;
+  }
+  #start-audio:hover { background: #ff8866; }
+  #start-audio.active { background: #2a3540; color: #5a8585; cursor: default; font-weight: normal; }
+  .master-vol { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 220px; }
+  .master-vol label { font-size: 11px; opacity: 0.6; min-width: 60px; letter-spacing: 0.15em; }
+
+  /* === SCENES === */
+  .scenes { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 1100px) { .scenes { grid-template-columns: 1fr; } }
+
+  .scene {
+    background: #141a20;
+    border: 1px solid #2a3540;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+  }
+  .scene h2 {
+    font-size: 13px;
+    letter-spacing: 0.25em;
+    text-transform: lowercase;
+    margin-bottom: 12px;
+    opacity: 0.85;
+  }
+  .scene-play {
+    background: #2a3540;
+    color: #b8d8d8;
+    border: 1px solid #3a4550;
+    padding: 12px 16px;
+    width: 100%;
+    margin-bottom: 16px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: lowercase;
+    transition: background 0.15s;
+  }
+  .scene-play:hover { background: #3a4550; }
+  .scene-play.playing { background: #ff7755; color: #000; border-color: #ff7755; }
+
+  /* === LAYERS === */
+  .layer {
+    border-top: 1px solid #1a2025;
+    padding: 12px 0;
+    display: grid;
+    grid-template-columns: 22px 1fr 36px;
+    gap: 8px;
+    align-items: center;
+  }
+  .layer:first-of-type { border-top: none; padding-top: 4px; }
+  .layer-num { font-size: 10px; opacity: 0.4; text-align: center; }
+  .layer-controls { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+  select {
+    background: #0a0e12;
+    color: #b8d8d8;
+    border: 1px solid #2a3540;
+    padding: 7px 8px;
+    font-family: inherit;
+    font-size: 11px;
+    width: 100%;
+    cursor: pointer;
+  }
+  select:focus { outline: none; border-color: #ff7755; }
+  select:hover { border-color: #3a4550; }
+
+  .vol-row { display: flex; align-items: center; gap: 8px; }
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: #2a3540;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px; height: 14px;
+    background: #b8d8d8;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 14px; height: 14px;
+    background: #b8d8d8;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+  }
+  .vol-num { font-size: 10px; opacity: 0.5; min-width: 28px; text-align: right; }
+
+  .layer-test {
+    width: 36px; height: 36px;
+    background: #1a2025;
+    border: 1px solid #2a3540;
+    color: #b8d8d8;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+    border-radius: 50%;
+    font-family: inherit;
+  }
+  .layer-test:hover { background: #2a3540; border-color: #3a4550; }
+  .layer-test.playing { background: #ff7755; color: #000; border-color: #ff7755; }
+  .layer-test.loading { opacity: 0.5; cursor: wait; }
+
+  /* === HOTSPOTS === */
+  #hotspots {
+    background: #141a20;
+    border: 1px solid #2a3540;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+  #hotspots h2 {
+    font-size: 13px;
+    letter-spacing: 0.25em;
+    opacity: 0.85;
+    margin-bottom: 4px;
+    text-transform: lowercase;
+  }
+  #hotspots .hint { font-size: 10px; opacity: 0.4; margin-bottom: 14px; }
+  .hotspot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 10px;
+  }
+  .hotspot {
+    background: #1a2025;
+    border: 1px solid #2a3540;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .hotspot-name { font-size: 10px; opacity: 0.55; letter-spacing: 0.1em; }
+  .hotspot-play {
+    background: #2a3540;
+    color: #b8d8d8;
+    border: 1px solid #3a4550;
+    padding: 6px 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: lowercase;
+  }
+  .hotspot-play:hover { background: #3a4550; }
+  .hotspot-play.playing { background: #ff7755; color: #000; border-color: #ff7755; }
+
+  /* === EXPORT === */
+  #export-bar {
+    background: #141a20;
+    border: 1px solid #2a3540;
+    padding: 16px;
+    text-align: center;
+  }
+  #export-btn {
+    background: #ff7755;
+    color: #000;
+    border: none;
+    padding: 12px 32px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 0.25em;
+    text-transform: lowercase;
+    font-weight: bold;
+  }
+  #export-btn:hover { background: #ff8866; }
+
+  #export-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #export-modal.show { display: flex; }
+  .modal-inner {
+    background: #141a20;
+    border: 1px solid #2a3540;
+    padding: 24px;
+    max-width: 640px;
+    width: 100%;
+  }
+  .modal-inner h3 {
+    font-size: 12px;
+    letter-spacing: 0.25em;
+    opacity: 0.85;
+    margin-bottom: 14px;
+    text-transform: lowercase;
+  }
+  textarea {
+    width: 100%;
+    height: 320px;
+    background: #0a0e12;
+    color: #b8d8d8;
+    border: 1px solid #2a3540;
+    padding: 12px;
+    font-family: inherit;
+    font-size: 11px;
+    line-height: 1.6;
+    resize: vertical;
+  }
+  .modal-actions { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+  .modal-actions button {
+    background: #2a3540;
+    color: #b8d8d8;
+    border: 1px solid #3a4550;
+    padding: 8px 18px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    text-transform: lowercase;
+    letter-spacing: 0.15em;
+  }
+  .modal-actions button:hover { background: #3a4550; }
+  .modal-actions button.primary { background: #ff7755; color: #000; border-color: #ff7755; }
+  .modal-actions button.primary:hover { background: #ff8866; }
+
+  /* === STATUS === */
+  #status {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #141a20;
+    border: 1px solid #2a3540;
+    padding: 8px 14px;
+    font-size: 10px;
+    opacity: 0.85;
+    letter-spacing: 0.1em;
+  }
+  #status.warn { border-color: #ff7755; color: #ff7755; }
+</style>
+</head>
+<body>
+
+<h1>descent — sound mixer</h1>
+<p class="sub">world 3324255146 / scene builder</p>
+
+<div id="master-bar">
+  <button id="start-audio">▶ start audio</button>
+  <div class="master-vol">
+    <label>master</label>
+    <input type="range" id="master-vol" min="0" max="100" value="80">
+    <span class="vol-num" id="master-vol-num">80</span>
+  </div>
+</div>
+
+<div class="scenes" id="scenes"></div>
+
+<div id="hotspots">
+  <h2>hotspot triggers</h2>
+  <p class="hint">single-shot sounds — assign and test by clicking play</p>
+  <div class="hotspot-grid" id="hotspot-grid"></div>
+</div>
+
+<div id="export-bar">
+  <button id="export-btn">export configuration</button>
+</div>
+
+<div id="export-modal">
+  <div class="modal-inner">
+    <h3>send this to claude</h3>
+    <textarea id="export-text" readonly></textarea>
+    <div class="modal-actions">
+      <button id="close-modal">close</button>
+      <button id="copy-btn" class="primary">copy</button>
+    </div>
+  </div>
+</div>
+
+<div id="status">audio: not started — click "start audio"</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<script>
+// ============================================================
+// SOUND LIBRARY — edit if filenames in repo differ
+// All files expected as <name>.mp3 in same folder as mixer.html
+// ============================================================
+const SOUNDS_BY_GROUP = {
+  'world ambience': [
+    'below-the-sea', 'underwater-choir', 'humpback-whale',
+    'underwater-ambience-lake', 'underwater-base'
+  ],
+  'station': [
+    'spacecraft-bg', 'factory-ambience', 'machine-cycle',
+    'spaceship-ambience', 'industrial-spire', 'metal-clanking',
+    'metal-creak-long', 'metal-creak-short', 'valve-relief',
+    'pump-release', 'water-pipe', 'trickling-loop'
+  ],
+  'eye': [
+    'drone-filter', 'morning-ambient', 'dive-deep'
+  ],
+  'fx · whales & creatures': [
+    'whale-fx1', 'whale-fx2', 'whale-low', 'whale-song',
+    'coral-reef', 'abyss', 'dolphin-song'
+  ]
+};
+
+// ============================================================
+// SCENES — defaults; change anything via dropdowns
+// ============================================================
+const SCENES = [
+  {
+    id: 'world',
+    title: 'i · the world',
+    layers: [
+      { def: 'underwater-base',         vol: 70 },
+      { def: 'underwater-choir',        vol: 40 },
+      { def: 'humpback-whale',          vol: 35 },
+      { def: '__none__',                vol: 50 }
+    ]
+  },
+  {
+    id: 'station',
+    title: 'ii · the station',
+    layers: [
+      { def: 'spaceship-ambience',      vol: 60 },
+      { def: 'factory-ambience',        vol: 35 },
+      { def: 'machine-cycle',           vol: 30 },
+      { def: '__none__',                vol: 50 }
+    ]
+  },
+  {
+    id: 'eye',
+    title: 'iii · the eye',
+    layers: [
+      { def: 'drone-filter',            vol: 55 },
+      { def: 'morning-ambient',         vol: 45 },
+      { def: 'dive-deep',               vol: 30 },
+      { def: '__none__',                vol: 50 }
+    ]
+  }
+];
+
+const HOTSPOTS = [
+  { name: 'world · belt',         def: 'metal-creak-short' },
+  { name: 'world · parade',       def: 'whale-song' },
+  { name: 'world · sea level',    def: 'abyss' },
+  { name: 'station · hierarchy',  def: 'industrial-spire' },
+  { name: 'station · daily',      def: 'metal-clanking' },
+  { name: 'station · air/o2',     def: 'valve-relief' },
+  { name: 'station · n°39',       def: 'pump-release' },
+  { name: 'eye · mythology',      def: 'whale-low' },
+  { name: 'eye · instrument',     def: 'machine-cycle' },
+  { name: 'eye · selection',      def: 'whale-fx1' }
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let audioStarted = false;
+let masterGain = null;
+const layerState = {};   // sceneId -> [{sel, volInput, volNum, testBtn, player, gain, testPlayer, testGain}]
+const scenePlaying = {};
+const hotspotState = []; // [{sel, btn, player, timer}]
+
+// ============================================================
+// UI BUILDERS
+// ============================================================
+function buildSelect(currentValue, allowNone = true) {
+  const sel = document.createElement('select');
+  if (allowNone) {
+    const o = document.createElement('option');
+    o.value = '__none__';
+    o.textContent = '— none —';
+    sel.appendChild(o);
+  }
+  for (const [group, sounds] of Object.entries(SOUNDS_BY_GROUP)) {
+    const og = document.createElement('optgroup');
+    og.label = group;
+    sounds.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s;
+      o.textContent = s;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  }
+  sel.value = currentValue;
+  return sel;
+}
+
+function buildScenes() {
+  const wrap = document.getElementById('scenes');
+  SCENES.forEach((scene) => {
+    layerState[scene.id] = [];
+    const div = document.createElement('div');
+    div.className = 'scene';
+    div.dataset.scene = scene.id;
+
+    const h = document.createElement('h2');
+    h.textContent = scene.title;
+    div.appendChild(h);
+
+    const playBtn = document.createElement('button');
+    playBtn.className = 'scene-play';
+    playBtn.textContent = '▶ play scene';
+    playBtn.onclick = () => toggleScene(scene.id);
+    div.appendChild(playBtn);
+
+    scene.layers.forEach((layer, idx) => {
+      const row = document.createElement('div');
+      row.className = 'layer';
+
+      const num = document.createElement('div');
+      num.className = 'layer-num';
+      num.textContent = String(idx + 1);
+      row.appendChild(num);
+
+      const ctrl = document.createElement('div');
+      ctrl.className = 'layer-controls';
+
+      const sel = buildSelect(layer.def, true);
+      sel.onchange = () => {
+        if (scenePlaying[scene.id]) replaceLayerInScene(scene.id, idx);
+      };
+      ctrl.appendChild(sel);
+
+      const volRow = document.createElement('div');
+      volRow.className = 'vol-row';
+      const vol = document.createElement('input');
+      vol.type = 'range'; vol.min = 0; vol.max = 100; vol.value = layer.vol;
+      const volNum = document.createElement('span');
+      volNum.className = 'vol-num';
+      volNum.textContent = layer.vol;
+      vol.oninput = () => {
+        volNum.textContent = vol.value;
+        const s = layerState[scene.id][idx];
+        if (s.gain) s.gain.gain.rampTo(parseInt(vol.value)/100, 0.1);
+        if (s.testGain) s.testGain.gain.rampTo(parseInt(vol.value)/100, 0.1);
+      };
+      volRow.appendChild(vol);
+      volRow.appendChild(volNum);
+      ctrl.appendChild(volRow);
+
+      row.appendChild(ctrl);
+
+      const testBtn = document.createElement('button');
+      testBtn.className = 'layer-test';
+      testBtn.textContent = '▶';
+      testBtn.title = 'test this layer alone';
+      testBtn.onclick = () => toggleLayerTest(scene.id, idx);
+      row.appendChild(testBtn);
+
+      layerState[scene.id].push({
+        sel, volInput: vol, volNum, testBtn,
+        player: null, gain: null,
+        testPlayer: null, testGain: null
+      });
+
+      div.appendChild(row);
+    });
+
+    wrap.appendChild(div);
+  });
+}
+
+function buildHotspots() {
+  const grid = document.getElementById('hotspot-grid');
+  HOTSPOTS.forEach((h) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'hotspot';
+
+    const nm = document.createElement('div');
+    nm.className = 'hotspot-name';
+    nm.textContent = h.name;
+    wrap.appendChild(nm);
+
+    const sel = buildSelect(h.def, true);
+    wrap.appendChild(sel);
+
+    const btn = document.createElement('button');
+    btn.className = 'hotspot-play';
+    btn.textContent = '▶ play';
+    wrap.appendChild(btn);
+
+    const state = { sel, btn, player: null, timer: null };
+    btn.onclick = () => playHotspot(state);
+    hotspotState.push(state);
+
+    grid.appendChild(wrap);
+  });
+}
+
+// ============================================================
+// AUDIO HELPERS
+// ============================================================
+function makePlayer(name, opts = {}) {
+  if (!name || name === '__none__') return null;
+  return new Tone.Player({
+    url: name + '.mp3',
+    loop: opts.loop !== false,
+    autostart: false,
+    fadeIn: opts.fadeIn ?? 0.6,
+    fadeOut: opts.fadeOut ?? 0.6
+  });
+}
+
+function setStatus(msg, warn = false) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.classList.toggle('warn', warn);
+}
+
+function requireAudio() {
+  if (!audioStarted) {
+    setStatus('click "start audio" first ↑', true);
+    return false;
+  }
+  return true;
+}
+
+// ============================================================
+// SCENE PLAYBACK
+// ============================================================
+function playScene(sceneId) {
+  const state = layerState[sceneId];
+  state.forEach((s, idx) => {
+    const name = s.sel.value;
+    if (!name || name === '__none__') return;
+    const player = makePlayer(name, { loop: true });
+    if (!player) return;
+    const gain = new Tone.Gain(parseInt(s.volInput.value)/100).connect(masterGain);
+    player.connect(gain);
+    s.player = player;
+    s.gain = gain;
+    player.load(name + '.mp3').then(() => {
+      try { player.start(); } catch(e) { console.error(e); }
+    }).catch(err => {
+      console.error('Failed to load', name, err);
+      setStatus('failed to load: ' + name + '.mp3', true);
+    });
+  });
+  scenePlaying[sceneId] = true;
+  updateScenePlayBtn(sceneId, true);
+}
+
+function stopScene(sceneId) {
+  const state = layerState[sceneId];
+  state.forEach(s => {
+    if (s.player) {
+      try { s.player.stop(); } catch(e) {}
+      try { s.player.dispose(); } catch(e) {}
+      s.player = null;
+    }
+    if (s.gain) {
+      try { s.gain.dispose(); } catch(e) {}
+      s.gain = null;
+    }
+  });
+  scenePlaying[sceneId] = false;
+  updateScenePlayBtn(sceneId, false);
+}
+
+function toggleScene(sceneId) {
+  if (!requireAudio()) return;
+  if (scenePlaying[sceneId]) stopScene(sceneId);
+  else playScene(sceneId);
+}
+
+function updateScenePlayBtn(sceneId, playing) {
+  const btn = document.querySelector(`.scene[data-scene="${sceneId}"] .scene-play`);
+  if (!btn) return;
+  if (playing) {
+    btn.textContent = '■ stop scene';
+    btn.classList.add('playing');
+  } else {
+    btn.textContent = '▶ play scene';
+    btn.classList.remove('playing');
+  }
+}
+
+function replaceLayerInScene(sceneId, idx) {
+  const s = layerState[sceneId][idx];
+  // stop old
+  if (s.player) {
+    try { s.player.stop(); } catch(e) {}
+    try { s.player.dispose(); } catch(e) {}
+    s.player = null;
+  }
+  if (s.gain) { try { s.gain.dispose(); } catch(e) {} s.gain = null; }
+  // start new
+  const name = s.sel.value;
+  if (!name || name === '__none__') return;
+  const player = makePlayer(name, { loop: true });
+  const gain = new Tone.Gain(parseInt(s.volInput.value)/100).connect(masterGain);
+  player.connect(gain);
+  s.player = player;
+  s.gain = gain;
+  player.load(name + '.mp3').then(() => {
+    try { player.start(); } catch(e) {}
+  }).catch(err => {
+    setStatus('failed to load: ' + name + '.mp3', true);
+  });
+}
+
+// ============================================================
+// SOLO / TEST PER LAYER
+// ============================================================
+function toggleLayerTest(sceneId, idx) {
+  if (!requireAudio()) return;
+  const s = layerState[sceneId][idx];
+
+  if (s.testPlayer) {
+    try { s.testPlayer.stop(); } catch(e) {}
+    try { s.testPlayer.dispose(); } catch(e) {}
+    if (s.testGain) { try { s.testGain.dispose(); } catch(e) {} }
+    s.testPlayer = null;
+    s.testGain = null;
+    s.testBtn.textContent = '▶';
+    s.testBtn.classList.remove('playing');
+    return;
+  }
+
+  const name = s.sel.value;
+  if (!name || name === '__none__') return;
+  const player = makePlayer(name, { loop: true });
+  const gain = new Tone.Gain(parseInt(s.volInput.value)/100).connect(masterGain);
+  player.connect(gain);
+  s.testPlayer = player;
+  s.testGain = gain;
+  s.testBtn.classList.add('loading');
+  player.load(name + '.mp3').then(() => {
+    s.testBtn.classList.remove('loading');
+    try { player.start(); } catch(e) {}
+    s.testBtn.textContent = '■';
+    s.testBtn.classList.add('playing');
+  }).catch(err => {
+    s.testBtn.classList.remove('loading');
+    setStatus('failed to load: ' + name + '.mp3', true);
+  });
+}
+
+// ============================================================
+// HOTSPOTS — single-shot
+// ============================================================
+function playHotspot(state) {
+  if (!requireAudio()) return;
+  const name = state.sel.value;
+  if (!name || name === '__none__') return;
+
+  // dispose previous if still hanging around
+  if (state.player) {
+    try { state.player.stop(); } catch(e) {}
+    try { state.player.dispose(); } catch(e) {}
+    state.player = null;
+  }
+  if (state.timer) { clearTimeout(state.timer); state.timer = null; }
+
+  const player = makePlayer(name, { loop: false, fadeOut: 0.5 });
+  player.connect(masterGain);
+  state.player = player;
+  state.btn.textContent = 'loading…';
+
+  player.load(name + '.mp3').then(() => {
+    state.btn.textContent = '■ stop';
+    state.btn.classList.add('playing');
+    try { player.start(); } catch(e) {}
+    // estimate duration; reset button when done
+    const dur = (player.buffer && player.buffer.duration) ? player.buffer.duration * 1000 + 500 : 30000;
+    state.timer = setTimeout(() => {
+      state.btn.textContent = '▶ play';
+      state.btn.classList.remove('playing');
+      try { player.dispose(); } catch(e) {}
+      state.player = null;
+    }, dur);
+  }).catch(err => {
+    state.btn.textContent = '▶ play';
+    setStatus('failed to load: ' + name + '.mp3', true);
+  });
+}
+
+// ============================================================
+// START AUDIO + MASTER VOLUME
+// ============================================================
+document.getElementById('start-audio').onclick = async function() {
+  if (audioStarted) return;
+  await Tone.start();
+  masterGain = new Tone.Gain(0.8).toDestination();
+  audioStarted = true;
+  this.textContent = '✓ audio running';
+  this.classList.add('active');
+  setStatus('audio: ready');
+};
+
+document.getElementById('master-vol').oninput = function() {
+  document.getElementById('master-vol-num').textContent = this.value;
+  if (masterGain) masterGain.gain.rampTo(parseInt(this.value)/100, 0.1);
+};
+
+// ============================================================
+// EXPORT
+// ============================================================
+document.getElementById('export-btn').onclick = function() {
+  let txt = 'DESCENT — Sound Configuration\n';
+  txt += '====================================\n';
+  txt += 'Generated: ' + new Date().toLocaleString() + '\n\n';
+
+  SCENES.forEach(scene => {
+    txt += scene.title.toUpperCase() + '\n';
+    txt += '------------------------------------\n';
+    const state = layerState[scene.id];
+    state.forEach((s, idx) => {
+      const name = s.sel.value;
+      if (name === '__none__') {
+        txt += `  Layer ${idx+1}: (empty)\n`;
+      } else {
+        txt += `  Layer ${idx+1}: ${name}.mp3 @ ${s.volInput.value}%\n`;
+      }
+    });
+    txt += '\n';
+  });
+
+  txt += 'HOTSPOT TRIGGERS\n';
+  txt += '------------------------------------\n';
+  hotspotState.forEach((h, i) => {
+    const v = h.sel.value;
+    txt += `  ${HOTSPOTS[i].name}: ${v === '__none__' ? '(empty)' : v + '.mp3'}\n`;
+  });
+
+  document.getElementById('export-text').value = txt;
+  document.getElementById('export-modal').classList.add('show');
+};
+document.getElementById('close-modal').onclick = () => {
+  document.getElementById('export-modal').classList.remove('show');
+};
+document.getElementById('copy-btn').onclick = () => {
+  const ta = document.getElementById('export-text');
+  ta.select();
+  ta.setSelectionRange(0, 99999);
+  try { document.execCommand('copy'); } catch(e) {}
+  if (navigator.clipboard) navigator.clipboard.writeText(ta.value).catch(()=>{});
+  document.getElementById('copy-btn').textContent = '✓ copied';
+  setTimeout(() => { document.getElementById('copy-btn').textContent = 'copy'; }, 1500);
+};
+
+// ============================================================
+// BOOT
+// ============================================================
+buildScenes();
+buildHotspots();
+</script>
+</body>
+</html>
