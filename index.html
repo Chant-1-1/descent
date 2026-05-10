@@ -49,7 +49,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 <script>
 let started=false,particles=[],hotspots=[],creatures=[],stationElements=[],fishSwarms=[],deepCreatures=[],stationBG=null;
-let seaDevilImg=null;
+let seaDevilImg=null,stationBgImg=null;
 let camDX=0,camDY=0,lastGlitch=0,lastInteract=0,idleWPlayed=false;
 let glitchFX,whisperN,whisperF,whisperG,hoverPing;
 let sceneBuses={},layerPlayers={},layerGains={},hotspotPlayers={},hotspotRev;
@@ -404,7 +404,7 @@ function drawVizParade(a){
   ['0m','—100m','—200m','—500m','—1000m','—2000m'].forEach((d,i)=>{text(d,width*0.05,height*0.12+i*(height*0.7/5));});
   for(let i=0;i<120;i++){const d=random(1);if(random()<d*0.6*t){fill(80,180,180,a*0.12);circle(random(width*0.08,width*0.92),height*0.12+d*(height*0.7),random(1,2.5));}}
   const scrollX=t*width*0.8;
-  const parade=[{name:'human',cur:'1.5m',depth:0.12,w:42,h:105,off:0},
+  const parade=[{name:'human',cur:'1.5m',depth:0.12,w:14,h:35,off:0},
     {name:'krill swarm',cur:'15cm',anc:'6cm',depth:0.18,w:75,h:30,off:70},
     {name:'icefish',cur:'1.2m',anc:'0.6m',depth:0.28,w:120,h:48,off:150},
     {name:'toothfish',cur:'2m',anc:'0.8m',depth:0.38,w:150,h:66,off:240},
@@ -633,7 +633,10 @@ function draw(){
   const ac=scene===0?[120,180,180]:scene===1?[70,65,55]:[35,35,30];
   for(let l of archLines){stroke(ac[0],ac[1],ac[2],l.a);strokeWeight(0.5);line(l.x1,l.y1,l.x2,l.y2);}noStroke();
   if(scene===0&&stationBG)stationBG.display();
-  if(scene>=1)drawStationInterior();
+  if(scene>=1){
+    if(stationBgImg){push();tint(255,60);image(stationBgImg,0,0,width,height);noTint();pop();}
+    drawStationInterior();
+  }
   if(scene===2){for(let i=0;i<6;i++){fill(220,200,140,(12-i*1.8));noStroke();rect(width/2-14-i*5,0,28+i*10,height);}}
   for(let p of particles){p.update();p.display();}
   if(scene===0){
@@ -663,7 +666,8 @@ function mousePressed(){if(!started||transitioning)return;lastInteract=millis();
 function navScene(target){if(transitioning||eyeActive||activeViz||target===scene)return;startTransition(target);}
 document.getElementById('start-overlay').addEventListener('click',async()=>{await Tone.start();initAudio();document.getElementById('start-overlay').classList.add('fade');
   setTimeout(()=>document.getElementById('start-overlay').style.display='none',3000);
-  loadImage('sea-devil.svg',img=>{seaDevilImg=img;},()=>{console.warn('sea-devil.svg not found');});
+  loadImage('sea-devil.svg',img=>{seaDevilImg=img;},()=>{});
+  loadImage('station-bg.png',img=>{stationBgImg=img;},()=>{});
   setTimeout(()=>{started=true;showSub("you wake.\nthe air is heavy. wet.\nyou have never seen the surface.",6000);},2500);});
 // ===================== PRESENTATION MODE (step-by-step) =====================
 let presMode=false,presStep=-1;
