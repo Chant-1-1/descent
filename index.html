@@ -404,14 +404,14 @@ function drawVizParade(a){
   ['0m','—100m','—200m','—500m','—1000m','—2000m'].forEach((d,i)=>{text(d,width*0.05,height*0.12+i*(height*0.7/5));});
   for(let i=0;i<120;i++){const d=random(1);if(random()<d*0.6*t){fill(80,180,180,a*0.12);circle(random(width*0.08,width*0.92),height*0.12+d*(height*0.7),random(1,2.5));}}
   const scrollX=t*width*0.8;
-  const parade=[{name:'human',cur:'1.5m',depth:0.12,w:14,h:35,off:0},
-    {name:'krill swarm',cur:'15cm',anc:'6cm',depth:0.18,w:25,h:10,off:70},
-    {name:'icefish',cur:'1.2m',anc:'0.6m',depth:0.28,w:40,h:16,off:150},
-    {name:'toothfish',cur:'2m',anc:'0.8m',depth:0.38,w:50,h:22,off:240},
-    {name:'sea spider',cur:'2.5m',anc:'0.7m',depth:0.5,w:65,h:55,off:340},
-    {name:'anglerfish',cur:'3.5m',anc:'0.4m',depth:0.62,w:80,h:55,off:450},
-    {name:'giant sponge',cur:'8m',anc:'1m',depth:0.78,w:70,h:90,off:560},
-    {name:'whale',cur:'50m',anc:'25m',depth:0.42,w:180,h:65,off:680}];
+  const parade=[{name:'human',cur:'1.5m',depth:0.12,w:42,h:105,off:0},
+    {name:'krill swarm',cur:'15cm',anc:'6cm',depth:0.18,w:75,h:30,off:70},
+    {name:'icefish',cur:'1.2m',anc:'0.6m',depth:0.28,w:120,h:48,off:150},
+    {name:'toothfish',cur:'2m',anc:'0.8m',depth:0.38,w:150,h:66,off:240},
+    {name:'sea spider',cur:'2.5m',anc:'0.7m',depth:0.5,w:195,h:165,off:340},
+    {name:'anglerfish',cur:'3.5m',anc:'0.4m',depth:0.62,w:240,h:165,off:450},
+    {name:'giant sponge',cur:'8m',anc:'1m',depth:0.78,w:210,h:270,off:560},
+    {name:'whale',cur:'50m',anc:'25m',depth:0.42,w:540,h:195,off:680}];
   for(let m of parade){const px=width*0.08+scrollX-m.off,py=height*0.12+m.depth*(height*0.7);if(px<-120||px>width+120)continue;
     const fi2=constrain(map(px,width*0.03,width*0.18,0,1),0,1);push();translate(px,py);
     if(m.name==='human'){stroke(140,180,170,a*0.7*fi2);strokeWeight(1.5);noFill();circle(0,-m.h*0.8,9);line(0,-m.h*0.75,3,-m.h*0.4);line(3,-m.h*0.6,-6,-m.h*0.45);line(3,-m.h*0.6,9,-m.h*0.5);line(3,-m.h*0.4,-3+sin(frameCount*0.08)*3,0);line(3,-m.h*0.4,8-sin(frameCount*0.08)*3,0);
