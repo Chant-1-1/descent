@@ -288,6 +288,15 @@ function generateStationElements(){
     w:random(60,180),h:random(20,50),drift:random(0.1,0.4),off:random(1000)});
 }
 function drawStationInterior(){
+  // Lamp glow (right side, matches image)
+  const lx=width*0.82,ly=height*0.48;
+  const flicker=sin(frameCount*0.035)*0.1+0.9;
+  noStroke();fill(200,160,80,8*flicker);circle(lx,ly,180);fill(210,170,90,14*flicker);circle(lx,ly,90);fill(220,185,100,22*flicker);circle(lx,ly,40);
+  // Downward light cone
+  const ctx=drawingContext;ctx.save();
+  const g=ctx.createRadialGradient(lx,ly,5,lx,ly+60,120);
+  g.addColorStop(0,'rgba(210,175,95,'+(.06*flicker).toFixed(3)+')');g.addColorStop(1,'rgba(210,175,95,0)');
+  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(lx-8,ly);ctx.lineTo(lx-70,ly+140);ctx.lineTo(lx+70,ly+140);ctx.lineTo(lx+8,ly);ctx.fill();ctx.restore();
   for(let el of stationElements){
     if(el.type==='light'){
       const b=sin(frameCount*el.rate)*0.5+0.5;noStroke();
