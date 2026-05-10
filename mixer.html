@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>DESCENT — Sound Mixer</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#0a0a0f;color:#7ab;font-family:'Courier New',monospace;padding:20px;overflow-y:auto;}
+  h1{font-size:15px;letter-spacing:0.4em;color:#4a8a8a;margin-bottom:8px;font-weight:normal;}
+  .tabs{display:flex;gap:4px;margin:15px 0;}
+  .tab{padding:8px 20px;background:rgba(40,60,60,0.3);border:1px solid rgba(80,140,140,0.2);color:#5a9a9a;font-family:inherit;font-size:13px;letter-spacing:0.2em;cursor:pointer;transition:all 0.2s;}
+  .tab:hover{background:rgba(60,100,100,0.3);}
+  .tab.active{background:rgba(60,120,120,0.25);border-color:rgba(120,200,200,0.5);color:#aee;}
+  .scene-panel{display:none;}
+  .scene-panel.active{display:block;}
+  .section{margin:15px 0 8px;font-size:11px;letter-spacing:0.3em;color:#5a9a9a;border-bottom:1px solid #1a2a2a;padding-bottom:4px;}
+  .track{display:flex;align-items:center;gap:10px;padding:6px 10px;margin:3px 0;border-radius:3px;transition:background 0.2s;min-height:36px;}
+  .track:hover{background:rgba(80,140,140,0.06);}
+  .track.playing{background:rgba(60,120,100,0.12);border-left:2px solid rgba(100,200,180,0.5);}
+  .btn{background:rgba(80,160,160,0.15);border:1px solid rgba(80,160,160,0.3);color:#8cc;font-family:inherit;font-size:11px;padding:4px 12px;border-radius:3px;cursor:pointer;min-width:42px;transition:all 0.15s;}
+  .btn:hover{background:rgba(80,160,160,0.3);}
+  .btn.stop{background:rgba(160,60,60,0.15);border-color:rgba(160,60,60,0.3);color:#c88;}
+  .btn.stop:hover{background:rgba(160,60,60,0.3);}
+  .btn.active{background:rgba(60,160,100,0.25);border-color:rgba(60,160,100,0.5);color:#8da;}
+  .name{font-size:12px;color:#7ab;min-width:200px;}
+  .dur{font-size:10px;color:#4a7a7a;min-width:40px;}
+  input[type=range]{-webkit-appearance:none;height:3px;background:rgba(80,140,140,0.3);outline:none;border-radius:2px;cursor:pointer;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#8cc;cursor:pointer;}
+  .vol-label{font-size:9px;color:#4a7a7a;min-width:28px;text-align:right;}
+  .master{display:flex;align-items:center;gap:12px;padding:10px;background:rgba(40,60,60,0.2);border-radius:4px;margin:10px 0;}
+  .master span{font-size:11px;color:#5a9a9a;letter-spacing:0.2em;}
+  .scene-controls{display:flex;gap:8px;margin:10px 0;}
+  .loading{color:#4a7a7a;font-size:11px;padding:4px 0;}
+  #status{position:fixed;top:10px;right:20px;font-size:10px;color:#4a7a7a;letter-spacing:0.2em;}
+  .loop-label{font-size:9px;color:#4a7a7a;cursor:pointer;display:flex;align-items:center;gap:3px;}
+  .loop-label input{cursor:pointer;}
+</style></head>
+<body>
+<h1>descent — sound mixer</h1>
+<p style="font-size:11px;color:#4a7a7a;margin-bottom:10px;">sounds laden von github · klick "init audio" zum starten</p>
+<div id="status">loading...</div>
+
+<div class="master">
+  <button class="btn" id="init-btn" onclick="initAudio()">init audio</button>
+  <span>master</span>
+  <input type="range" id="master-vol" min="-30" max="10" value="0" style="width:200px;" oninput="setMaster(this.value)">
+  <span id="master-val" style="font-size:10px;">0 dB</span>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showScene(0)">i · the world</button>
+  <button class="tab" onclick="showScene(1)">ii · the station</button>
+  <button class="tab" onclick="showScene(2)">iii · the eye</button>
+  <button class="tab" onclick="showScene(3)">alle sounds</button>
+</div>
+
+<div id="scene-0" class="scene-panel active">
+  <div class="scene-controls">
+    <button class="btn" onclick="playScene(0)">▶ alle starten</button>
+    <button class="btn stop" onclick="stopScene(0)">■ alle stoppen</button>
+  </div>
+  <div class="section">ambient loops</div>
+  <div id="world-ambient"></div>
+  <div class="section">hotspot / effekte</div>
+  <div id="world-fx"></div>
+</div>
+
+<div id="scene-1" class="scene-panel">
+  <div class="scene-controls">
+    <button class="btn" onclick="playScene(1)">▶ alle starten</button>
+    <button class="btn stop" onclick="stopScene(1)">■ alle stoppen</button>
+  </div>
+  <div class="section">ambient loops</div>
+  <div id="station-ambient"></div>
+  <div class="section">hotspot / effekte</div>
+  <div id="station-fx"></div>
+</div>
+
+<div id="scene-2" class="scene-panel">
+  <div class="scene-controls">
+    <button class="btn" onclick="playScene(2)">▶ alle starten</button>
+    <button class="btn stop" onclick="stopScene(2)">■ alle stoppen</button>
+  </div>
+  <div class="section">ambient loops</div>
+  <div id="eye-ambient"></div>
+  <div class="section">hotspot / effekte</div>
+  <div id="eye-fx"></div>
+</div>
+
+<div id="scene-3" class="scene-panel">
+  <div class="scene-controls">
+    <button class="btn" onclick="stopAll()">■ alle stoppen</button>
+  </div>
+  <div class="section">alle sounds</div>
+  <div id="all-sounds"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<script>
+const BASE='https://chant-1-1.github.io/descent/';
+const scenes=[
+  {name:'world',ambient:[
+    {file:'below-the-sea.mp3',label:'below the sea (hauptambient)',vol:-6,loop:true},
+    {file:'underwater-choir.mp3',label:'underwater choir',vol:-10,loop:true},
+    {file:'humpback-whale.mp3',label:'humpback whale song',vol:-14,loop:true},
+    {file:'underwater-ambience-lake.mp3',label:'underwater ambience lake',vol:-12,loop:true},
+    {file:'underwater-base.mp3',label:'underwater base',vol:-12,loop:true},
+  ],fx:[
+    {file:'whale-fx1.mp3',label:'whale fx 1 (kurz)',vol:-6,loop:false},
+    {file:'whale-fx2.mp3',label:'whale fx 2 (kurz)',vol:-6,loop:false},
+    {file:'whale-low.mp3',label:'whale low',vol:-8,loop:false},
+    {file:'whale-song.mp3',label:'whale song (kurz)',vol:-6,loop:false},
+    {file:'coral-reef.mp3',label:'coral reef',vol:-8,loop:false},
+    {file:'abyss.mp3',label:'abyss fx',vol:-6,loop:false},
+    {file:'dolphin-song.mp3',label:'dolphin song',vol:-10,loop:false},
+    {file:'dive-deep.mp3',label:'dive deep',vol:-8,loop:false},
+  ]},
+  {name:'station',ambient:[
+    {file:'spacecraft-bg.mp3',label:'spacecraft background (hauptambient)',vol:-6,loop:true},
+    {file:'factory-ambience.mp3',label:'factory / industrial',vol:-10,loop:true},
+    {file:'machine-cycle.mp3',label:'machine cycle',vol:-12,loop:true},
+    {file:'spaceship-ambience.mp3',label:'spaceship ambience',vol:-10,loop:true},
+    {file:'industrial-spire.mp3',label:'industrial spire',vol:-12,loop:true},
+  ],fx:[
+    {file:'metal-clanking.mp3',label:'metal clanking',vol:-6,loop:false},
+    {file:'metal-creak-long.mp3',label:'metal creak (lang)',vol:-6,loop:false},
+    {file:'metal-creak-short.mp3',label:'metal creak (kurz)',vol:-4,loop:false},
+    {file:'valve-relief.mp3',label:'valve relief',vol:-6,loop:false},
+    {file:'pump-release.mp3',label:'pump release',vol:-4,loop:false},
+    {file:'water-pipe.mp3',label:'water pipe',vol:-8,loop:false},
+    {file:'trickling-loop.mp3',label:'trickling water',vol:-10,loop:true},
+  ]},
+  {name:'eye',ambient:[
+    {file:'drone-filter.mp3',label:'drone filter (hauptambient)',vol:-6,loop:true},
+    {file:'morning-ambient.mp3',label:'morning ambient',vol:-8,loop:true},
+    {file:'dive-deep.mp3',label:'dive deep (tief)',vol:-10,loop:true},
+  ],fx:[
+    {file:'whale-low.mp3',label:'whale low (fern)',vol:-14,loop:false},
+    {file:'spaceship-ambience.mp3',label:'mechanik raum',vol:-12,loop:false},
+    {file:'whale-song.mp3',label:'letzter klang',vol:-10,loop:false},
+  ]}
+];
+
+let players={};
+let audioReady=false;
+
+// Build UI
+function buildUI(){
+  scenes.forEach((sc,si)=>{
+    const ambDiv=document.getElementById(['world-ambient','station-ambient','eye-ambient'][si]);
+    const fxDiv=document.getElementById(['world-fx','station-fx','eye-fx'][si]);
+    sc.ambient.forEach(s=>ambDiv.appendChild(makeTrack(s,si)));
+    sc.fx.forEach(s=>fxDiv.appendChild(makeTrack(s,si)));
+  });
+  // All sounds tab
+  const allDiv=document.getElementById('all-sounds');
+  const allFiles=[...new Set([...scenes[0].ambient,...scenes[0].fx,...scenes[1].ambient,...scenes[1].fx,...scenes[2].ambient,...scenes[2].fx].map(s=>s.file))];
+  allFiles.forEach(f=>{
+    const s={file:f,label:f.replace('.mp3',''),vol:-8,loop:false};
+    allDiv.appendChild(makeTrack(s,-1));
+  });
+}
+
+function makeTrack(sound,sceneIdx){
+  const id=sound.file+'_'+sceneIdx;
+  const row=document.createElement('div');
+  row.className='track';
+  row.id='track-'+id.replace(/[^a-z0-9]/gi,'_');
+  row.innerHTML=`
+    <button class="btn" onclick="togglePlay('${id}')">▶</button>
+    <span class="name">${sound.label}</span>
+    <span class="dur"></span>
+    <label class="loop-label"><input type="checkbox" ${sound.loop?'checked':''} onchange="setLoop('${id}',this.checked)">loop</label>
+    <input type="range" min="-30" max="6" value="${sound.vol}" style="width:150px;" oninput="setVol('${id}',this.value)">
+    <span class="vol-label">${sound.vol}dB</span>
+  `;
+  // Store config
+  players[id]={sound,player:null,playing:false,el:row};
+  return row;
+}
+
+async function initAudio(){
+  await Tone.start();
+  audioReady=true;
+  document.getElementById('init-btn').textContent='audio ready ✓';
+  document.getElementById('init-btn').style.borderColor='rgba(60,180,60,0.5)';
+  let total=Object.keys(players).length,loaded=0;
+  document.getElementById('status').textContent=`loading 0/${total}...`;
+  for(const id in players){
+    try{
+      const p=players[id];
+      p.player=new Tone.Player({url:BASE+p.sound.file,loop:p.sound.loop,onload:()=>{
+        loaded++;document.getElementById('status').textContent=loaded>=total?'all loaded ✓':`loading ${loaded}/${total}...`;
+      }}).toDestination();
+      p.player.volume.value=p.sound.vol;
+    }catch(e){console.error('Failed:',id,e);}
+  }
+}
+
+function togglePlay(id){
+  if(!audioReady||!players[id])return;
+  const p=players[id];
+  if(!p.player||p.player.state==='loading')return;
+  if(p.playing){
+    p.player.stop();p.playing=false;
+    p.el.classList.remove('playing');
+    p.el.querySelector('.btn').textContent='▶';
+  }else{
+    p.player.volume.value=parseFloat(p.el.querySelector('input[type=range]').value);
+    p.player.loop=p.el.querySelector('input[type=checkbox]').checked;
+    p.player.start();p.playing=true;
+    p.el.classList.add('playing');
+    p.el.querySelector('.btn').textContent='■';
+  }
+}
+
+function setVol(id,val){
+  if(!players[id])return;
+  players[id].el.querySelector('.vol-label').textContent=val+'dB';
+  if(players[id].player)players[id].player.volume.value=parseFloat(val);
+}
+
+function setLoop(id,loop){
+  if(players[id]&&players[id].player)players[id].player.loop=loop;
+}
+
+function setMaster(val){
+  Tone.Destination.volume.value=parseFloat(val);
+  document.getElementById('master-val').textContent=val+' dB';
+}
+
+function playScene(si){
+  if(!audioReady)return;
+  const sc=scenes[si];
+  [...sc.ambient].forEach(s=>{
+    const id=s.file+'_'+si;
+    const p=players[id];
+    if(p&&p.player&&!p.playing){togglePlay(id);}
+  });
+}
+
+function stopScene(si){
+  const sc=scenes[si];
+  [...sc.ambient,...sc.fx].forEach(s=>{
+    const id=s.file+'_'+si;
+    const p=players[id];
+    if(p&&p.playing){togglePlay(id);}
+  });
+}
+
+function stopAll(){
+  for(const id in players){if(players[id].playing)togglePlay(id);}
+}
+
+function showScene(i){
+  document.querySelectorAll('.scene-panel').forEach((p,j)=>p.classList.toggle('active',j===i));
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+  // Stop other scenes when switching (optional)
+}
+
+buildUI();
+</script>
+</body></html>
