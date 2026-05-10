@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DESCENT — Creature Designer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0a0e12;color:#b8d8d8;font-family:'Courier New',monospace;min-height:100vh;}
+h1{font-size:15px;letter-spacing:0.3em;text-transform:lowercase;opacity:0.85;padding:16px 20px 4px;}
+.sub{font-size:10px;opacity:0.4;padding:0 20px 12px;letter-spacing:0.1em;}
+.layout{display:grid;grid-template-columns:260px 1fr 260px;gap:12px;padding:0 12px 12px;height:calc(100vh - 70px);}
+@media(max-width:900px){.layout{grid-template-columns:1fr;height:auto;}}
+
+.panel{background:#141a20;border:1px solid #2a3540;padding:14px;overflow-y:auto;}
+.panel h2{font-size:12px;letter-spacing:0.2em;text-transform:lowercase;opacity:0.85;margin-bottom:10px;}
+
+label{display:block;font-size:10px;opacity:0.55;margin:8px 0 3px;letter-spacing:0.1em;}
+label:first-child{margin-top:0;}
+select,input[type=text]{background:#0a0e12;color:#b8d8d8;border:1px solid #2a3540;padding:7px 8px;font-family:inherit;font-size:11px;width:100%;}
+select:focus,input:focus{outline:none;border-color:#ff7755;}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:#2a3540;border-radius:2px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:#b8d8d8;border-radius:50%;cursor:pointer;}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;background:#b8d8d8;border-radius:50%;cursor:pointer;border:none;}
+.slider-row{display:flex;align-items:center;gap:8px;}
+.slider-row input[type=range]{flex:1;}
+.slider-val{font-size:10px;opacity:0.5;min-width:28px;text-align:right;}
+input[type=color]{width:40px;height:28px;border:1px solid #2a3540;background:#0a0e12;cursor:pointer;padding:1px;}
+
+.preview-area{background:#030810;border:1px solid #2a3540;display:flex;align-items:center;justify-content:center;position:relative;min-height:300px;}
+.preview-area svg{max-width:100%;max-height:100%;}
+
+.btn{background:#2a3540;color:#b8d8d8;border:1px solid #3a4550;padding:10px 14px;width:100%;cursor:pointer;font-family:inherit;font-size:11px;letter-spacing:0.15em;text-transform:lowercase;margin-top:8px;}
+.btn:hover{background:#3a4550;}
+.btn.primary{background:#ff7755;color:#000;border-color:#ff7755;font-weight:bold;}
+.btn.primary:hover{background:#ff8866;}
+.btn.danger{border-color:#884444;}
+.btn.danger:hover{background:#442222;}
+
+.saved-item{background:#1a2025;border:1px solid #2a3540;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;gap:8px;cursor:pointer;}
+.saved-item:hover{border-color:#3a4550;}
+.saved-item .swatch{width:24px;height:24px;border:1px solid #2a3540;flex-shrink:0;}
+.saved-item .info{flex:1;min-width:0;}
+.saved-item .name{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.saved-item .type{font-size:9px;opacity:0.4;}
+.saved-item .del{width:20px;height:20px;background:none;border:none;color:#665555;cursor:pointer;font-size:14px;font-family:inherit;padding:0;flex-shrink:0;}
+.saved-item .del:hover{color:#ff5555;}
+
+#export-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;align-items:center;justify-content:center;padding:20px;}
+#export-modal.show{display:flex;}
+.modal-inner{background:#141a20;border:1px solid #2a3540;padding:20px;max-width:640px;width:100%;}
+.modal-inner h3{font-size:12px;letter-spacing:0.2em;opacity:0.85;margin-bottom:12px;text-transform:lowercase;}
+textarea{width:100%;height:340px;background:#0a0e12;color:#b8d8d8;border:1px solid #2a3540;padding:12px;font-family:inherit;font-size:11px;line-height:1.5;resize:vertical;}
+.modal-actions{display:flex;gap:8px;margin-top:10px;justify-content:flex-end;}
+.modal-actions button{background:#2a3540;color:#b8d8d8;border:1px solid #3a4550;padding:8px 16px;cursor:pointer;font-family:inherit;font-size:11px;text-transform:lowercase;}
+.modal-actions button:hover{background:#3a4550;}
+.modal-actions button.primary{background:#ff7755;color:#000;border-color:#ff7755;}
+
+.swarm-toggle{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:10px;opacity:0.6;}
+.swarm-toggle input{cursor:pointer;}
+</style>
+</head>
+<body>
+<h1>descent — creature designer</h1>
+<p class="sub">design · name · export to claude</p>
+
+<div class="layout">
+  <div class="panel" id="controls">
+    <h2>shape</h2>
+    <label>type</label>
+    <select id="type-sel"></select>
+    <div id="param-sliders"></div>
+    <label>fill color</label>
+    <input type="color" id="fill-color" value="#0a0e14">
+    <label>opacity</label>
+    <div class="slider-row">
+      <input type="range" id="opacity" min="5" max="100" value="70">
+      <span class="slider-val" id="opacity-val">70</span>
+    </div>
+    <label>rotation (°)</label>
+    <div class="slider-row">
+      <input type="range" id="rotation" min="-45" max="45" value="-5">
+      <span class="slider-val" id="rotation-val">-5</span>
+    </div>
+    <div class="swarm-toggle">
+      <input type="checkbox" id="show-swarm"><label for="show-swarm" style="margin:0;opacity:1;">show as swarm</label>
+    </div>
+    <hr style="border:none;border-top:1px solid #2a3540;margin:14px 0;">
+    <label>name</label>
+    <input type="text" id="creature-name" placeholder="e.g. small fish, big whale...">
+    <button class="btn primary" onclick="saveCreature()" style="margin-top:10px;">save creature</button>
+  </div>
+
+  <div class="preview-area" id="preview"></div>
+
+  <div class="panel">
+    <h2>saved designs</h2>
+    <div id="saved-list"></div>
+    <button class="btn primary" onclick="exportAll()" style="margin-top:12px;">export all</button>
+    <button class="btn danger" onclick="if(confirm('Alles löschen?')){saved=[];renderSaved();}" style="margin-top:4px;">clear all</button>
+  </div>
+</div>
+
+<div id="export-modal">
+  <div class="modal-inner">
+    <h3>send this to claude</h3>
+    <textarea id="export-text" readonly></textarea>
+    <div class="modal-actions">
+      <button onclick="document.getElementById('export-modal').classList.remove('show')">close</button>
+      <button class="primary" onclick="copyExport()">copy</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// === CREATURE TYPES ===
+const TYPES = {
+  fish: {
+    label: 'fish (bowtie)',
+    params: [
+      {id:'headW',  label:'head width',   min:6,  max:30, def:14},
+      {id:'headH',  label:'head height',  min:3,  max:18, def:7},
+      {id:'tailW',  label:'tail width',   min:6,  max:30, def:16},
+      {id:'tailH',  label:'tail height',  min:3,  max:18, def:8},
+      {id:'pinch',  label:'pinch width',  min:0,  max:6,  def:1},
+      {id:'pinchH', label:'pinch height', min:0,  max:5,  def:1},
+      {id:'scale',  label:'scale',        min:5,  max:30, def:10, divisor:10}
+    ],
+    draw: (p) => {
+      const s = (p.scale||10)/10;
+      const hw=p.headW*s, hh=p.headH*s, tw=p.tailW*s, th=p.tailH*s, px=p.pinch*s, ph=p.pinchH*s;
+      return `M ${-hw},${-hh} L ${px},${-ph} L ${tw},${-th} L ${tw},${th} L ${px},${ph} L ${-hw},${hh} Z`;
+    }
+  },
+  whale: {
+    label: 'whale',
+    params: [
+      {id:'bodyW',  label:'body width',   min:40, max:200, def:110},
+      {id:'bodyH',  label:'body height',  min:15, max:80,  def:32},
+      {id:'tailW',  label:'tail fluke W', min:10, max:60,  def:25},
+      {id:'tailH',  label:'tail fluke H', min:10, max:50,  def:25},
+      {id:'finW',   label:'fin width',    min:5,  max:40,  def:20},
+      {id:'finH',   label:'fin height',   min:5,  max:35,  def:15},
+      {id:'eyeR',   label:'eye size',     min:1,  max:8,   def:3}
+    ],
+    draw: (p) => {
+      let svg = '';
+      svg += `<ellipse cx="0" cy="0" rx="${p.bodyW}" ry="${p.bodyH}"/>`;
+      svg += `<path d="M ${p.bodyW},0 Q ${p.bodyW+p.tailW*0.6},${-p.tailH*0.4} ${p.bodyW+p.tailW},${-p.tailH} Q ${p.bodyW+p.tailW*0.4},${-p.tailH*0.1} ${p.bodyW},0"/>`;
+      svg += `<path d="M ${p.bodyW},0 Q ${p.bodyW+p.tailW*0.6},${p.tailH*0.4} ${p.bodyW+p.tailW},${p.tailH} Q ${p.bodyW+p.tailW*0.4},${p.tailH*0.1} ${p.bodyW},0"/>`;
+      svg += `<path d="M ${-p.bodyW*0.3},${p.bodyH} Q ${-p.bodyW*0.3-p.finW*0.5},${p.bodyH+p.finH} ${-p.bodyW*0.3-p.finW},${p.bodyH+p.finH} Q ${-p.bodyW*0.3-p.finW*0.3},${p.bodyH+p.finH*0.5} ${-p.bodyW*0.3},${p.bodyH}"/>`;
+      svg += `<circle cx="${-p.bodyW*0.7}" cy="${-p.bodyH*0.2}" r="${p.eyeR}" fill="#1a3838" opacity="0.6"/>`;
+      return svg;
+    },
+    isMultiElement: true
+  },
+  jellyfish: {
+    label: 'jellyfish',
+    params: [
+      {id:'bellW',    label:'bell width',      min:10, max:60,  def:28},
+      {id:'bellH',    label:'bell height',     min:8,  max:40,  def:20},
+      {id:'tentacles',label:'tentacle count',  min:2,  max:8,   def:4},
+      {id:'tentLen',  label:'tentacle length', min:20, max:120, def:65},
+      {id:'tentCurve',label:'tentacle curve',  min:0,  max:30,  def:10},
+      {id:'glowR',    label:'inner glow size', min:0,  max:20,  def:5}
+    ],
+    draw: (p) => {
+      let svg = '';
+      svg += `<ellipse cx="0" cy="0" rx="${p.bellW}" ry="${p.bellH}"/>`;
+      svg += `<ellipse cx="0" cy="0" rx="${p.bellW*0.7}" ry="${p.bellH*0.65}" opacity="0.4"/>`;
+      const spacing = (p.bellW*2)/(p.tentacles+1);
+      for(let i=0;i<p.tentacles;i++){
+        const x = -p.bellW + spacing*(i+1);
+        const cx1 = x + (i%2===0?p.tentCurve:-p.tentCurve);
+        svg += `<path d="M ${x},${p.bellH*0.7} Q ${cx1},${p.bellH+p.tentLen*0.5} ${x+p.tentCurve*0.3},${p.bellH+p.tentLen}" fill="none" stroke="STROKE" stroke-width="1.2" opacity="0.5"/>`;
+      }
+      if(p.glowR>0){
+        svg += `<circle cx="0" cy="2" r="${p.glowR}" fill="#1a4040" opacity="0.3"/>`;
+      }
+      return svg;
+    },
+    isMultiElement: true,
+    hasStroke: true
+  },
+  anglerfish: {
+    label: 'anglerfish',
+    params: [
+      {id:'bodyW',  label:'body width',    min:20, max:100, def:45},
+      {id:'bodyH',  label:'body height',   min:15, max:60,  def:32},
+      {id:'jawW',   label:'jaw width',     min:10, max:50,  def:25},
+      {id:'jawH',   label:'jaw opening',   min:5,  max:25,  def:12},
+      {id:'teeth',  label:'teeth count',   min:0,  max:10,  def:5},
+      {id:'lureLen', label:'lure length',  min:15, max:80,  def:40},
+      {id:'lureR',  label:'lure glow',     min:2,  max:12,  def:5},
+      {id:'eyeR',   label:'eye size',      min:1,  max:8,   def:4}
+    ],
+    draw: (p) => {
+      let svg = '';
+      svg += `<ellipse cx="0" cy="0" rx="${p.bodyW}" ry="${p.bodyH}"/>`;
+      svg += `<path d="M ${p.bodyW*0.5},${p.bodyH*0.3} L ${p.bodyW*0.5+p.jawW},${p.jawH} L ${p.bodyW*0.5+p.jawW},${-p.jawH*0.3} Z" opacity="0.7"/>`;
+      for(let i=0;i<p.teeth;i++){
+        const tx = p.bodyW*0.5 + (p.jawW/(p.teeth))*(i+0.5);
+        svg += `<polygon points="${tx},-${p.jawH*0.15} ${tx+2},${p.jawH*0.4} ${tx-2},${p.jawH*0.4}" fill="#2a4545" opacity="0.5"/>`;
+      }
+      svg += `<path d="M ${-p.bodyW*0.2},${-p.bodyH} Q ${-p.bodyW*0.1},${-p.bodyH-p.lureLen*0.7} ${-p.bodyW*0.3+5},${-p.bodyH-p.lureLen}" fill="none" stroke="STROKE" stroke-width="0.8" opacity="0.4"/>`;
+      svg += `<circle cx="${-p.bodyW*0.3+5}" cy="${-p.bodyH-p.lureLen}" r="${p.lureR}" fill="#50ffd0" opacity="0.6"/>`;
+      svg += `<circle cx="${-p.bodyW*0.3+5}" cy="${-p.bodyH-p.lureLen}" r="${p.lureR*2.5}" fill="#50ffd0" opacity="0.08"/>`;
+      svg += `<circle cx="${-p.bodyW*0.4}" cy="${-p.bodyH*0.2}" r="${p.eyeR}" fill="#1a4040" opacity="0.5"/>`;
+      return svg;
+    },
+    isMultiElement: true,
+    hasStroke: true
+  },
+  seaspider: {
+    label: 'sea spider',
+    params: [
+      {id:'bodyR',  label:'body size',    min:5,  max:25, def:12},
+      {id:'legs',   label:'leg count',    min:4,  max:14, def:10},
+      {id:'legLen', label:'leg length',   min:15, max:80, def:40},
+      {id:'legW',   label:'leg thickness',min:5,  max:20, def:10, divisor:10},
+      {id:'wobble', label:'leg wobble',   min:0,  max:20, def:8}
+    ],
+    draw: (p) => {
+      let svg = '';
+      svg += `<circle cx="0" cy="0" r="${p.bodyR}"/>`;
+      const lw = (p.legW||10)/10;
+      for(let i=0;i<p.legs;i++){
+        const a = (Math.PI*2/p.legs)*i;
+        const ex = Math.cos(a)*p.legLen;
+        const ey = Math.sin(a)*p.legLen;
+        const mx = Math.cos(a)*p.legLen*0.5 + Math.cos(a+1.5)*p.wobble;
+        const my = Math.sin(a)*p.legLen*0.5 + Math.sin(a+1.5)*p.wobble;
+        svg += `<path d="M ${Math.cos(a)*p.bodyR},${Math.sin(a)*p.bodyR} Q ${mx},${my} ${ex},${ey}" fill="none" stroke="STROKE" stroke-width="${lw}" opacity="0.6"/>`;
+      }
+      svg += `<circle cx="0" cy="0" r="${p.bodyR*0.4}" fill="#1a3535" opacity="0.3"/>`;
+      return svg;
+    },
+    isMultiElement: true,
+    hasStroke: true
+  },
+  blob: {
+    label: 'custom shape',
+    params: [
+      {id:'w',    label:'width',     min:5,  max:100, def:30},
+      {id:'h',    label:'height',    min:5,  max:100, def:20},
+      {id:'squish',label:'squish',   min:0,  max:20,  def:0},
+      {id:'taper', label:'taper',    min:0,  max:50,  def:0}
+    ],
+    draw: (p) => {
+      if(p.taper===0 && p.squish===0){
+        return `<ellipse cx="0" cy="0" rx="${p.w}" ry="${p.h}"/>`;
+      }
+      const t = p.taper/100;
+      const s = p.squish;
+      return `<path d="M ${-p.w},${s} Q ${-p.w},${-p.h-s} 0,${-p.h} Q ${p.w},${-p.h+s} ${p.w*(1-t)},0 Q ${p.w},${p.h-s} 0,${p.h} Q ${-p.w},${p.h+s} ${-p.w},${s} Z"/>`;
+    },
+    isMultiElement: true
+  },
+  block: {
+    label: 'station block',
+    params: [
+      {id:'w',      label:'width',       min:10, max:200, def:80},
+      {id:'h',      label:'height',      min:10, max:150, def:50},
+      {id:'rx',     label:'corner round', min:0, max:12,  def:2},
+      {id:'lights', label:'light count',  min:0, max:8,   def:2}
+    ],
+    draw: (p) => {
+      let svg = `<rect x="${-p.w/2}" y="${-p.h/2}" width="${p.w}" height="${p.h}" rx="${p.rx}"/>`;
+      for(let i=0;i<p.lights;i++){
+        const lx = -p.w/2 + p.w*(i+1)/(p.lights+1);
+        const ly = -p.h/2 + p.h*0.3;
+        const lc = i%2===0 ? '#2a6868' : '#884830';
+        svg += `<circle cx="${lx}" cy="${ly}" r="1.5" fill="${lc}" opacity="0.6"/>`;
+      }
+      return svg;
+    },
+    isMultiElement: true
+  }
+};
+
+// === STATE ===
+let currentType = 'fish';
+let currentParams = {};
+let saved = [];
+
+// === INIT ===
+function init(){
+  const sel = document.getElementById('type-sel');
+  for(const[key,type] of Object.entries(TYPES)){
+    const o = document.createElement('option');
+    o.value = key; o.textContent = type.label;
+    sel.appendChild(o);
+  }
+  sel.onchange = () => { currentType = sel.value; buildSliders(); render(); };
+  document.getElementById('fill-color').oninput = render;
+  document.getElementById('opacity').oninput = function(){ document.getElementById('opacity-val').textContent=this.value; render(); };
+  document.getElementById('rotation').oninput = function(){ document.getElementById('rotation-val').textContent=this.value; render(); };
+  document.getElementById('show-swarm').onchange = render;
+  buildSliders();
+  render();
+}
+
+function buildSliders(){
+  const wrap = document.getElementById('param-sliders');
+  wrap.innerHTML = '';
+  currentParams = {};
+  const type = TYPES[currentType];
+  type.params.forEach(p => {
+    const lbl = document.createElement('label');
+    lbl.textContent = p.label;
+    wrap.appendChild(lbl);
+    const row = document.createElement('div');
+    row.className = 'slider-row';
+    const inp = document.createElement('input');
+    inp.type = 'range'; inp.min = p.min; inp.max = p.max; inp.value = p.def;
+    inp.id = 'p-'+p.id;
+    const val = document.createElement('span');
+    val.className = 'slider-val';
+    val.id = 'pv-'+p.id;
+    val.textContent = p.divisor ? (p.def/p.divisor).toFixed(1) : p.def;
+    inp.oninput = function(){
+      val.textContent = p.divisor ? (parseInt(this.value)/p.divisor).toFixed(1) : this.value;
+      render();
+    };
+    row.appendChild(inp);
+    row.appendChild(val);
+    wrap.appendChild(row);
+    currentParams[p.id] = p.def;
+  });
+}
+
+function getParams(){
+  const type = TYPES[currentType];
+  const params = {};
+  type.params.forEach(p => {
+    const el = document.getElementById('p-'+p.id);
+    params[p.id] = el ? parseInt(el.value) : p.def;
+  });
+  return params;
+}
+
+function render(){
+  const params = getParams();
+  const type = TYPES[currentType];
+  const color = document.getElementById('fill-color').value;
+  const opacity = parseInt(document.getElementById('opacity').value)/100;
+  const rotation = parseInt(document.getElementById('rotation').value);
+  const showSwarm = document.getElementById('show-swarm').checked;
+
+  const preview = document.getElementById('preview');
+  const vw = 500, vh = 380;
+
+  let content = '';
+  if(type.isMultiElement){
+    let raw = type.draw(params);
+    raw = raw.replace(/STROKE/g, color);
+    const wrapped = `<g transform="translate(${vw/2},${vh/2}) rotate(${rotation})" fill="${color}" opacity="${opacity}">${raw}</g>`;
+    content = wrapped;
+  } else {
+    const path = type.draw(params);
+    content = `<path d="${path}" transform="translate(${vw/2},${vh/2}) rotate(${rotation})" fill="${color}" opacity="${opacity}"/>`;
+  }
+
+  if(showSwarm && (currentType==='fish' || currentType==='blob')){
+    const offsets = [
+      [-120,-80,-8,0.9], [-40,-90,3,0.85], [60,-70,-12,0.8],
+      [-140,-20,-5,0.95], [-50,-10,2,1], [50,-25,-7,0.9], [130,-15,-3,0.85],
+      [-110,50,-4,0.88], [-20,40,6,0.92], [70,55,-9,0.87], [140,45,-2,0.82],
+      [-80,110,-6,0.86], [30,105,4,0.9], [110,100,-8,0.84],
+      [-30,160,-3,0.88], [60,155,-7,0.85]
+    ];
+    content = '';
+    offsets.forEach(([ox,oy,or,os]) => {
+      if(type.isMultiElement){
+        let raw = type.draw(params);
+        raw = raw.replace(/STROKE/g, color);
+        content += `<g transform="translate(${vw/2+ox},${vh/2+oy}) rotate(${rotation+or}) scale(${os})" fill="${color}" opacity="${opacity*os}">${raw}</g>`;
+      } else {
+        const path = type.draw(params);
+        content += `<path d="${path}" transform="translate(${vw/2+ox},${vh/2+oy}) rotate(${rotation+or}) scale(${os})" fill="${color}" opacity="${opacity*os}"/>`;
+      }
+    });
+  }
+
+  preview.innerHTML = `<svg viewBox="0 0 ${vw} ${vh}" width="${vw}" height="${vh}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${vw}" height="${vh}" fill="#030810"/>
+    <circle cx="60" cy="50" r="1" fill="#3aaa9a" opacity="0.2"/>
+    <circle cx="400" cy="80" r="1.2" fill="#3aaa9a" opacity="0.15"/>
+    <circle cx="200" cy="330" r="0.8" fill="#3aaa9a" opacity="0.18"/>
+    <circle cx="450" cy="300" r="1" fill="#3aaa9a" opacity="0.12"/>
+    ${content}
+  </svg>`;
+}
+
+// === SAVE / LOAD ===
+function saveCreature(){
+  const nameEl = document.getElementById('creature-name');
+  const name = nameEl.value.trim();
+  if(!name){ alert('Gib der Kreatur einen Namen.'); return; }
+
+  const params = getParams();
+  const type = TYPES[currentType];
+  const creature = {
+    name,
+    type: currentType,
+    typeLabel: type.label,
+    params: {...params},
+    color: document.getElementById('fill-color').value,
+    opacity: parseInt(document.getElementById('opacity').value),
+    rotation: parseInt(document.getElementById('rotation').value)
+  };
+  saved.push(creature);
+  nameEl.value = '';
+  renderSaved();
+}
+
+function renderSaved(){
+  const list = document.getElementById('saved-list');
+  list.innerHTML = '';
+  saved.forEach((c,i) => {
+    const item = document.createElement('div');
+    item.className = 'saved-item';
+    item.innerHTML = `
+      <div class="swatch" style="background:${c.color};opacity:${c.opacity/100}"></div>
+      <div class="info">
+        <div class="name">${c.name}</div>
+        <div class="type">${c.typeLabel}</div>
+      </div>
+      <button class="del" onclick="event.stopPropagation();saved.splice(${i},1);renderSaved();">×</button>
+    `;
+    item.onclick = () => loadCreature(c);
+    list.appendChild(item);
+  });
+}
+
+function loadCreature(c){
+  document.getElementById('type-sel').value = c.type;
+  currentType = c.type;
+  buildSliders();
+  const type = TYPES[c.type];
+  type.params.forEach(p => {
+    const el = document.getElementById('p-'+p.id);
+    if(el && c.params[p.id]!==undefined){
+      el.value = c.params[p.id];
+      const valEl = document.getElementById('pv-'+p.id);
+      if(valEl) valEl.textContent = p.divisor ? (c.params[p.id]/p.divisor).toFixed(1) : c.params[p.id];
+    }
+  });
+  document.getElementById('fill-color').value = c.color;
+  document.getElementById('opacity').value = c.opacity;
+  document.getElementById('opacity-val').textContent = c.opacity;
+  document.getElementById('rotation').value = c.rotation;
+  document.getElementById('rotation-val').textContent = c.rotation;
+  document.getElementById('creature-name').value = c.name;
+  render();
+}
+
+// === EXPORT ===
+function exportAll(){
+  if(saved.length===0){ alert('Noch keine Kreaturen gespeichert.'); return; }
+  let txt = 'DESCENT — Creature Designs\n';
+  txt += '====================================\n';
+  txt += 'Generated: ' + new Date().toLocaleString() + '\n\n';
+
+  saved.forEach((c,i) => {
+    txt += `[${i+1}] ${c.name.toUpperCase()}\n`;
+    txt += `  Type: ${c.typeLabel}\n`;
+    txt += `  Color: ${c.color} @ ${c.opacity}% opacity\n`;
+    txt += `  Rotation: ${c.rotation}°\n`;
+    const type = TYPES[c.type];
+    type.params.forEach(p => {
+      const val = c.params[p.id];
+      const display = p.divisor ? (val/p.divisor).toFixed(1) : val;
+      txt += `  ${p.label}: ${display}\n`;
+    });
+    txt += '\n';
+  });
+
+  document.getElementById('export-text').value = txt;
+  document.getElementById('export-modal').classList.add('show');
+}
+
+function copyExport(){
+  const ta = document.getElementById('export-text');
+  ta.select();
+  ta.setSelectionRange(0,99999);
+  try{document.execCommand('copy');}catch(e){}
+  if(navigator.clipboard)navigator.clipboard.writeText(ta.value).catch(()=>{});
+  event.target.textContent='✓ copied';
+  setTimeout(()=>{event.target.textContent='copy';},1500);
+}
+
+init();
+</script>
+</body>
+</html>
