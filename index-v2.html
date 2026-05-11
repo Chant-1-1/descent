@@ -904,23 +904,52 @@ function drawVizSea(a){
   fill(240,185,45,fi*0.6*radT);textSize(9.5);
   text('ozone depletion · weakened magnetic field · UV-C surface penetration',width*0.06,wl*0.62+16);
 
-  // Water line
-  stroke(255,200,40,fi*0.35*radT);strokeWeight(0.6);noFill();line(0,wl,width,wl);
+  // Water horizon line
+  stroke(255,200,40,fi*0.3*radT);strokeWeight(0.6);noFill();line(0,wl,width,wl);
+
+  // === MOUNTAIN PEAKS above water ===
+  // pts terrain: small y = tall peak, large y = low terrain; wl rises as t grows
+  noStroke();
+  // Dark rock silhouette (terrain above waterline)
+  fill(36,58,52,fi*0.9);
+  beginShape();
+  vertex(0,wl+2);
+  for(let p of pts)vertex(p.x,min(p.y,wl+1));
+  vertex(width,wl+2);
+  endShape(CLOSE);
+  // Snow/ice caps on tallest peaks
+  fill(195,222,246,fi*0.55);
+  beginShape();
+  vertex(0,wl+2);
+  for(let p of pts)vertex(p.x,min(p.y+height*0.072,wl+1));
+  vertex(width,wl+2);
+  endShape(CLOSE);
+  // Rock edge highlight
+  stroke(60,95,85,fi*0.55);strokeWeight(0.8);noFill();
+  beginShape();for(let p of pts){if(p.y<wl)vertex(p.x,p.y);}endShape();
 
   // === OCEAN ===
-  fill(15,40,55,fi*0.9);noStroke();rect(0,wl,width,height-wl);
-  for(let p of pts){if(p.y>wl){stroke(20,55,70,fi*0.6);strokeWeight(1);point(p.x,p.y);}}
-  noStroke();for(let i=0;i<80;i++){fill(30,80,100,fi*0.25);circle(random(width),wl+random(-6,6),random(2,7));}
-  stroke(40,100,120,fi*0.18);strokeWeight(0.5);noFill();
-  for(let i=0;i<20;i++){const ox=random(width),oy=wl+random(12,height*0.22),r=random(18,55);
-    beginShape();for(let j=0;j<6;j++)vertex(ox+cos(j*TWO_PI/6+random(0.2))*r,oy+sin(j*TWO_PI/6+random(0.2))*r*0.55);endShape(CLOSE);}
-  stroke(140,185,185,fi*0.8);strokeWeight(1.5);noFill();beginShape();for(let p of pts)vertex(p.x,p.y);endShape();
-  noStroke();fill(80,160,180,fi*0.65);textSize(13);textAlign(LEFT);
-  text('sea level — year 3126',width*0.07,wl+20);
+  noStroke();fill(11,36,52,fi*0.94);rect(0,wl,width,height-wl);
+  // Animated wave surface
+  stroke(65,150,178,fi*0.75);strokeWeight(1.5);noFill();
+  beginShape();
+  for(let x=0;x<=width;x+=4)vertex(x,wl+sin(x*0.017+frameCount*0.042)*2.4+sin(x*0.032+frameCount*0.027)*1.3);
+  endShape();
+  // Surface foam (noise-based so stable per frame)
+  noStroke();
+  for(let i=0;i<44;i++){const fx=i*(width/44)+sin(frameCount*0.02+i)*9;fill(115,188,212,fi*0.15);ellipse(fx,wl+sin(fx*0.016+frameCount*0.03)*2.2,noise(i,frameCount*0.004)*24+5,2.2);}
+  // Underwater depth scatter (noise-based, stable)
+  for(let i=0;i<55;i++){fill(24,65,94,fi*0.2);const ux=noise(i*3.8,42)*width,uy=wl+noise(i*2.2,99)*(height-wl-20)+10;circle(ux,uy,noise(i*5.4,12)*5+1.5);}
+  // Underwater caustic shimmer lines
+  stroke(40,95,120,fi*0.1);strokeWeight(0.4);
+  for(let i=0;i<18;i++){const ly=wl+noise(i*1.7,frameCount*0.003)*(height-wl)*0.55;noFill();beginShape();for(let x=width*0.05;x<width*0.95;x+=14)vertex(x,ly+sin(x*0.04+frameCount*0.02+i)*3);endShape();}
+
+  noStroke();fill(72,155,178,fi*0.72);textSize(13);textAlign(LEFT);
+  text('sea level — year 3126',width*0.07,wl+22);
   fill(140,200,200,fi*0.55);textSize(15);textAlign(CENTER);
-  text('the seven continents no longer exist',width/2,baseY+38);
-  text('only mountain peaks remain as scattered islands',width/2,baseY+56);
-  fill(100,170,170,fi*0.38);textSize(12);text('global ocean · tidal ice · geothermal equatorial belt',width/2,baseY+74);
+  text('the seven continents no longer exist',width/2,height*0.87);
+  text('only mountain peaks remain as scattered islands',width/2,height*0.87+22);
+  fill(100,170,170,fi*0.38);textSize(12);text('global ocean · tidal ice · geothermal equatorial belt',width/2,height*0.87+42);
 }
 // --- HIERARCHY ---
 function drawVizHierarchy(a){const cx=width/2,t=min((millis()-vizStart-3500)/10000,1);const stW=width*0.3,stL=cx-stW/2,stR=cx+stW/2,stT=height*0.1,stB=height*0.85;stroke(80,140,140,a*0.4);strokeWeight(1);noFill();rect(stL,stT,stW,stB-stT,4);const levels=[{name:'UPPER LEVEL',sub:'council of mothers · filtered sunlight',y:stT,h:(stB-stT)*0.25,col:[200,180,100],la:0.25},{name:'MIDDLE LEVEL',sub:'workers · technicians · farmers',y:stT+(stB-stT)*0.28,h:(stB-stT)*0.32,col:[120,160,160],la:0.08},{name:'THE DEEPS',sub:'maintenance · outcasts · darkness',y:stT+(stB-stT)*0.63,h:(stB-stT)*0.35,col:[60,90,100],la:0}];for(let lv of levels){const fi3=constrain((t-0.1)*3,0,1);fill(lv.col[0],lv.col[1],lv.col[2],a*0.08*fi3);noStroke();rect(stL+2,lv.y+2,stW-4,lv.h-2);if(lv.la>0){for(let y2=0;y2<lv.h*0.5;y2++){stroke(220,200,120,a*lv.la*(1-y2/(lv.h*0.5))*fi3);line(stL+2,lv.y+y2,stR-2,lv.y+y2);}}noStroke();const fc=lv.name==='THE DEEPS'?2:lv.name==='UPPER LEVEL'?3:5;for(let i=0;i<fc;i++){const fx=stL+stW*0.2+i*(stW*0.6/(fc-1||1)),fy=lv.y+lv.h*0.5;stroke(lv.col[0]+40,lv.col[1]+40,lv.col[2]+40,a*0.5*fi3);strokeWeight(1);circle(fx,fy-12,6);line(fx,fy-9,fx,fy+5);line(fx,fy+5,fx-4,fy+14);line(fx,fy+5,fx+4,fy+14);}noStroke();fill(lv.col[0]+60,lv.col[1]+60,lv.col[2]+60,a*0.7*fi3);textSize(14);textAlign(CENTER);text(lv.name,cx,lv.y+lv.h*0.3);fill(lv.col[0]+30,lv.col[1]+30,lv.col[2]+30,a*0.45*fi3);textSize(11);text(lv.sub,cx,lv.y+lv.h*0.3+18);}stroke(80,140,140,a*0.25);strokeWeight(0.5);line(stL,levels[1].y,stR,levels[1].y);line(stL,levels[2].y,stR,levels[2].y);noStroke();fill(220,180,100,a*0.5*t);textSize(11);textAlign(CENTER);text('☀ light ↓',stL-60,height*0.3);text('authority ↓',stL-60,height*0.45);fill(100,180,160,a*0.5*t);text('resources ↑',stR+60,height*0.55);fill(120,180,180,a*0.5);textSize(15);text('proximity to light determines social standing',cx,stB+28);}
@@ -1202,11 +1231,15 @@ function buildScene(s){
     generateCageSlots();
     // 3 wild swimming sea devils (Feature 3: clickable)
     for(let i=0;i<3;i++){const sd=new DeepCreature(SEA_DEVIL_SHAPE,random(0.25,0.45),random(0.12,0.25),'seadevil');sd.wild=true;deepCreatures.push(sd);}
-    // 2 hovering sea devils near station (captured — pulse exactly every 4.7s)
-    for(let i=0;i<2;i++){const sd=new DeepCreature(SEA_DEVIL_SHAPE,random(0.2,0.35),random(0.02,0.05),'seadevil');
-      sd.cx=width*0.5+random(-200,200);sd.cy=height*0.4+random(-100,100);
-      sd.captured=true;sd.pulseInterval=4700;sd.pulseOffset=random(0,4700);
-      deepCreatures.push(sd);}
+    // 2 captured sea devils — placed directly in cage slots, lights synced with pulse47Phase
+    for(let i=0;i<2;i++){
+      const sd=new DeepCreature(SEA_DEVIL_SHAPE,random(0.2,0.32),random(0.01,0.03),'seadevil');
+      const slot=cageSlots[i];
+      sd.cx=slot.x;sd.cy=slot.y;sd.vx=0;
+      sd.captured=true;sd.pulseInterval=4700;sd.pulseOffset=0; // synced: pulseOffset=0 → uses pulse47Phase directly
+      slot.occ=true;
+      deepCreatures.push(sd);
+    }
     // 3 whales
     for(let i=0;i<3;i++)deepCreatures.push(new DeepCreature(WHALE_SHAPE,random(0.2,0.4),random(0.06,0.15),'whale'));
   }
@@ -1241,7 +1274,7 @@ class Hotspot{
     if(this.hovered&&!w){curEl.classList.add('hover');playHoverPing();}else if(!this.hovered&&w)curEl.classList.remove('hover');}
   display(){
     // Visited = muted teal-grey, unvisited = scene color
-    const col=this.visited?[55,80,75]:this.scn===2?[220,200,150]:this.scn===1?[240,200,120]:[180,230,230];
+    const col=this.visited?[55,80,75]:this.scn===2?[170,240,240]:this.scn===1?[240,200,120]:[180,230,230];
     const scn1boost=this.scn===1&&!this.visited?1.8:1;
     const isFirst=!this.visited&&hotspots.filter(h2=>h2.scn===this.scn&&!h2.visited).indexOf(this)==0;
     const pRate=isFirst?0.06:0.04;const pAmt=isFirst?0.45:0.3;
@@ -1250,7 +1283,10 @@ class Hotspot{
     for(let i=6;i>0;i--){fill(col[0],col[1],col[2],(this.visited?2:10*glowMult)*p);circle(this.x,this.y,r*i);}
     fill(col[0]+60,col[1]+40,col[2]+30,(this.visited?80:230)*p);circle(this.x,this.y,r*0.6);
     for(let s of this.sats){s.a+=s.s;fill(col[0],col[1],col[2],(this.visited?20:100)*p);circle(this.x+cos(s.a)*s.r,this.y+sin(s.a)*s.r,s.sz);}
-    if(isFirst){noStroke();fill(col[0]+20,col[1]+30,col[2]+20,120*p);textSize(9);textAlign(CENTER);text('signal',this.x,this.y-r-8);}
+    if(isFirst){
+      if(this.scn===2){noStroke();fill(0,4,8,110*p);rect(this.x-27,this.y-r-19,54,15,3);}
+      noStroke();fill(col[0]+20,col[1]+30,col[2]+20,140*p);textSize(9);textAlign(CENTER);text('signal',this.x,this.y-r-8);
+    }
     if(this.visited){noStroke();fill(col[0]+10,col[1]+15,col[2]+10,50);textSize(8);textAlign(CENTER);text('·',this.x,this.y-r-6);}
     if(this.hovered){fill(255,240,200,60);circle(this.x,this.y,r*2);}}
   activate(){
