@@ -67,7 +67,7 @@ textarea{width:100%;height:300px;background:#0a0e12;color:#b8d8d8;border:1px sol
     <button class="btn sm" onclick="dupLayer()">copy</button>
     <button class="btn sm danger" onclick="delLayer()">del</button>
   </div>
-  <button class="btn w" onclick="mergeLayers()">merge visible → 1</button>
+  <button class="btn w" onclick="mergeLayers()">sort by color</button>
   <hr>
   <h2>active layer</h2>
   <div class="row"><input type="color" id="fc" value="#0a0e14" oninput="sync();pushUndo();render();"><span style="font-size:9px;opacity:.45;flex:1">fill</span></div>
@@ -329,9 +329,13 @@ function addLayerSameStyle(){pushUndo();const s=AL();layers.push(mkLayer('layer 
 function dupLayer(){pushUndo();const s=AL();layers.push({...s,name:s.name+' copy',points:s.points.map(p=>({x:p.x+12,y:p.y+12})),locked:false});actIdx=layers.length-1;loadControls();render();}
 function delLayer(){if(layers.length<=1)return;delLayerAt(actIdx);}
 function delLayerAt(i){pushUndo();layers.splice(i,1);if(actIdx>=layers.length)actIdx=layers.length-1;loadControls();render();}
-function mergeLayers(){const vis=layers.filter(l=>l.visible&&l.points.length>=3);if(vis.length<2)return;pushUndo();
-  const base={...vis[0],name:'merged',points:vis.flatMap(l=>l.points.map(p=>({...p})))};
-  layers=layers.filter(l=>!l.visible||l.points.length<3);layers.push(base);actIdx=layers.length-1;loadControls();render();}
+function mergeLayers(){
+  // Sort visible layers by color so same-color layers are grouped together — no point merging
+  pushUndo();
+  const vis=layers.filter(l=>l.visible);const invis=layers.filter(l=>!l.visible);
+  vis.sort((a,b)=>(a.color+a.opacity).localeCompare(b.color+b.opacity));
+  layers=[...vis,...invis];actIdx=0;loadControls();render();
+}
 function clearLayer(){pushUndo();AL().points=[];render();}
 function loadControls(){const l=AL();document.getElementById('fc').value=l.color;document.getElementById('fo').value=l.opacity;document.getElementById('fov').textContent=l.opacity;document.getElementById('so').checked=l.strokeOn;document.getElementById('sc').value=l.strokeCol;document.getElementById('sw2').value=Math.round(l.strokeW*10);document.getElementById('swv').textContent=l.strokeW.toFixed(1);}
 function sync(){const l=AL();l.color=document.getElementById('fc').value;l.opacity=parseInt(document.getElementById('fo').value);l.strokeOn=document.getElementById('so').checked;l.strokeCol=document.getElementById('sc').value;l.strokeW=parseInt(document.getElementById('sw2').value)/10;}
