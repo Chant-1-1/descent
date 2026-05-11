@@ -161,6 +161,19 @@ let transitioning=false,transitionStart=0,transitionBuilt=false,transitionTarget
 let eyeActive=false,eyeStart=0;
 let hotspotPhase='idle'; // idle -> quote -> ready (click again for viz)
 let activeHotspot=null;
+// Feature 2: Y-depth filter
+let depthFilter=null,depthFilterFreq=4000;
+// Feature 3: sea devil cage system
+let cageSlots=[];
+// Feature 4: hull song
+let hullPieces=[],hullPlayers={},hullClickTimes=[];
+// Feature 5: behavior tracking
+let userBehavior={hotspotsVisited:{},timeInScenes:{0:0,1:0,2:0},seaDevilsCaptured:0,hullSongClicks:0,cursorStillness:0,lookedAtIt:false};
+let lastCursorX=0,lastCursorY=0,stillTimer=0;
+// Feature 6: the count
+let countActive=false,countNum=0,countDone=false,countStart=0,countTriggered=false,countTriggerHovered=false;
+// Feature 7: eye climax v2
+let eyeClimaxPhase='A',eyePhaseStart=0,eyeLookResult=null,seenLight=false,eyeLabel=null,eyeLookFrames=null;
 
 const curEl=document.getElementById('cursor');
 document.addEventListener('mousemove',e=>{curEl.style.left=e.clientX+'px';curEl.style.top=e.clientY+'px';if(typeof millis==='function'){lastInteract=millis();idleWPlayed=false;}});
@@ -210,6 +223,8 @@ function initAudio(){
   whisperN.connect(whisperF);whisperF.connect(whisperG);new Tone.LFO(2,400,1600).start().connect(whisperF.frequency);
   // Shared reverb for hotspot one-shots
   hotspotRev=new Tone.Reverb({decay:4,wet:0.4}).connect(glitchFX);
+  // Feature 2: Y-depth master filter between buses and glitchFX
+  depthFilter=new Tone.Filter({frequency:4000,type:'lowpass',rolloff:-24}).connect(glitchFX);
   // === SCENE LAYERS (looped MP3s) ===
   const sceneDef={
     world:[
@@ -231,7 +246,7 @@ function initAudio(){
   };
   // Create a gain bus per scene, routed through glitchFX
   ['world','station','eye'].forEach((name,idx)=>{
-    const bus=new Tone.Gain(idx===0?1:0).connect(glitchFX);
+    const bus=new Tone.Gain(idx===0?1:0).connect(depthFilter);
     sceneBuses[name]=bus;
     layerPlayers[name]=[];
     layerGains[name]=[];
@@ -257,6 +272,10 @@ function initAudio(){
   for(const[vizId,file] of Object.entries(hsDef)){
     hotspotPlayers[vizId]=new Tone.Player({url:file,loop:false,fadeOut:0.5}).connect(hotspotRev);
   }
+  // Feature 4: Hull sound players
+  ['metal-clanking','metal-creak-long','metal-creak-short','valve-relief','pump-release','water-pipe'].forEach(k=>{
+    hullPlayers[k]=new Tone.Player({url:k+'.mp3',loop:false,fadeOut:0.3}).connect(hotspotRev);
+  });
   // Start all looping layers once buffers are loaded
   Tone.loaded().then(()=>{
     ['world','station','eye'].forEach(name=>{
@@ -353,14 +372,26 @@ class DeepCreature{
     this.captured=false;
     this.pulseInterval=random(2000,7000);
     this.pulseOffset=random(0,this.pulseInterval);
+    // Feature 3
+    this.wild=false;this.fading=false;this.fadeStart=0;this.fadeAlpha=1;this.hovered=false;this.bubbles=[];
   }
   update(){
+    if(this.fading){
+      const fade=(millis()-this.fadeStart)/1500;
+      this.fadeAlpha=max(0,1-fade);
+      if(random()<0.12)this.bubbles.push({x:this.cx+random(-18,18),y:this.cy+random(-18,18),vy:random(-0.7,-0.25),a:160});
+      this.bubbles=this.bubbles.filter(b=>b.a>0);
+      for(let b of this.bubbles){b.y+=b.vy;b.a-=2.5;}
+      return;
+    }
+    if(this.wild)this.hovered=dist(mouseX-camDX,mouseY-camDY,this.cx,this.cy)<55;
     this.cx+=this.vx;this.cy+=this.vy+sin(frameCount*0.002+this.wobOff)*0.08;
     this.bodyRot=sin(frameCount*0.006+this.wobOff)*0.03;
     if(this.dir>0&&this.cx>width+900){this.cx=-900;this.cy=random(height*0.25,height*0.75);}
     if(this.dir<0&&this.cx<-900){this.cx=width+900;this.cy=random(height*0.25,height*0.75);}
   }
   display(){
+    drawingContext.globalAlpha=this.fadeAlpha;
     push();translate(this.cx,this.cy);if(this.dir<0)scale(-1,1);rotate(this.bodyRot);scale(this.sc);
     if(this.type==='seadevil'&&seaDevilImg){
       tint(70,130,140,180);image(seaDevilImg,-206,-193,413,387);noTint();
@@ -379,6 +410,9 @@ class DeepCreature{
       fill(245,245,200,110*flash);circle(lx,ly,25*this.sc);
       fill(255,250,230,210*flash);circle(lx,ly,9*this.sc);
     }
+    drawingContext.globalAlpha=1;
+    if(this.fading&&this.bubbles.length){for(let b of this.bubbles){noStroke();fill(100,185,215,b.a);circle(b.x,b.y,random(3,7));}}
+    if(this.wild&&!this.fading&&this.hovered){stroke(180,225,225,75);strokeWeight(0.8);noFill();circle(this.cx,this.cy,64);noStroke();}
   }
 }
 // ===================== STATION SILHOUETTE (BG) =====================
@@ -1015,6 +1049,126 @@ function drawVizMyth(a){
 }
 // --- SELECTION ---
 function drawVizSelection(a){const t=millis()-vizStart-3500;const lines=['they say my name','once','that\'s enough','something tightens inside me','i walk','too fast then slower','i could stop','but i keep walking','the path narrows','the air thins','the chamber is smaller than i expected','the altar stands in the center','the eye','two tubes','they lean toward me','too close','i kneel','the floor is cold','i am not the first','the light is not mine','i raise my gaze','slowly','toward the openings'];noStroke();textAlign(CENTER);for(let i=0;i<lines.length;i++){const ls=i*1100;if(t<ls)break;const age=t-ls;const fi6=min(age/800,1),fo6=max(0,1-(age-6000)/1500),alp=min(fi6,fo6);if(alp<=0)continue;const warmth=i/lines.length;fill(140+warmth*80,180+warmth*40,180-warmth*120,a*0.7*alp);textSize(15+warmth*5);text(lines[i],width/2,height*0.12+i*24);}}
+// ===================== FEATURE 3: CAGE SYSTEM =====================
+function generateCageSlots(){
+  const cx=width*0.5,cy=height*0.45;
+  cageSlots=[
+    {x:cx-148,y:cy-68,occ:false},{x:cx+108,y:cy-88,occ:false},
+    {x:cx-188,y:cy+52,occ:false},{x:cx+138,y:cy+58,occ:false},
+    {x:cx+18,y:cy-112,occ:false}
+  ];
+}
+function drawCages(){
+  if(scene!==0)return;
+  for(let c of cageSlots){
+    const cw=44,ch=54;
+    stroke(88,115,105,c.occ?62:16);strokeWeight(0.7);noFill();
+    rect(c.x-cw/2,c.y-ch/2,cw,ch,2);
+    for(let i=1;i<4;i++){stroke(88,115,105,c.occ?38:10);strokeWeight(0.5);line(c.x-cw/2+i*(cw/4),c.y-ch/2,c.x-cw/2+i*(cw/4),c.y+ch/2);}
+    if(c.occ){
+      push();translate(c.x,c.y);scale(0.26);noStroke();
+      for(let l of SEA_DEVIL_SHAPE){fill(l.col[0],l.col[1],l.col[2],l.op*100);beginShape();for(let pt of l.pts)vertex(pt[0],pt[1]);endShape(CLOSE);}
+      pop();
+    }
+  }
+}
+function captureSd(sd){
+  sd.fading=true;sd.fadeStart=millis();sd.wild=false;
+  const slot=cageSlots.find(c=>!c.occ);
+  if(slot)slot.occ=true;
+  const cap=new DeepCreature(SEA_DEVIL_SHAPE,random(0.18,0.28),random(0.01,0.03),'seadevil');
+  cap.captured=true;cap.pulseInterval=4700;cap.pulseOffset=random(0,4700);
+  if(slot){cap.cx=slot.x;cap.cy=slot.y;}
+  cap.vx=random(-0.015,0.015);
+  deepCreatures.push(cap);
+  if(hotspotPlayers['shrinking_belt']){try{hotspotPlayers['shrinking_belt'].stop();hotspotPlayers['shrinking_belt'].start();}catch(e){}}
+  userBehavior.seaDevilsCaptured++;
+}
+// ===================== FEATURE 4: HULL SONG =====================
+function generateHullPieces(){
+  hullPieces=[];hullClickTimes=[];
+  const pos=[[0.15,0.28],[0.5,0.2],[0.8,0.48],[0.3,0.64],[0.65,0.24],[0.2,0.5],[0.84,0.34],[0.44,0.4],[0.6,0.58],[0.25,0.2],
+    [0.75,0.7],[0.4,0.54],[0.7,0.38],[0.14,0.64],[0.86,0.58],[0.5,0.74],[0.34,0.3],[0.64,0.74],[0.55,0.34],[0.24,0.44],
+    [0.8,0.24],[0.4,0.7],[0.6,0.44],[0.18,0.8],[0.82,0.74],[0.48,0.84],[0.3,0.5],[0.72,0.54],[0.55,0.14],[0.35,0.84]];
+  const keys=['metal-clanking','metal-creak-long','metal-creak-short','valve-relief','pump-release','water-pipe'];
+  for(let i=0;i<pos.length;i++)hullPieces.push({x:pos[i][0]*width,y:pos[i][1]*height,soundKey:keys[i%keys.length],flashT:0,cooldown:0,hovered:false});
+}
+function updateHullPieces(){
+  let anyH=false;
+  for(let p of hullPieces){
+    p.hovered=dist(mouseX-camDX,mouseY-camDY,p.x,p.y)<26;
+    if(p.hovered&&p.cooldown<=0)anyH=true;
+    if(p.cooldown>0)p.cooldown-=deltaTime||16.67;
+    if(p.flashT>0)p.flashT-=deltaTime||16.67;
+  }
+  if(anyH)curEl.classList.add('hover');
+}
+function drawHullPieces(){
+  for(let p of hullPieces){
+    if(p.flashT>0){const fi=min(p.flashT/350,1);noStroke();fill(180,220,200,fi*72);circle(p.x,p.y,50);fill(220,242,232,fi*140);circle(p.x,p.y,13);}
+    if(p.hovered&&p.cooldown<=0){stroke(120,180,170,58);strokeWeight(0.7);noFill();circle(p.x,p.y,23);noStroke();}
+  }
+}
+function triggerHullPiece(p){
+  p.flashT=350;p.cooldown=1500;
+  if(hullPlayers[p.soundKey]){try{hullPlayers[p.soundKey].stop();hullPlayers[p.soundKey].start();}catch(e){}}
+  userBehavior.hullSongClicks++;
+  hullClickTimes.push(millis());
+  hullClickTimes=hullClickTimes.filter(t=>millis()-t<10000);
+  if(hullClickTimes.length>=7){triggerHullChain();hullClickTimes=[];}
+  if(Math.random()<0.3){
+    const others=hullPieces.filter(q=>q!==p&&q.cooldown<=0);
+    if(others.length){const rep=others[Math.floor(Math.random()*others.length)];
+      setTimeout(()=>{rep.flashT=200;rep.cooldown=1500;if(hullPlayers[rep.soundKey]){try{hullPlayers[rep.soundKey].stop();hullPlayers[rep.soundKey].start();}catch(e){};}},800+Math.random()*700);}
+  }
+}
+function triggerHullChain(){
+  const sorted=[...hullPieces].sort((a,b)=>a.y-b.y);
+  sorted.forEach((p,i)=>setTimeout(()=>{p.flashT=280;if(hullPlayers[p.soundKey]){try{hullPlayers[p.soundKey].stop();hullPlayers[p.soundKey].start();}catch(e){};}},i*145));
+}
+// ===================== FEATURE 5: BEHAVIOR TRACKING =====================
+function computeLabel(){
+  const b=userBehavior,visited=Object.keys(b.hotspotsVisited).length;
+  if(b.hullSongClicks>=7)return{label:'the noise-maker',verb:'strike the walls'};
+  if(b.cursorStillness>=3)return{label:'the listener',verb:'wait in silence'};
+  if(b.seaDevilsCaptured>=2)return{label:'the hunter',verb:'hunt in darkness'};
+  if((b.timeInScenes[2]||0)>60)return{label:'the depth-dweller',verb:'dwell in the deep'};
+  if(visited>=7)return{label:'the curious',verb:'search for signals'};
+  return{label:'the quiet one',verb:'pass through unseen'};
+}
+// ===================== FEATURE 6: THE COUNT =====================
+function startCount(){if(countTriggered||countActive)return;countTriggered=true;countActive=true;countNum=0;countDone=false;countStart=millis();hideSub();}
+function drawCountTrigger(){
+  if(scene!==1||!started||countTriggered||activeViz||eyeActive)return;
+  const dailyVisited=hotspots.find(h=>h.vizId==='daily_life'&&h.visited);
+  if(!dailyVisited)return;
+  const tx=width/2,ty=height*0.93;
+  const d=dist(mouseX-camDX,mouseY-camDY,tx,ty);
+  countTriggerHovered=d<65;
+  const pulse=sin(frameCount*0.04)*0.25+0.75;
+  noStroke();fill(120,170,160,(countTriggerHovered?90:45)*pulse);textSize(11);textAlign(CENTER);
+  text('·  is everyone still here?  ·',tx,ty);
+}
+function drawCount(){
+  if(!countActive)return;
+  const t=millis()-countStart,fi=constrain(t/600,0,1);
+  push();fill(0,0,0,fi*218);noStroke();rect(0,0,width,height);
+  fill(160,212,212,fi*128);textSize(14);textAlign(CENTER);text('Is everyone still here?',width/2,height*0.3);
+  fill(210,238,240,fi*245);textSize(62);textAlign(CENTER);text(countNum||'—',width/2,height*0.52);
+  if(!countDone&&countNum<76){fill(80,140,140,fi*60);textSize(10);text('click anywhere to continue the count',width/2,height*0.64);}
+  if(countDone){
+    const ef=constrain((t-1200)/500,0,1);
+    if(ef>0){
+      fill(210,238,240,ef*215);textSize(62);text(countNum+1,width/2+88,height*0.52);
+      fill(150,198,198,ef*128);textSize(13);text('the count has never come up short.',width/2,height*0.68);
+      text('it has, on rare occasions, come up over.',width/2,height*0.68+20);
+    }
+    if(t>7200){countActive=false;countNum=0;countDone=false;}
+  }
+  pop();
+}
+// ===================== FEATURE 7: SEEN LIGHT OVERLAY =====================
+function drawSeenLightOverlay(){if(!seenLight)return;noStroke();fill(255,252,245,16);rect(0,0,width,height);}
 // ===================== SCENE CONFIG =====================
 const sceneLabels=['the world','the station','the eye'];
 function getSceneHotspots(s){
@@ -1045,8 +1199,9 @@ function buildScene(s){
     for(let i=0;i<3;i++)fishSwarms.push(new FishSwarm({scale:0.08,opacity:60,radius:random(100,150)}));
     fishSwarms.push(new FishSwarm({stationary:true,x:width*0.2,y:height*0.35,count:8,scale:0.06,opacity:45,radius:60}));
     fishSwarms.push(new FishSwarm({stationary:true,x:width*0.75,y:height*0.65,count:10,scale:0.07,opacity:50,radius:70}));
-    // 3 swimming sea devils
-    for(let i=0;i<3;i++)deepCreatures.push(new DeepCreature(SEA_DEVIL_SHAPE,random(0.25,0.45),random(0.12,0.25),'seadevil'));
+    generateCageSlots();
+    // 3 wild swimming sea devils (Feature 3: clickable)
+    for(let i=0;i<3;i++){const sd=new DeepCreature(SEA_DEVIL_SHAPE,random(0.25,0.45),random(0.12,0.25),'seadevil');sd.wild=true;deepCreatures.push(sd);}
     // 2 hovering sea devils near station (captured — pulse exactly every 4.7s)
     for(let i=0;i<2;i++){const sd=new DeepCreature(SEA_DEVIL_SHAPE,random(0.2,0.35),random(0.02,0.05),'seadevil');
       sd.cx=width*0.5+random(-200,200);sd.cy=height*0.4+random(-100,100);
@@ -1055,7 +1210,7 @@ function buildScene(s){
     // 3 whales
     for(let i=0;i<3;i++)deepCreatures.push(new DeepCreature(WHALE_SHAPE,random(0.2,0.4),random(0.06,0.15),'whale'));
   }
-  if(s===1)generateStationElements();
+  if(s===1){generateStationElements();generateHullPieces();countTriggerHovered=false;}
   if(s===2)generateEyeElements();
   updateSceneAudio();updateMenu();
   const sbg=document.getElementById('station-html-bg');
@@ -1101,6 +1256,7 @@ class Hotspot{
   activate(){
     if(millis()-this.lastAct<800||activeViz)return;this.lastAct=millis();
     if(!this.visited){this.visited=true;sceneVisited[scene]++;}
+    userBehavior.hotspotsVisited[this.vizId]=(userBehavior.hotspotsVisited[this.vizId]||0)+1;
     // Single click: text + viz start together
     activeHotspot=this;hotspotPhase='viz';
     activeViz=this.vizId;activeVizQuote=this.quote;
@@ -1136,14 +1292,67 @@ function drawAscend(){
   if(ascendHovered){fill(255,240,200,90);noStroke();circle(ascendX,ascendY,36);curEl.classList.add('hover');}
 }
 function drawEyeClimax(){
-  if(!eyeActive)return;const t=millis()-eyeStart;
-  if(t<3000){const b=map(t,0,3000,0,220);fill(220,200,140,b*0.4);noStroke();rect(width/2-25,0,50,height);
-    for(let i=0;i<25;i++){fill(220,200,140,b*0.5);circle(width/2+sin(frameCount*0.1+i)*map(t,0,3000,120,5),random(height),random(1,3));}
-    showSub('the tubes adjust\nnow\ni raise my gaze\nslowly',null,'rgba(220,200,140,0.85)','22px');}
-  else if(t<9000){fill(255,255,240,255);noStroke();rect(0,0,width,height);hideSub();}
-  else if(t<14000){fill(0);noStroke();rect(0,0,width,height);}
-  else if(t<21000){fill(0);noStroke();rect(0,0,width,height);const tf=map(t,14000,16500,0,1,true);fill(180,230,230,tf*200);textSize(24);textAlign(CENTER);text('then',width/2,height/2-18);text('light',width/2,height/2+18);}
-  else{fill(0);noStroke();rect(0,0,width,height);}
+  if(!eyeActive)return;
+  const cx=width/2,tubeY=height*0.4,t=millis()-eyePhaseStart;
+
+  // Phase A: beam brightens, watcher mother speaks, "the tubes adjust"
+  if(eyeClimaxPhase==='A'){
+    const b=constrain(t/3000,0,1);
+    noStroke();
+    for(let i=8;i>=0;i--){fill(220,200,140,(4+i*3.5)*b);rect(cx-4-i*4,0,8+i*8,height);}
+    for(let i=0;i<18;i++){fill(220,200,140,b*45);circle(cx+sin(frameCount*0.1+i)*map(t,0,3000,110,4),random(height),random(1,2.5));}
+    if(t<1400&&eyeLabel){
+      showSub('the watcher mother has chosen you.\nshe has seen how you '+eyeLabel.verb+'.\nshe calls you — '+eyeLabel.label+'.',null,'rgba(210,190,130,0.75)','16px');
+    } else if(t>=1400){
+      showSub('the tubes adjust\nnow\ni raise my gaze\nslowly',null,'rgba(220,200,140,0.85)','22px');
+    }
+    if(t>=3200){eyeClimaxPhase='B';eyePhaseStart=millis();eyeLookFrames={total:0,looking:0};hideSub();}
+  }
+
+  // Phase B: 4.7s cursor tracking window
+  else if(eyeClimaxPhase==='B'){
+    const LOOK_R=210,progress=constrain(t/4700,0,1);
+    const inR=dist(mouseX,mouseY,cx,tubeY)<LOOK_R;
+    if(inR)userBehavior.lookedAtIt=true;
+    eyeLookFrames.total++;if(inR)eyeLookFrames.looking++;
+    noStroke();fill(0,0,0,195);rect(0,0,width,height);
+    // faint shaft
+    for(let i=5;i>=0;i--){fill(220,200,140,2+i*1.5);rect(cx-3-i*2,0,6+i*4,height);}
+    // look-radius ring
+    stroke(180,165,110,20);strokeWeight(0.5);noFill();circle(cx,tubeY,LOOK_R*2);
+    // tube openings
+    for(let ox of[-28,28]){
+      const glow=inR?130:35;
+      noStroke();fill(220,200,140,glow*(sin(frameCount*0.05)*0.15+0.85));circle(cx+ox,tubeY,16);
+      fill(240,225,170,glow*0.35);circle(cx+ox,tubeY,30);
+    }
+    // progress arc
+    stroke(180,165,110,55);strokeWeight(1);noFill();arc(cx,tubeY,110,110,-HALF_PI,-HALF_PI+progress*TWO_PI);
+    showSub(inR?'i raise my gaze\nslowly':'do not look directly at it',null,inR?'rgba(220,200,140,0.65)':'rgba(180,220,220,0.55)','18px');
+    if(t>=4700){
+      const ratio=eyeLookFrames.looking/eyeLookFrames.total;
+      eyeLookResult=ratio>0.55?'look':ratio>0.25?'undecided':'away';
+      eyeClimaxPhase='C';eyePhaseStart=millis();hideSub();
+    }
+  }
+
+  // Phase C: branching outcome
+  else if(eyeClimaxPhase==='C'){
+    if(eyeLookResult==='look'){
+      if(t<1200){const f=constrain(t/400,0,1);fill(255,255,248,f*255);noStroke();rect(0,0,width,height);}
+      else if(t<2800){fill(0);noStroke();rect(0,0,width,height);const tf=constrain((t-1800)/700,0,1);fill(220,238,242,tf*215);textSize(28);textAlign(CENTER);text('light.',cx,height/2);}
+      else if(t<3200&&!seenLight){seenLight=true;}
+      else if(t>4800){eyeActive=false;eyeClimaxPhase='A';}
+    } else if(eyeLookResult==='away'){
+      if(t<2200){const fd=1-constrain(t/2200,0,1);fill(0,0,0,fd*175);noStroke();rect(0,0,width,height);}
+      if(t>900){const tf=constrain((t-900)/700,0,1);fill(180,222,222,tf*185);textSize(22);textAlign(CENTER);text('i looked away.',cx,height/2);}
+      if(t>4800){eyeActive=false;eyeClimaxPhase='A';}
+    } else {
+      if(t<2000){fill(0);noStroke();rect(0,0,width,height);}
+      if(t>700){const tf=constrain((t-700)/700,0,1);fill(160,200,200,tf*162);textSize(20);textAlign(CENTER);text("i didn't decide.",cx,height/2);}
+      if(t>4800){eyeActive=false;eyeClimaxPhase='A';}
+    }
+  }
 }
 function startTransition(target){transitionTarget=target;transitioning=true;transitionStart=millis();transitionBuilt=false;document.getElementById('transition-overlay').classList.add('active');}
 function updateTransition(){if(!transitioning)return;const t=millis()-transitionStart;
@@ -1158,6 +1367,12 @@ function windowResized(){resizeCanvas(windowWidth,windowHeight);buildScene(scene
 function draw(){
   if(!started){background(0);return;}
   pulse47Phase=(millis()%4700)/4700; // global heartbeat
+  // Feature 2: map mouseY → lowpass filter frequency
+  if(depthFilter){const tf=map(mouseY,0,height,7500,380,true);depthFilterFreq+=(tf-depthFilterFreq)*0.03;depthFilter.frequency.value=depthFilterFreq;}
+  // Feature 5: time-in-scene tracking (every second)
+  if(frameCount%60===0)userBehavior.timeInScenes[scene]=(userBehavior.timeInScenes[scene]||0)+1;
+  // Feature 5: cursor stillness
+  if(dist(mouseX,mouseY,lastCursorX,lastCursorY)<3){stillTimer+=deltaTime||16.67;if(stillTimer>5000){userBehavior.cursorStillness++;stillTimer=0;}}else{stillTimer=0;lastCursorX=mouseX;lastCursorY=mouseY;}
   const bgAdd=bgBrt*80;
   if(scene===1){clear();}
   else{background(bgAdd*0.3,bgAdd*0.4+scene*0.5,bgAdd*0.5+(scene===0?6:2));}
@@ -1172,25 +1387,46 @@ function draw(){
   if(scene===0){
     for(let sw of fishSwarms){sw.update();sw.display();}
     for(let dc of deepCreatures){dc.update();dc.display();}
-    for(let i=creatures.length-1;i>=0;i--){if(!creatures[i].update())creatures.splice(i,1);else creatures[i].display();}}
+    for(let i=creatures.length-1;i>=0;i--){if(!creatures[i].update())creatures.splice(i,1);else creatures[i].display();}
+    drawCages(); // Feature 3
+  }
   if(!activeViz&&!eyeActive){
     for(let h of hotspots)h.update();
     if(scene===1&&!activeViz&&!eyeActive)drawFlashlight(mouseX,mouseY);
     for(let h of hotspots)h.display();
+    if(scene===1){updateHullPieces();drawHullPieces();} // Feature 4
+    drawCountTrigger(); // Feature 6
     drawAscend();
   }
   pop();
-  drawVisualization();drawEyeClimax();updateTransition();
+  drawSeenLightOverlay(); // Feature 7
+  drawVisualization();drawEyeClimax();drawCount();updateTransition();
   if(!presMode&&millis()>20000&&millis()-lastGlitch>random(20000,40000)){triggerGlitch();lastGlitch=millis();}
   if(!presMode&&!eyeActive&&millis()-lastInteract>25000&&!idleWPlayed){playWhisper(random(['awake.','remember.','ascend.','listen.']));idleWPlayed=true;lastInteract=millis();}
 }
 function mousePressed(){if(!started||transitioning)return;lastInteract=millis();idleWPlayed=false;
   if(presMode){presNext();return;}
   if(eyeActive)return;
+  // Feature 6: count clicks
+  if(countActive){
+    if(!countDone&&countNum<76){countNum++;if(countNum>=76){countDone=true;countStart=millis();}}
+    return;
+  }
+  if(countTriggerHovered&&scene===1){startCount();return;}
   if(activeViz&&!vizDismissing&&millis()-vizStart>1500){dismissViz();return;}
   if(ascendVisible&&ascendHovered&&!activeViz){
     if(scene<2){startTransition(scene+1);ascendVisible=false;}
-    else{eyeActive=true;eyeStart=millis();ascendVisible=false;}return;}
+    else{eyeActive=true;eyeStart=millis();eyeClimaxPhase='A';eyePhaseStart=millis();eyeLookResult=null;eyeLookFrames=null;eyeLabel=computeLabel();ascendVisible=false;}
+    return;
+  }
+  // Feature 3: wild sea devil capture
+  if(scene===0&&!activeViz){
+    for(let dc of deepCreatures){if(dc.type==='seadevil'&&dc.wild&&!dc.fading&&dc.hovered){captureSd(dc);return;}}
+  }
+  // Feature 4: hull piece click
+  if(scene===1&&!activeViz){
+    for(let p of hullPieces){if(p.hovered&&p.cooldown<=0){triggerHullPiece(p);return;}}
+  }
   for(let h of hotspots)if(h.hovered){h.activate();break;}
 }
 function navScene(target){if(transitioning||eyeActive||activeViz||target===scene)return;startTransition(target);}
