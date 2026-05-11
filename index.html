@@ -53,7 +53,7 @@ let seaDevilImg=null,stationBgImg=null;
 let camDX=0,camDY=0,lastGlitch=0,lastInteract=0,idleWPlayed=false;
 let glitchFX,whisperN,whisperF,whisperG,hoverPing;
 let sceneBuses={},layerPlayers={},layerGains={},hotspotPlayers={},hotspotRev;
-let activeViz=null,vizStart=0,vizAlpha=0,vizDismissing=false,vizDismissStart=0;
+let activeViz=null,vizStart=0,vizAlpha=0,vizDismissing=false,vizDismissStart=0,activeVizQuote='';
 let scene=0,sceneVisited=[0,0,0],sceneRequired=[3,4,2],scenesUnlocked=[true,true,true];
 let ascendVisible=false,ascendX=0,ascendY=0,ascendHovered=false;
 let transitioning=false,transitionStart=0,transitionBuilt=false,transitionTarget=0;
@@ -395,13 +395,42 @@ function drawVisualization(){
   if(el<3500){vizAlpha=0;return;}if(el<4500)vizAlpha=map(el,3500,4500,0,230);else vizAlpha=230;
   if(vizDismissing){const de=millis()-vizDismissStart;vizAlpha=map(de,0,800,230,0);
     if(de>800){activeViz=null;vizDismissing=false;vizAlpha=0;hideSub();document.getElementById('dismiss-hint').classList.remove('show');hotspotPhase='idle';return;}}
-  push();fill(0,0,5,vizAlpha*0.75);noStroke();rect(0,0,width,height);
+
+  // Split: viz top 65%, quote bottom 35%
+  const VZ=0.65,splitY=height*VZ,shiftUp=height*(1-VZ)/2;
+  const a=vizAlpha/230;
+
+  // Dark overlay full screen
+  push();fill(0,0,5,vizAlpha*0.75);noStroke();rect(0,0,width,height);pop();
+
+  // Clip viz to top zone, shift it up so it stays centered within that zone
+  drawingContext.save();drawingContext.beginPath();drawingContext.rect(0,0,width,splitY);drawingContext.clip();
+  push();translate(0,-shiftUp);
   const v=activeViz;
   if(v==='shrinking_belt')drawVizBelt(vizAlpha);else if(v==='deep_parade')drawVizParade(vizAlpha);else if(v==='sea_level')drawVizSea(vizAlpha);
   else if(v==='hierarchy')drawVizHierarchy(vizAlpha);else if(v==='daily_life')drawVizDaily(vizAlpha);
   else if(v==='air_oxygen')drawVizAir(vizAlpha);else if(v==='number39')drawVizN39(vizAlpha);
   else if(v==='mythology')drawVizMyth(vizAlpha);else if(v==='selection')drawVizSelection(vizAlpha);
-  pop();
+  pop();drawingContext.restore();
+
+  // Divider
+  push();stroke(80,140,140,a*55);strokeWeight(0.5);line(width*0.1,splitY,width*0.9,splitY);pop();
+
+  // Quote text in lower zone
+  if(activeVizQuote){
+    push();noStroke();
+    const lines=activeVizQuote.split('\n');
+    const lh=20,totalH=lines.length*lh;
+    const textY=splitY+(height-splitY)/2-totalH/2+lh*0.5;
+    textAlign(CENTER);
+    lines.forEach((ln,i)=>{
+      const warm=i/max(lines.length-1,1);
+      fill(155+warm*35,195+warm*20,185+warm*5,a*190);
+      textSize(13);text(ln,width/2,textY+i*lh);
+    });
+    pop();
+  }
+
 }
 // --- MOLLWEIDE BELT ---
 function mollweide(lat,lon,cx,cy,rw,rh){
@@ -751,7 +780,7 @@ function mousePressed(){if(!started||transitioning)return;lastInteract=millis();
   if(activeViz&&!vizDismissing&&millis()-vizStart>4500){dismissViz();return;}
   // Click anywhere advances from quote to viz
   if(hotspotPhase==='quote'&&activeHotspot){
-    hotspotPhase='viz';hideSub();activeViz=activeHotspot.vizId;vizStart=millis();vizDismissing=false;
+    hotspotPhase='viz';hideSub();activeViz=activeHotspot.vizId;activeVizQuote=activeHotspot.quote;vizStart=millis();vizDismissing=false;
     setTimeout(()=>document.getElementById('dismiss-hint').classList.add('show'),4000);return;}
   if(ascendVisible&&ascendHovered&&!activeViz){
     if(scene<2){startTransition(scene+1);ascendVisible=false;}
