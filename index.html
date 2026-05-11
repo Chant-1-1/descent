@@ -12,8 +12,8 @@
   canvas{background:transparent !important;}
   #start-overlay{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:12%;z-index:2000;cursor:pointer;}
   #start-overlay.fade{opacity:0;transition:opacity 3s ease;pointer-events:none;}
-  #start-overlay .intro{color:rgba(200,225,220,0.88);font-size:13px;letter-spacing:0.18em;line-height:2.1;text-align:center;max-width:520px;margin-bottom:40px;text-shadow:0 0 18px rgba(0,0,0,0.95);animation:fi 4s ease-out forwards;}
-  #start-overlay .world{color:rgba(140,195,190,0.75);font-size:11px;letter-spacing:0.5em;text-transform:lowercase;margin-bottom:48px;animation:fi 3s ease-out forwards;}
+  #start-overlay .intro{color:rgba(230,242,238,1.0);font-size:14px;letter-spacing:0.17em;line-height:2.2;text-align:center;max-width:540px;margin-bottom:44px;text-shadow:0 1px 3px rgba(0,0,0,1);}
+  #start-overlay .world{color:rgba(170,215,205,0.9);font-size:11px;letter-spacing:0.48em;text-transform:lowercase;margin-bottom:52px;}
   #start-overlay .text{color:#4a8a8a;font-size:13px;letter-spacing:0.35em;text-transform:lowercase;opacity:0.5;animation:sp 3s ease-in-out infinite;}
   @keyframes sp{0%,100%{opacity:0.25;}50%{opacity:0.65;}}
   @keyframes fi{from{opacity:0;}to{opacity:1;}}
@@ -584,75 +584,92 @@ function drawVisualization(){
 }
 // --- MOTHERS ---
 function drawVizMothers(a){
-  const cx=width/2,cy=height*0.48,fi=a/230;
+  const fi=a/230;
   const t=min((millis()-vizStart)/9000,1);
 
-  // Filtered sunlight strip at top — their privilege
-  noStroke();
-  for(let i=0;i<10;i++){fill(210,185,100,(10-i*0.8)*fi);rect(cx-80-i*22,0,160+i*44,cy*0.35);}
-
   const mothers=[
-    {title:'PROVISIONER MOTHER',role:'controls food & water\ndistribution across all levels',symbol:'⊕',col:[210,175,90]},
-    {title:'ENGINEER MOTHER',role:'oversees oxygen systems,\nfiltration & all mechanics',symbol:'⚙',col:[140,190,170]},
-    {title:'MEMORY MOTHER',role:'holds station histories,\ntrains the Memory Keepers',symbol:'◎',col:[160,170,210]},
-    {title:'NAVIGATOR MOTHER',role:'manages relations\nwith other stations',symbol:'◈',col:[150,200,180]},
-    {title:'WATCHER MOTHER',role:'oversees the Eye of Kheir,\nselects candidates for ritual',symbol:'◉',col:[200,155,120]},
+    {title:'Provisioner Mother',role:'Controls the distribution
+of food and water across
+all levels of the station.',symbol:'⊕',col:[210,175,90]},
+    {title:'Engineer Mother',role:'Oversees all mechanical
+systems — oxygen,
+filtration, pressure.',symbol:'⚙',col:[120,180,160]},
+    {title:'Memory Mother',role:'Holds station histories.
+Trains the Memory Keepers.
+Knowledge is power.',symbol:'◎',col:[150,160,210]},
+    {title:'Navigator Mother',role:'Manages contact and
+trade relations with
+all other stations.',symbol:'◈',col:[140,195,170]},
+    {title:'Watcher Mother',role:'Oversees the Eye of Kheir.
+Selects candidates
+for the ritual.',symbol:'◉',col:[210,145,110]},
   ];
 
   const n=mothers.length;
-  const colW=width*0.18,startX=cx-colW*2,rowH=height*0.14;
+  // Proper 5-column layout
+  const pad=width*0.05;
+  const totalW=width-pad*2;
+  const colW=totalW/n;
+
+  // Light from above — their privilege
+  noStroke();
+  for(let i=0;i<14;i++){fill(210,180,80,(9-i*0.55)*fi);rect(0,0,width,height*(0.04+i*0.04));}
 
   mothers.forEach((m,i)=>{
-    const fi2=constrain((t-i*0.15)*2.5,0,1);
+    const fi2=constrain((t-i*0.14)*2.8,0,1);
     if(fi2<=0)return;
-    const mx=startX+i*colW+colW/2;
-    const topY=height*0.1;
+    const mx=pad+i*colW+colW/2;
+    const cardX=pad+i*colW+colW*0.06;
+    const cardW=colW*0.88;
+    const cardTop=height*0.08;
+    const cardH=height*0.76;
 
-    // Card background
-    noStroke();fill(m.col[0],m.col[1],m.col[2],fi*0.07*fi2);
-    rect(mx-colW*0.44,topY,colW*0.88,height*0.65,3);
-    stroke(m.col[0],m.col[1],m.col[2],fi*0.25*fi2);strokeWeight(0.5);noFill();
-    rect(mx-colW*0.44,topY,colW*0.88,height*0.65,3);
+    // Card bg
+    noStroke();fill(m.col[0],m.col[1],m.col[2],fi*fi2*14);
+    rect(cardX,cardTop,cardW,cardH,4);
+    stroke(m.col[0],m.col[1],m.col[2],fi*fi2*55);strokeWeight(0.6);noFill();
+    rect(cardX,cardTop,cardW,cardH,4);
 
-    // Light from above on each mother
-    noStroke();fill(215,195,115,fi*0.1*fi2);
-    triangle(mx-18,topY,mx+18,topY,mx+8,topY+height*0.15);
+    // Light cone from top
+    noStroke();fill(220,195,100,fi*fi2*0.12);
+    triangle(mx-10,cardTop,mx+10,cardTop,mx+colW*0.3,cardTop+height*0.18);
 
-    // Figure
-    const fy=topY+height*0.19;
-    fill(m.col[0],m.col[1],m.col[2],fi*0.65*fi2);noStroke();
-    circle(mx,fy-22,18);
-    beginShape();vertex(mx-9,fy-14);vertex(mx-12,fy+20);vertex(mx+12,fy+20);vertex(mx+9,fy-14);endShape(CLOSE);
-    fill(m.col[0],m.col[1],m.col[2],fi*0.22*fi2);
-    triangle(mx-12,fy+20,mx-18,fy+38,mx+18,fy+38);
+    // Figure — centered in upper card
+    const fy=cardTop+height*0.22;
+    fill(m.col[0],m.col[1],m.col[2],fi*fi2*165);noStroke();
+    circle(mx,fy-18,16); // head
+    beginShape();vertex(mx-8,fy-11);vertex(mx-10,fy+16);vertex(mx+10,fy+16);vertex(mx+8,fy-11);endShape(CLOSE);
+    fill(m.col[0],m.col[1],m.col[2],fi*fi2*55);
+    triangle(mx-10,fy+16,mx-15,fy+32,mx+15,fy+32); // robe
 
     // Symbol
-    fill(m.col[0]+50,m.col[1]+50,m.col[2]+40,fi*0.8*fi2);
-    textSize(13);textAlign(CENTER);text(m.symbol,mx,fy+55);
+    fill(m.col[0]+60,m.col[1]+60,m.col[2]+50,fi*fi2*200);noStroke();
+    textSize(16);textAlign(CENTER);text(m.symbol,mx,fy+52);
 
     // Title
-    fill(m.col[0]+40,m.col[1]+40,m.col[2]+30,fi*0.85*fi2);
-    textSize(9);textAlign(CENTER);
-    const titleLines=m.title.split(' ');
-    // split into 2 lines: first word + rest
-    const midT=Math.ceil(titleLines.length/2);
-    text(titleLines.slice(0,midT).join(' '),mx,topY+height*0.41);
-    text(titleLines.slice(midT).join(' '),mx,topY+height*0.41+12);
+    fill(m.col[0]+55,m.col[1]+55,m.col[2]+45,fi*fi2*220);
+    textSize(10);textAlign(CENTER);textStyle(BOLD);
+    text(m.title,mx,fy+75);textStyle(NORMAL);
 
-    // Role description
-    fill(m.col[0],m.col[1],m.col[2],fi*0.5*fi2);textSize(8);
-    const roleLines=m.role.split('\n');
-    roleLines.forEach((rl,ri)=>text(rl,mx,topY+height*0.49+ri*11));
+    // Divider
+    stroke(m.col[0],m.col[1],m.col[2],fi*fi2*60);strokeWeight(0.4);
+    line(cardX+cardW*0.15,fy+85,cardX+cardW*0.85,fy+85);
+
+    // Role lines
+    noStroke();fill(m.col[0]+25,m.col[1]+25,m.col[2]+20,fi*fi2*170);
+    textSize(9.5);textAlign(CENTER);
+    const rlines=m.role.split('
+');
+    rlines.forEach((rl,ri)=>text(rl,mx,fy+102+ri*14));
   });
 
   // Bottom note
-  const fi3=constrain((t-0.8)*4,0,1);
+  const fi3=constrain((t-0.85)*5,0,1);
   if(fi3>0){
-    noStroke();fill(160,175,160,fi*0.5*fi3);
-    textSize(10.5);textAlign(CENTER);
-    text('the watcher mother alone holds both political and sacred authority',cx,height*0.82);
-    fill(120,140,130,fi*0.32*fi3);textSize(9.5);
-    text('decisions are made in assembly · council holds veto power',cx,height*0.82+16);
+    noStroke();fill(180,190,170,fi*fi3*140);textSize(11);textAlign(CENTER);
+    text('the watcher mother holds both political and sacred authority',width/2,height*0.88);
+    fill(130,150,130,fi*fi3*90);textSize(10);
+    text('council of mothers · upper level · decisions made in assembly',width/2,height*0.88+16);
   }
 }
 function mollweide(lat,lon,cx,cy,rw,rh){
@@ -784,48 +801,86 @@ function drawVizParade(a){
 // --- SEA LEVEL ---
 function drawVizSea(a){
   const baseY=height*0.7,t=min((millis()-vizStart)/12000,1),wl=baseY-t*height*0.35;
+  const fi=a/230;
   const pts=[];for(let x=0;x<=width;x+=3)pts.push({x,y:baseY-(noise(x*0.003,42)*height*0.5+noise(x*0.01,42)*height*0.15)});
 
-  // === ABOVE WATER: Solar radiation zone ===
-  const sunY=wl*0.28;const radT=constrain(t*1.5,0,1);
-  // Sky gradient — burnt yellow/orange
-  noStroke();
-  for(let i=0;i<12;i++){fill(200+i*4,160-i*8,20,a*0.055*radT*(12-i)/12);rect(0,0,width,wl*(0.15+i*0.08));}
-  // Sun disc
-  const sunX=width*0.72;
-  fill(255,230,80,a*0.7*radT);noStroke();circle(sunX,sunY,28);
-  fill(255,240,120,a*0.25*radT);circle(sunX,sunY,58);
-  fill(255,200,50,a*0.1*radT);circle(sunX,sunY,110);
-  // UV/radiation rays fanning outward
-  for(let i=0;i<18;i++){const ang=map(i,0,18,-0.7,0.7)+HALF_PI;const len=height*0.38*radT*(0.6+noise(i*0.4,frameCount*0.008)*0.7);
-    const flick=sin(frameCount*0.06+i*0.9)*0.15+0.85;
-    stroke(240,210,60,a*0.12*radT*flick);strokeWeight(max(0.4,(1-i/18)*1.2));
-    line(sunX,sunY,sunX+cos(ang)*len,sunY+sin(ang)*len);}
-  // Horizontal UV bands (radiation sweeping across)
-  for(let i=0;i<6;i++){const y=wl*(0.1+i*0.15);const flick=sin(frameCount*0.04+i)*0.2+0.8;
-    stroke(220,190,40,a*0.06*radT*flick);strokeWeight(0.6);line(0,y,width,y);}
-  // Danger label
-  noStroke();fill(255,220,60,a*0.8*radT);textSize(11);textAlign(LEFT);
-  text('lethal solar radiation — unprotected exposure fatal within 3–4 hours',width*0.07,wl*0.55);
-  fill(240,180,40,a*0.45*radT);textSize(9.5);
-  text('ozone depletion · weakened magnetic field · UV-C penetration at surface',width*0.07,wl*0.55+16);
-  // Water level marker
-  stroke(255,220,60,a*0.3*radT);strokeWeight(0.5);line(width*0.05,wl,width*0.95,wl);
+  // === SKY: bright burnt atmosphere ===
+  const radT=constrain(t*1.5,0,1);
+  // Strong sky gradient — yellows, oranges
+  const ctx=drawingContext;ctx.save();
+  const skyG=ctx.createLinearGradient(0,0,0,wl);
+  skyG.addColorStop(0,'rgba(30,15,0,'+(fi*0.9*radT)+')');
+  skyG.addColorStop(0.3,'rgba(80,40,0,'+(fi*0.75*radT)+')');
+  skyG.addColorStop(0.7,'rgba(160,110,10,'+(fi*0.5*radT)+')');
+  skyG.addColorStop(1,'rgba(200,160,30,'+(fi*0.25*radT)+')');
+  ctx.fillStyle=skyG;ctx.fillRect(0,0,width,wl);ctx.restore();
 
-  // === WATER: ocean ===
-  for(let p of pts){if(p.y>wl){stroke(20,50,60,a*0.5);strokeWeight(1);point(p.x,p.y);}}
-  noStroke();for(let i=0;i<120;i++){fill(30,80,100,a*0.3);circle(random(width),wl+random(-8,8),random(2,8));}
-  fill(15,40,55,a*0.5);rect(0,wl,width,height-wl);
-  stroke(40,100,120,a*0.2);strokeWeight(0.5);noFill();
-  for(let i=0;i<25;i++){const cx2=random(width),cy2=wl+random(10,height*0.2),r=random(20,60);
-    beginShape();for(let j=0;j<6;j++)vertex(cx2+cos(j*TWO_PI/6+random(0.2))*r,cy2+sin(j*TWO_PI/6+random(0.2))*r*0.6);endShape(CLOSE);}
-  stroke(140,180,180,a*0.7);strokeWeight(1.5);noFill();beginShape();for(let p of pts)vertex(p.x,p.y);endShape();
-  noStroke();for(let p of pts){if(p.y<wl-3){fill(180,220,200,a*0.6);circle(p.x,p.y,2);}}
-  noStroke();fill(80,160,180,a*0.6);textSize(13);textAlign(LEFT);text('sea level — year 3126',width*0.08,wl+18);
-  fill(140,200,200,a*0.5);textSize(15);textAlign(CENTER);
+  const sunX=width*0.68,sunY=wl*0.32;
+
+  // Radial glow behind sun — large
+  ctx.save();
+  const rg1=ctx.createRadialGradient(sunX,sunY,20,sunX,sunY,wl*0.85);
+  rg1.addColorStop(0,'rgba(255,230,80,'+(fi*0.55*radT)+')');
+  rg1.addColorStop(0.2,'rgba(240,180,30,'+(fi*0.28*radT)+')');
+  rg1.addColorStop(0.5,'rgba(200,120,10,'+(fi*0.12*radT)+')');
+  rg1.addColorStop(1,'rgba(100,50,0,0)');
+  ctx.fillStyle=rg1;ctx.fillRect(0,0,width,wl);ctx.restore();
+
+  // 360° radiation rays from sun
+  noStroke();
+  for(let i=0;i<32;i++){
+    const ang=(TWO_PI/32)*i+frameCount*0.003;
+    const len=(wl*0.7+noise(i*0.8,frameCount*0.006)*wl*0.4)*radT;
+    const flick=sin(frameCount*0.05+i*1.1)*0.18+0.82;
+    const w=max(0.3,1.6-i%3*0.4);
+    stroke(255,210,50,fi*0.18*radT*flick);strokeWeight(w);
+    line(sunX,sunY,sunX+cos(ang)*len,sunY+sin(ang)*len);
+  }
+  // Secondary shorter bright rays
+  for(let i=0;i<24;i++){
+    const ang=(TWO_PI/24)*i+PI/24+frameCount*0.004;
+    const len=(wl*0.35+noise(i*1.2,frameCount*0.009)*wl*0.25)*radT;
+    const flick=sin(frameCount*0.07+i*0.8)*0.2+0.8;
+    stroke(255,240,120,fi*0.28*radT*flick);strokeWeight(0.5);
+    line(sunX,sunY,sunX+cos(ang)*len,sunY+sin(ang)*len);
+  }
+
+  // Sun disc layers
+  noStroke();
+  fill(255,160,0,fi*0.08*radT);circle(sunX,sunY,180);
+  fill(255,200,30,fi*0.18*radT);circle(sunX,sunY,90);
+  fill(255,230,80,fi*0.45*radT);circle(sunX,sunY,44);
+  fill(255,248,150,fi*0.75*radT);circle(sunX,sunY,22);
+  fill(255,255,220,fi*0.92*radT);circle(sunX,sunY,10);
+
+  // UV horizontal shimmer bands across sky
+  for(let i=0;i<8;i++){const y=wl*(0.08+i*0.11);
+    const flick=sin(frameCount*0.03+i*1.4)*0.25+0.75;
+    stroke(255,220,60,fi*0.06*radT*flick);strokeWeight(0.5);line(0,y,width,y);}
+
+  // Danger labels
+  noStroke();fill(255,230,70,fi*0.92*radT);textSize(11);textAlign(LEFT);
+  text('lethal solar radiation — fatal within 3–4 hours unprotected',width*0.06,wl*0.62);
+  fill(240,185,45,fi*0.6*radT);textSize(9.5);
+  text('ozone depletion · weakened magnetic field · UV-C surface penetration',width*0.06,wl*0.62+16);
+
+  // Water line
+  stroke(255,200,40,fi*0.35*radT);strokeWeight(0.6);noFill();line(0,wl,width,wl);
+
+  // === OCEAN ===
+  fill(15,40,55,fi*0.9);noStroke();rect(0,wl,width,height-wl);
+  for(let p of pts){if(p.y>wl){stroke(20,55,70,fi*0.6);strokeWeight(1);point(p.x,p.y);}}
+  noStroke();for(let i=0;i<80;i++){fill(30,80,100,fi*0.25);circle(random(width),wl+random(-6,6),random(2,7));}
+  stroke(40,100,120,fi*0.18);strokeWeight(0.5);noFill();
+  for(let i=0;i<20;i++){const ox=random(width),oy=wl+random(12,height*0.22),r=random(18,55);
+    beginShape();for(let j=0;j<6;j++)vertex(ox+cos(j*TWO_PI/6+random(0.2))*r,oy+sin(j*TWO_PI/6+random(0.2))*r*0.55);endShape(CLOSE);}
+  stroke(140,185,185,fi*0.8);strokeWeight(1.5);noFill();beginShape();for(let p of pts)vertex(p.x,p.y);endShape();
+  noStroke();fill(80,160,180,fi*0.65);textSize(13);textAlign(LEFT);
+  text('sea level — year 3126',width*0.07,wl+20);
+  fill(140,200,200,fi*0.55);textSize(15);textAlign(CENTER);
   text('the seven continents no longer exist',width/2,baseY+38);
   text('only mountain peaks remain as scattered islands',width/2,baseY+56);
-  fill(100,170,170,a*0.35);textSize(12);text('global ocean · tidal ice · geothermal equatorial belt',width/2,baseY+74);
+  fill(100,170,170,fi*0.38);textSize(12);text('global ocean · tidal ice · geothermal equatorial belt',width/2,baseY+74);
 }
 // --- HIERARCHY ---
 function drawVizHierarchy(a){const cx=width/2,t=min((millis()-vizStart-3500)/10000,1);const stW=width*0.3,stL=cx-stW/2,stR=cx+stW/2,stT=height*0.1,stB=height*0.85;stroke(80,140,140,a*0.4);strokeWeight(1);noFill();rect(stL,stT,stW,stB-stT,4);const levels=[{name:'UPPER LEVEL',sub:'council of mothers · filtered sunlight',y:stT,h:(stB-stT)*0.25,col:[200,180,100],la:0.25},{name:'MIDDLE LEVEL',sub:'workers · technicians · farmers',y:stT+(stB-stT)*0.28,h:(stB-stT)*0.32,col:[120,160,160],la:0.08},{name:'THE DEEPS',sub:'maintenance · outcasts · darkness',y:stT+(stB-stT)*0.63,h:(stB-stT)*0.35,col:[60,90,100],la:0}];for(let lv of levels){const fi3=constrain((t-0.1)*3,0,1);fill(lv.col[0],lv.col[1],lv.col[2],a*0.08*fi3);noStroke();rect(stL+2,lv.y+2,stW-4,lv.h-2);if(lv.la>0){for(let y2=0;y2<lv.h*0.5;y2++){stroke(220,200,120,a*lv.la*(1-y2/(lv.h*0.5))*fi3);line(stL+2,lv.y+y2,stR-2,lv.y+y2);}}noStroke();const fc=lv.name==='THE DEEPS'?2:lv.name==='UPPER LEVEL'?3:5;for(let i=0;i<fc;i++){const fx=stL+stW*0.2+i*(stW*0.6/(fc-1||1)),fy=lv.y+lv.h*0.5;stroke(lv.col[0]+40,lv.col[1]+40,lv.col[2]+40,a*0.5*fi3);strokeWeight(1);circle(fx,fy-12,6);line(fx,fy-9,fx,fy+5);line(fx,fy+5,fx-4,fy+14);line(fx,fy+5,fx+4,fy+14);}noStroke();fill(lv.col[0]+60,lv.col[1]+60,lv.col[2]+60,a*0.7*fi3);textSize(14);textAlign(CENTER);text(lv.name,cx,lv.y+lv.h*0.3);fill(lv.col[0]+30,lv.col[1]+30,lv.col[2]+30,a*0.45*fi3);textSize(11);text(lv.sub,cx,lv.y+lv.h*0.3+18);}stroke(80,140,140,a*0.25);strokeWeight(0.5);line(stL,levels[1].y,stR,levels[1].y);line(stL,levels[2].y,stR,levels[2].y);noStroke();fill(220,180,100,a*0.5*t);textSize(11);textAlign(CENTER);text('☀ light ↓',stL-60,height*0.3);text('authority ↓',stL-60,height*0.45);fill(100,180,160,a*0.5*t);text('resources ↑',stR+60,height*0.55);fill(120,180,180,a*0.5);textSize(15);text('proximity to light determines social standing',cx,stB+28);}
