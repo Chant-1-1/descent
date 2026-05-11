@@ -431,10 +431,11 @@ function drawVisualization(){
   // Dark overlay — fades in with text
   push();fill(0,0,5,textA*190);noStroke();rect(0,0,width,height);pop();
 
-  // Viz — clipped to top zone, fades in slightly after text
+  // Viz — scaled uniformly to fit in top zone without distortion
   if(rawVizA>0){
+    const s=VZ;
     drawingContext.save();drawingContext.beginPath();drawingContext.rect(0,0,width,splitY);drawingContext.clip();
-    push();
+    push();translate(width*(1-s)/2,0);scale(s);
     const v=activeViz;
     if(v==='shrinking_belt')drawVizBelt(vizAlpha);else if(v==='deep_parade')drawVizParade(vizAlpha);else if(v==='sea_level')drawVizSea(vizAlpha);
     else if(v==='hierarchy')drawVizHierarchy(vizAlpha);else if(v==='daily_life')drawVizDaily(vizAlpha);
@@ -460,78 +461,75 @@ function drawVisualization(){
 }
 // --- MOTHERS ---
 function drawVizMothers(a){
-  const cx=width/2,cy=height*0.45,t=min((millis()-vizStart)/8000,1);
-  const fi=a/230;
+  const cx=width/2,cy=height*0.48,fi=a/230;
+  const t=min((millis()-vizStart)/9000,1);
 
-  // Filtered sunlight from above — their privilege
+  // Filtered sunlight strip at top — their privilege
   noStroke();
-  for(let i=0;i<8;i++){fill(200,180,100,(12-i*1.2)*fi);rect(cx-60-i*18,0,120+i*36,cy*0.6);}
-  fill(220,200,120,fi*18);rect(cx-30,0,60,cy*0.8);
+  for(let i=0;i<10;i++){fill(210,185,100,(10-i*0.8)*fi);rect(cx-80-i*22,0,160+i*44,cy*0.35);}
 
-  // Chamber arc
-  stroke(140,160,140,a*0.3);strokeWeight(1);noFill();
-  arc(cx,cy+60,width*0.55,height*0.55,PI,TWO_PI);
-
-  // The mothers — semicircle arrangement
   const mothers=[
-    {name:'FIRST MOTHER',role:'memory keeper',age:'born year 2891',col:[220,195,110]},
-    {name:'SECOND MOTHER',role:'resource council',age:'born year 2934',col:[180,200,160]},
-    {name:'THIRD MOTHER',role:'breeding records',age:'born year 2951',col:[160,185,200]},
-    {name:'FOURTH MOTHER',role:'light allocation',age:'born year 2968',col:[200,170,140]},
-    {name:'FIFTH MOTHER',role:'law of descent',age:'born year 2979',col:[170,160,210]},
+    {title:'PROVISIONER MOTHER',role:'controls food & water\ndistribution across all levels',symbol:'⊕',col:[210,175,90]},
+    {title:'ENGINEER MOTHER',role:'oversees oxygen systems,\nfiltration & all mechanics',symbol:'⚙',col:[140,190,170]},
+    {title:'MEMORY MOTHER',role:'holds station histories,\ntrains the Memory Keepers',symbol:'◎',col:[160,170,210]},
+    {title:'NAVIGATOR MOTHER',role:'manages relations\nwith other stations',symbol:'◈',col:[150,200,180]},
+    {title:'WATCHER MOTHER',role:'oversees the Eye of Kheir,\nselects candidates for ritual',symbol:'◉',col:[200,155,120]},
   ];
-  const total=mothers.length;
+
+  const n=mothers.length;
+  const colW=width*0.18,startX=cx-colW*2,rowH=height*0.14;
 
   mothers.forEach((m,i)=>{
-    const ang=map(i,0,total-1,PI*1.1,TWO_PI*0.9);
-    const r=width*0.22;
-    const mx=cx+cos(ang)*r,my=cy+sin(ang)*r*0.55+40;
-    const fi2=constrain((t-i*0.12)*2,0,1);
+    const fi2=constrain((t-i*0.15)*2.5,0,1);
     if(fi2<=0)return;
+    const mx=startX+i*colW+colW/2;
+    const topY=height*0.1;
 
-    // Figure silhouette
-    noStroke();fill(m.col[0],m.col[1],m.col[2],a*0.5*fi2);
-    // Head
-    circle(mx,my-28,16);
-    // Body
-    beginShape();vertex(mx-10,my-20);vertex(mx-14,my+18);vertex(mx+14,my+18);vertex(mx+10,my-20);endShape(CLOSE);
-    // Robe drape
-    fill(m.col[0],m.col[1],m.col[2],a*0.2*fi2);
-    triangle(mx-14,my+18,mx-22,my+38,mx+22,my+38);
+    // Card background
+    noStroke();fill(m.col[0],m.col[1],m.col[2],fi*0.07*fi2);
+    rect(mx-colW*0.44,topY,colW*0.88,height*0.65,3);
+    stroke(m.col[0],m.col[1],m.col[2],fi*0.25*fi2);strokeWeight(0.5);noFill();
+    rect(mx-colW*0.44,topY,colW*0.88,height*0.65,3);
 
-    // Light cone on face (from above)
-    fill(220,200,130,a*0.12*fi2);
-    triangle(mx-6,0,mx+6,0,mx+10,my-22);
+    // Light from above on each mother
+    noStroke();fill(215,195,115,fi*0.1*fi2);
+    triangle(mx-18,topY,mx+18,topY,mx+8,topY+height*0.15);
 
-    // Name tag
-    noStroke();fill(m.col[0]+40,m.col[1]+40,m.col[2]+40,a*0.8*fi2);
-    textSize(10);textAlign(CENTER);text(m.name,mx,my+52);
-    fill(m.col[0],m.col[1],m.col[2],a*0.45*fi2);
-    textSize(8.5);text(m.role,mx,my+64);
-    fill(100,130,120,a*0.3*fi2);
-    textSize(8);text(m.age,mx,my+75);
+    // Figure
+    const fy=topY+height*0.19;
+    fill(m.col[0],m.col[1],m.col[2],fi*0.65*fi2);noStroke();
+    circle(mx,fy-22,18);
+    beginShape();vertex(mx-9,fy-14);vertex(mx-12,fy+20);vertex(mx+12,fy+20);vertex(mx+9,fy-14);endShape(CLOSE);
+    fill(m.col[0],m.col[1],m.col[2],fi*0.22*fi2);
+    triangle(mx-12,fy+20,mx-18,fy+38,mx+18,fy+38);
+
+    // Symbol
+    fill(m.col[0]+50,m.col[1]+50,m.col[2]+40,fi*0.8*fi2);
+    textSize(13);textAlign(CENTER);text(m.symbol,mx,fy+55);
+
+    // Title
+    fill(m.col[0]+40,m.col[1]+40,m.col[2]+30,fi*0.85*fi2);
+    textSize(9);textAlign(CENTER);
+    const titleLines=m.title.split(' ');
+    // split into 2 lines: first word + rest
+    const midT=Math.ceil(titleLines.length/2);
+    text(titleLines.slice(0,midT).join(' '),mx,topY+height*0.41);
+    text(titleLines.slice(midT).join(' '),mx,topY+height*0.41+12);
+
+    // Role description
+    fill(m.col[0],m.col[1],m.col[2],fi*0.5*fi2);textSize(8);
+    const roleLines=m.role.split('\n');
+    roleLines.forEach((rl,ri)=>text(rl,mx,topY+height*0.49+ri*11));
   });
 
-  // Central podium
-  const fi3=constrain((t-0.5)*2,0,1);
+  // Bottom note
+  const fi3=constrain((t-0.8)*4,0,1);
   if(fi3>0){
-    fill(120,140,120,a*0.15*fi3);noStroke();
-    ellipse(cx,cy+65,80,20);
-    stroke(140,160,130,a*0.25*fi3);strokeWeight(0.6);noFill();
-    ellipse(cx,cy+65,80,20);
-    // Descent law tablet
-    fill(180,170,130,a*0.6*fi3);noStroke();rect(cx-20,cy+25,40,30,2);
-    fill(10,15,12,a*0.4*fi3);textSize(7.5);textAlign(CENTER);
-    text('LAW OF',cx,cy+38*fi3+25);text('DESCENT',cx,cy+38*fi3+35);text('year 2847',cx,cy+38*fi3+45);
-  }
-
-  // Bottom label
-  const fi4=constrain((t-0.7)*3,0,1);
-  if(fi4>0){
-    noStroke();fill(160,180,160,a*0.55*fi4);textSize(13);textAlign(CENTER);
-    text('the council of mothers · upper level · module 1',cx,cy+height*0.35);
-    fill(100,130,120,a*0.35*fi4);textSize(10.5);
-    text('5 of an original 7 · two lost to the deeps · year 3044',cx,cy+height*0.35+18);
+    noStroke();fill(160,175,160,fi*0.5*fi3);
+    textSize(10.5);textAlign(CENTER);
+    text('the watcher mother alone holds both political and sacred authority',cx,height*0.82);
+    fill(120,140,130,fi*0.32*fi3);textSize(9.5);
+    text('decisions are made in assembly · council holds veto power',cx,height*0.82+16);
   }
 }
 function mollweide(lat,lon,cx,cy,rw,rh){
