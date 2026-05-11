@@ -396,16 +396,16 @@ function drawVisualization(){
   if(vizDismissing){const de=millis()-vizDismissStart;vizAlpha=map(de,0,800,230,0);
     if(de>800){activeViz=null;vizDismissing=false;vizAlpha=0;hideSub();document.getElementById('dismiss-hint').classList.remove('show');hotspotPhase='idle';return;}}
 
-  // Split: viz top 65%, quote bottom 35%
-  const VZ=0.65,splitY=height*VZ,shiftUp=height*(1-VZ)/2;
+  // Split: viz top 72%, quote compact strip below
+  const VZ=0.72,splitY=height*VZ;
   const a=vizAlpha/230;
 
   // Dark overlay full screen
   push();fill(0,0,5,vizAlpha*0.75);noStroke();rect(0,0,width,height);pop();
 
-  // Clip viz to top zone, shift it up so it stays centered within that zone
+  // Clip viz at bottom — no upward shift, viz stays centered naturally
   drawingContext.save();drawingContext.beginPath();drawingContext.rect(0,0,width,splitY);drawingContext.clip();
-  push();translate(0,-shiftUp);
+  push();
   const v=activeViz;
   if(v==='shrinking_belt')drawVizBelt(vizAlpha);else if(v==='deep_parade')drawVizParade(vizAlpha);else if(v==='sea_level')drawVizSea(vizAlpha);
   else if(v==='hierarchy')drawVizHierarchy(vizAlpha);else if(v==='daily_life')drawVizDaily(vizAlpha);
@@ -413,20 +413,17 @@ function drawVisualization(){
   else if(v==='mythology')drawVizMyth(vizAlpha);else if(v==='selection')drawVizSelection(vizAlpha);
   pop();drawingContext.restore();
 
-  // Divider
-  push();stroke(80,140,140,a*55);strokeWeight(0.5);line(width*0.1,splitY,width*0.9,splitY);pop();
+  // Divider line
+  push();stroke(80,140,140,a*50);strokeWeight(0.5);line(width*0.1,splitY,width*0.9,splitY);pop();
 
-  // Quote text in lower zone
+  // Quote text — compact strip at bottom
   if(activeVizQuote){
-    push();noStroke();
+    push();noStroke();textAlign(CENTER);
     const lines=activeVizQuote.split('\n');
-    const lh=20,totalH=lines.length*lh;
-    const textY=splitY+(height-splitY)/2-totalH/2+lh*0.5;
-    textAlign(CENTER);
+    const lh=18,totalH=lines.length*lh;
+    const zoneH=height-splitY,textY=splitY+zoneH/2-totalH/2+lh*0.5;
     lines.forEach((ln,i)=>{
-      const warm=i/max(lines.length-1,1);
-      fill(155+warm*35,195+warm*20,185+warm*5,a*190);
-      textSize(13);text(ln,width/2,textY+i*lh);
+      fill(150+i*8,195,185,a*185);textSize(12.5);text(ln,width/2,textY+i*lh);
     });
     pop();
   }
