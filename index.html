@@ -954,7 +954,59 @@ function drawVizN39(a){
     text('i wanted to ask what it\u2019s like \u2014 when the light leaves.',cx,cy+140);}
 }
 // --- MYTHOLOGY ---
-function drawVizMyth(a){const cx=width/2,cy=height/2,t=min((millis()-vizStart-3500)/12000,1);const vY=cy-60-t*80;fill(220,170,60,a*0.12);noStroke();circle(cx,vY,120);fill(220,170,60,a*0.6);circle(cx,vY,30);stroke(220,160,60,a*0.2);strokeWeight(1);for(let i=0;i<16;i++){const ra=i*TWO_PI/16+frameCount*0.003,rl=40+sin(frameCount*0.02+i)*10;line(cx+cos(ra)*20,vY+sin(ra)*20,cx+cos(ra)*rl,vY+sin(ra)*rl);}const kY=cy+60+t*80;fill(180,200,220,a*0.08);noStroke();circle(cx,kY,90);fill(180,200,220,a*0.4);circle(cx,kY,24);fill(0,2,6,a*0.9);circle(cx+8,kY-2,20);for(let i=0;i<5;i++){fill(120,180,180,a*0.4*t);noStroke();circle(cx+sin(i*2.1)*30,map(i,0,4,vY+50,kY-40),3);}noStroke();fill(220,180,80,a*0.7);textSize(17);textAlign(CENTER);text('vahra',cx,vY-48);fill(220,180,80,a*0.4);textSize(13);text('she who turned away',cx,vY-30);fill(180,200,230,a*0.7);textSize(17);text('kheir',cx,kY+55);fill(180,200,230,a*0.4);textSize(13);text('protector · he who mourns',cx,kY+72);fill(120,180,180,a*0.55);textSize(15);text('the separation',cx,cy);fill(100,160,160,a*0.35);textSize(13);text('humanity caught between',cx,cy+20);}
+function drawVizMyth(a){
+  const cx=width/2,cy=height/2,t=min((millis()-vizStart-3500)/12000,1);
+  const vY=cy-60-t*80,kY=cy+60+t*80,fi=a/255;
+
+  // Sun Vahra
+  fill(220,170,60,a*0.12);noStroke();circle(cx,vY,120);
+  fill(220,170,60,a*0.6);circle(cx,vY,30);
+  stroke(220,160,60,a*0.2);strokeWeight(1);
+  for(let i=0;i<16;i++){const ra=i*TWO_PI/16+frameCount*0.003,rl=40+sin(frameCount*0.02+i)*10;
+    line(cx+cos(ra)*20,vY+sin(ra)*20,cx+cos(ra)*rl,vY+sin(ra)*rl);}
+
+  // Moon Kheir
+  fill(180,200,220,a*0.08);noStroke();circle(cx,kY,90);
+  fill(180,200,220,a*0.4);circle(cx,kY,24);
+  fill(0,2,6,a*0.9);circle(cx+8,kY-2,20);
+
+  // Particles
+  for(let i=0;i<5;i++){fill(120,180,180,a*0.4*t);noStroke();
+    circle(cx+sin(i*2.1)*30,map(i,0,4,vY+50,kY-40),3);}
+
+  // SVG symbol — Eye of Kheir, placed right of center
+  const symX=cx+190,symY=cy-10,symSize=95,sc=symSize/902.46;
+  const ctx2=drawingContext;ctx2.save();
+  ctx2.translate(symX-451.23*sc,symY-402.75*sc);ctx2.scale(sc,sc);
+  ctx2.strokeStyle='rgba(214,200,65,'+fi*0.78+')';
+  ctx2.lineWidth=9;ctx2.setLineDash([]);
+  // Main body path
+  ctx2.beginPath();ctx2.moveTo(451.23,155.52);
+  ctx2.bezierCurveTo(97.06,150.74,7.55,661.22,334.69,780.82);
+  ctx2.bezierCurveTo(267.99,691.75,338.67,553.17,451.24,556.62);
+  ctx2.bezierCurveTo(563.78,553.17,634.51,691.77,567.78,780.82);
+  ctx2.bezierCurveTo(895.07,661.13,805.22,150.74,451.23,155.52);ctx2.closePath();ctx2.stroke();
+  // Inner ellipse
+  ctx2.beginPath();ctx2.moveTo(554.65,699.04);
+  ctx2.bezierCurveTo(552.33,834.99,350.1,834.97,347.8,699.04);
+  ctx2.bezierCurveTo(350.12,563.09,552.35,563.11,554.65,699.04);ctx2.closePath();ctx2.stroke();
+  // Triangles
+  [[360.38,97.21,451.23,6.36,542.08,97.21],[156,222.66,176.1,95.76,303,115.86],
+   [64.38,444.27,6.06,329.8,120.53,271.47],[120.53,677.42,6.05,619.09,64.38,504.61],
+   [746.46,222.66,726.36,95.76,599.46,115.86],[838.07,444.27,896.4,329.8,781.93,271.47],
+   [781.93,677.42,896.4,619.09,838.08,504.61]].forEach(p=>{
+    ctx2.beginPath();ctx2.moveTo(p[0],p[1]);ctx2.lineTo(p[2],p[3]);ctx2.lineTo(p[4],p[5]);ctx2.closePath();ctx2.stroke();});
+  ctx2.restore();
+
+  // Labels
+  noStroke();fill(220,180,80,a*0.7);textSize(17);textAlign(CENTER);text('vahra',cx,vY-48);
+  fill(220,180,80,a*0.4);textSize(13);text('she who turned away',cx,vY-30);
+  fill(180,200,230,a*0.7);textSize(17);text('kheir',cx,kY+55);
+  fill(180,200,230,a*0.4);textSize(13);text('protector · he who mourns',cx,kY+72);
+  fill(120,180,180,a*0.55);textSize(15);text('the separation',cx,cy);
+  fill(100,160,160,a*0.35);textSize(13);text('humanity caught between',cx,cy+20);
+  fill(214,200,65,a*0.5*t);textSize(10);text('the eye of kheir',symX,symY+62);
+}
 // --- SELECTION ---
 function drawVizSelection(a){const t=millis()-vizStart-3500;const lines=['they say my name','once','that\'s enough','something tightens inside me','i walk','too fast then slower','i could stop','but i keep walking','the path narrows','the air thins','the chamber is smaller than i expected','the altar stands in the center','the eye','two tubes','they lean toward me','too close','i kneel','the floor is cold','i am not the first','the light is not mine','i raise my gaze','slowly','toward the openings'];noStroke();textAlign(CENTER);for(let i=0;i<lines.length;i++){const ls=i*1100;if(t<ls)break;const age=t-ls;const fi6=min(age/800,1),fo6=max(0,1-(age-6000)/1500),alp=min(fi6,fo6);if(alp<=0)continue;const warmth=i/lines.length;fill(140+warmth*80,180+warmth*40,180-warmth*120,a*0.7*alp);textSize(15+warmth*5);text(lines[i],width/2,height*0.12+i*24);}}
 // ===================== SCENE CONFIG =====================
