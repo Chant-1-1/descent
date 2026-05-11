@@ -588,23 +588,12 @@ function drawVizMothers(a){
   const t=min((millis()-vizStart)/9000,1);
 
   const mothers=[
-    {title:'Provisioner Mother',role:'Controls the distribution
-of food and water across
-all levels of the station.',symbol:'⊕',col:[210,175,90]},
-    {title:'Engineer Mother',role:'Oversees all mechanical
-systems — oxygen,
-filtration, pressure.',symbol:'⚙',col:[120,180,160]},
-    {title:'Memory Mother',role:'Holds station histories.
-Trains the Memory Keepers.
-Knowledge is power.',symbol:'◎',col:[150,160,210]},
-    {title:'Navigator Mother',role:'Manages contact and
-trade relations with
-all other stations.',symbol:'◈',col:[140,195,170]},
-    {title:'Watcher Mother',role:'Oversees the Eye of Kheir.
-Selects candidates
-for the ritual.',symbol:'◉',col:[210,145,110]},
+    {title:'Provisioner Mother',role:['Controls the distribution','of food and water across','all levels of the station.'],symbol:String.fromCharCode(8853),col:[210,175,90]},
+    {title:'Engineer Mother',role:['Oversees all mechanical','systems — oxygen,','filtration, pressure.'],symbol:String.fromCharCode(9881),col:[120,180,160]},
+    {title:'Memory Mother',role:['Holds station histories.','Trains the Memory Keepers.','Knowledge is power.'],symbol:String.fromCharCode(9678),col:[150,160,210]},
+    {title:'Navigator Mother',role:['Manages contact and','trade relations with','all other stations.'],symbol:String.fromCharCode(9672),col:[140,195,170]},
+    {title:'Watcher Mother',role:['Oversees the Eye of Kheir.','Selects candidates','for the ritual.'],symbol:String.fromCharCode(9673),col:[210,145,110]},
   ];
-
   const n=mothers.length;
   // Proper 5-column layout
   const pad=width*0.05;
@@ -658,9 +647,7 @@ for the ritual.',symbol:'◉',col:[210,145,110]},
     // Role lines
     noStroke();fill(m.col[0]+25,m.col[1]+25,m.col[2]+20,fi*fi2*170);
     textSize(9.5);textAlign(CENTER);
-    const rlines=m.role.split('
-');
-    rlines.forEach((rl,ri)=>text(rl,mx,fy+102+ri*14));
+    m.role.forEach((rl,ri)=>text(rl,mx,fy+102+ri*14));
   });
 
   // Bottom note
