@@ -426,16 +426,15 @@ function drawVisualization(){
     hotspotPhase='idle';updateNavBtn();return;
   }
 
-  const VZ=0.72,splitY=height*VZ;
+  const VZ=0.76,splitY=height*VZ;
 
   // Dark overlay — fades in with text
   push();fill(0,0,5,textA*190);noStroke();rect(0,0,width,height);pop();
 
-  // Viz — scaled uniformly to fit in top zone without distortion
+  // Viz — shifted up slightly so bottom fits in clip zone, no scaling (keeps text/shapes full size)
   if(rawVizA>0){
-    const s=VZ;
-    drawingContext.save();drawingContext.beginPath();drawingContext.rect(0,0,width,splitY);drawingContext.clip();
-    push();translate(width*(1-s)/2,0);scale(s);
+    drawingContext.save();drawingContext.beginPath();drawingContext.rect(0,-height*0.08,width,splitY+height*0.08);drawingContext.clip();
+    push();translate(0,-height*0.07);
     const v=activeViz;
     if(v==='shrinking_belt')drawVizBelt(vizAlpha);else if(v==='deep_parade')drawVizParade(vizAlpha);else if(v==='sea_level')drawVizSea(vizAlpha);
     else if(v==='hierarchy')drawVizHierarchy(vizAlpha);else if(v==='daily_life')drawVizDaily(vizAlpha);
