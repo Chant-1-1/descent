@@ -30,9 +30,11 @@
   @keyframes gf{0%{background:rgba(0,0,0,0);transform:translate(0,0);}12%{background:rgba(180,230,230,0.35);transform:translate(8px,-3px);filter:invert(0.3);}50%{background:rgba(255,80,80,0.18);transform:translate(-4px,-2px);}100%{background:rgba(0,0,0,0);transform:translate(0,0);filter:none;}}
   #dismiss-hint{position:fixed;bottom:3%;left:50%;transform:translateX(-50%);color:rgba(74,138,138,0.4);font-size:11px;letter-spacing:0.4em;pointer-events:none;z-index:600;opacity:0;transition:opacity 1s;}
   #dismiss-hint.show{opacity:1;}
-  #nav-btn{position:fixed;bottom:2.5%;right:3%;color:rgba(140,210,210,0.7);font-size:11px;letter-spacing:0.25em;font-family:'Courier New',monospace;background:none;border:1px solid rgba(80,160,160,0.3);padding:6px 14px;cursor:pointer;z-index:700;opacity:0;transition:opacity 0.6s;pointer-events:none;text-transform:lowercase;}
-  #nav-btn.show{opacity:1;pointer-events:all;}
-  #nav-btn:hover{color:rgba(180,230,230,0.95);border-color:rgba(120,200,200,0.6);}
+  .pres-arrow{position:fixed;top:50%;transform:translateY(-50%);width:52px;height:52px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:700;opacity:0;transition:opacity 0.4s;pointer-events:none;border:1px solid rgba(80,160,160,0.2);color:rgba(120,200,200,0.5);font-size:22px;font-family:'Courier New',monospace;background:rgba(0,0,0,0.3);user-select:none;}
+  .pres-arrow.show{opacity:1;pointer-events:all;}
+  .pres-arrow:hover{color:rgba(180,230,230,0.95);border-color:rgba(120,200,200,0.55);background:rgba(0,0,0,0.55);}
+  #arr-next{right:18px;}
+  #arr-prev{left:18px;}
   #pres-badge{display:none;position:fixed;top:15px;right:100px;color:#ff7755;font-size:11px;letter-spacing:0.25em;opacity:0.6;z-index:500;font-family:'Courier New',monospace;}
   #transition-overlay{position:fixed;inset:0;background:#000;pointer-events:none;opacity:0;z-index:800;transition:opacity 1.5s ease;}
   #transition-overlay.active{opacity:1;}
@@ -47,7 +49,9 @@
   <button class="scene-btn" onclick="navScene(2)">iii · the eye</button>
 </div>
 <div id="volume-control"><span>vol</span><input type="range" id="volume-slider" min="-20" max="20" value="6" step="1"><span style="margin-left:18px;">brt</span><input type="range" id="brightness-slider" min="80" max="250" value="100" step="5" oninput="document.querySelector('canvas').style.filter='brightness('+this.value+'%)'"></div>
-<div id="subtitle"></div><div id="dismiss-hint">click to return</div><div id="pres-badge">▶ auto</div><button id="nav-btn" onclick="navBtnClick()">viz ansehen →</button>
+<div id="subtitle"></div><div id="dismiss-hint">click to return</div><div id="pres-badge">▶ auto</div>
+<div id="arr-next" class="pres-arrow" onclick="navNext()">›</div>
+<div id="arr-prev" class="pres-arrow" onclick="navPrev()">‹</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 <script>
@@ -70,18 +74,24 @@ document.getElementById('volume-slider').addEventListener('input',function(){if(
 
 function showSub(t,dur,col,sz){const s=document.getElementById('subtitle');s.style.color=col||'rgba(180,230,230,0.95)';s.style.fontSize=sz||'20px';s.textContent=t;s.classList.add('show');if(dur)setTimeout(()=>s.classList.remove('show'),dur);}
 function hideSub(){document.getElementById('subtitle').classList.remove('show');}
-function updateNavBtn(){const btn=document.getElementById('nav-btn');
-  if(hotspotPhase==='quote'){btn.textContent='viz ansehen →';btn.classList.add('show');}
-  else if(activeViz&&!vizDismissing){btn.textContent='× schließen';btn.classList.add('show');}
-  else{btn.classList.remove('show');}
+function updateNavBtn(){
+  const next=document.getElementById('arr-next'),prev=document.getElementById('arr-prev');
+  // Next arrow: show when quote is up or viz is active
+  if(hotspotPhase==='quote'||activeViz&&!vizDismissing){next.classList.add('show');}
+  else{next.classList.remove('show');}
+  // Prev arrow: show when viz is active (to close it)
+  if(activeViz&&!vizDismissing){prev.classList.add('show');}
+  else{prev.classList.remove('show');}
 }
-function navBtnClick(){
+function navNext(){
+  if(!started)return;
   if(hotspotPhase==='quote'&&activeHotspot){
-    // Immediately start viz, skip 3.5s delay
     hotspotPhase='viz';hideSub();activeViz=activeHotspot.vizId;activeVizQuote=activeHotspot.quote;
-    vizStart=millis()-4500;// skip intro delay entirely
-    vizDismissing=false;updateNavBtn();return;
-  }
+    vizStart=millis()-4500;vizDismissing=false;updateNavBtn();return;}
+  if(activeViz&&!vizDismissing){dismissViz();return;}
+}
+function navPrev(){
+  if(!started)return;
   if(activeViz&&!vizDismissing){dismissViz();return;}
 }
 function playHoverPing(){if(hoverPing)hoverPing.triggerAttackRelease("E6","16n");}
@@ -921,7 +931,11 @@ function updatePresUI(){
 
 document.addEventListener('keydown',e=>{
   if((e.key==='p'||e.key==='P')&&!e.ctrlKey&&!e.metaKey){e.preventDefault();togglePres();return;}
-  if(!presMode)return;
+  if(!presMode){
+    if(e.key==='ArrowRight'){e.preventDefault();navNext();}
+    else if(e.key==='ArrowLeft'){e.preventDefault();navPrev();}
+    return;
+  }
   if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();presNext();}
   else if(e.key==='ArrowLeft'){e.preventDefault();presBack();}
   else if(e.key==='Escape'){e.preventDefault();togglePres();}
