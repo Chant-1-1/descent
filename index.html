@@ -9,6 +9,7 @@
   canvas{display:block;}
   #cursor{position:fixed;width:12px;height:12px;border-radius:50%;background:rgba(180,230,230,0.6);box-shadow:0 0 12px rgba(180,230,230,0.8);pointer-events:none;transform:translate(-50%,-50%);z-index:1000;transition:width 0.2s,height 0.2s,background 0.2s;}
   #cursor.hover{width:24px;height:24px;background:rgba(255,220,180,0.7);box-shadow:0 0 24px rgba(255,220,180,0.9);}
+  canvas{background:transparent !important;}
   #start-overlay{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:12%;z-index:2000;cursor:pointer;}
   #start-overlay.fade{opacity:0;transition:opacity 3s ease;pointer-events:none;}
   #start-overlay .intro{color:rgba(180,210,210,0.55);font-size:13px;letter-spacing:0.18em;line-height:2.1;text-align:center;max-width:520px;margin-bottom:40px;animation:fi 4s ease-out forwards;}
@@ -59,11 +60,82 @@
 <div id="subtitle"></div><div id="dismiss-hint">click to return</div><div id="pres-badge">▶ auto</div>
 <div id="arr-next" class="pres-arrow" onclick="navNext()">›</div>
 <div id="arr-prev" class="pres-arrow" onclick="navPrev()">‹</div>
+<div id="station-html-bg" style="display:none;position:fixed;inset:0;z-index:0;pointer-events:none;">
+<style>
+#station-html-bg *{box-sizing:border-box;}
+.sh-scene{position:absolute;inset:0;background:radial-gradient(circle at 50% 38%,rgba(75,115,110,.16),transparent 34%),radial-gradient(circle at 12% 18%,rgba(62,102,110,.1),transparent 28%),linear-gradient(180deg,#071112 0%,#040909 45%,#010303 100%);}
+.sh-scene::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(180deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:82px 82px;opacity:.25;mix-blend-mode:screen;}
+.sh-scene::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,transparent 0%,transparent 42%,rgba(0,0,0,.48) 74%,rgba(0,0,0,.88) 100%),repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0,rgba(255,255,255,.018) 1px,transparent 2px,transparent 6px);}
+.sh-back-wall{position:absolute;left:13vw;top:9vh;width:74vw;height:74vh;border-radius:36px;background:linear-gradient(90deg,rgba(255,255,255,.035),transparent 12%,transparent 88%,rgba(255,255,255,.025)),linear-gradient(180deg,#162324 0%,#0d1718 48%,#070c0d 100%);border:1px solid rgba(170,205,190,.14);box-shadow:inset 0 0 70px rgba(0,0,0,.78),inset 0 -25px 70px rgba(0,0,0,.8),0 30px 90px rgba(0,0,0,.65);}
+.sh-seam{position:absolute;background:rgba(190,225,210,.06);box-shadow:0 0 8px rgba(70,140,130,.12);}
+.sh-seam.h{left:0;width:100%;height:1px;}.sh-seam.v{top:0;width:1px;height:100%;}
+.sh-patch{position:absolute;border:1px solid rgba(210,230,210,.12);background:rgba(74,92,86,.16);box-shadow:inset 0 0 16px rgba(0,0,0,.5);transform:rotate(var(--r));}
+.sh-patch::before,.sh-patch::after{content:"";position:absolute;width:5px;height:5px;border-radius:50%;background:rgba(220,225,195,.28);box-shadow:0 0 4px rgba(255,255,255,.1);}
+.sh-patch::before{left:8px;top:8px;}.sh-patch::after{right:8px;bottom:8px;}
+.sh-pipe{position:absolute;border-radius:999px;background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.015) 30%,rgba(0,0,0,.38) 72%),#263432;border:1px solid rgba(210,235,220,.1);box-shadow:inset 0 -8px 14px rgba(0,0,0,.55),0 8px 22px rgba(0,0,0,.48);}
+.sh-pipe.pv{width:26px;height:72vh;}.sh-pipe.ph{height:24px;width:56vw;}.sh-pipe.thin.ph{height:13px;width:39vw;}.sh-pipe.thin.pv{width:14px;height:42vh;}
+.sh-band{position:absolute;width:38px;height:31px;border-radius:4px;background:rgba(20,25,24,.9);border:1px solid rgba(230,220,180,.14);box-shadow:inset 0 0 8px rgba(0,0,0,.8);}
+.sh-valve{position:absolute;width:76px;height:76px;border-radius:50%;border:7px solid rgba(88,104,94,.95);background:radial-gradient(circle,#101717 0 15%,#2b3632 16% 21%,transparent 22%);box-shadow:0 0 16px rgba(0,0,0,.72),inset 0 0 16px rgba(0,0,0,.75);}
+.sh-valve::before,.sh-valve::after{content:"";position:absolute;left:50%;top:50%;width:88%;height:7px;background:rgba(96,112,102,.95);transform-origin:center;transform:translate(-50%,-50%) rotate(20deg);border-radius:99px;}
+.sh-valve::after{transform:translate(-50%,-50%) rotate(110deg);}
+.sh-joint{position:absolute;width:54px;height:54px;border-radius:50%;background:radial-gradient(circle,#111 0 22%,#303b37 23% 58%,#151b1a 59% 100%);border:1px solid rgba(220,230,210,.14);box-shadow:inset 0 0 16px rgba(0,0,0,.8),0 4px 14px rgba(0,0,0,.5);}
+.sh-bunk{position:absolute;right:18vw;bottom:18vh;width:26vw;max-width:420px;min-width:280px;height:17vh;min-height:110px;background:linear-gradient(180deg,rgba(185,205,185,.07),rgba(0,0,0,.2)),#101716;border:1px solid rgba(200,220,190,.12);border-radius:6px 6px 14px 14px;box-shadow:inset 0 -25px 30px rgba(0,0,0,.7),0 20px 40px rgba(0,0,0,.55);}
+.sh-bunk::before{content:"";position:absolute;left:8%;top:18%;width:84%;height:42%;border-radius:20px 14px 10px 18px;background:linear-gradient(90deg,rgba(40,50,48,1),rgba(70,76,68,.7),rgba(28,35,33,1));border:1px solid rgba(210,210,180,.08);box-shadow:inset 0 0 18px rgba(0,0,0,.65);}
+.sh-bunk::after{content:"";position:absolute;left:7%;bottom:-22%;width:86%;height:34%;background:linear-gradient(180deg,#111716,#050707);border-radius:0 0 14px 14px;border:1px solid rgba(200,220,190,.07);}
+.sh-ladder{position:absolute;left:20vw;bottom:9vh;width:70px;height:42vh;border-left:5px solid rgba(110,125,112,.55);border-right:5px solid rgba(110,125,112,.55);opacity:.65;}
+.sh-ladder span{position:absolute;left:-4px;width:68px;height:4px;background:rgba(110,125,112,.55);}
+.sh-floor{position:absolute;left:0;right:0;bottom:0;height:20vh;background:repeating-linear-gradient(90deg,rgba(180,200,180,.08) 0,rgba(180,200,180,.08) 1px,transparent 1px,transparent 78px),linear-gradient(180deg,rgba(25,36,35,.2),#020404 65%);border-top:1px solid rgba(170,220,200,.08);transform:perspective(650px) rotateX(58deg);transform-origin:bottom center;}
+.sh-lamp{position:absolute;left:50%;top:10vh;transform:translateX(-50%);width:120px;height:30px;border-radius:50%;background:rgba(185,230,205,.18);border:1px solid rgba(215,255,220,.2);box-shadow:0 0 18px rgba(160,230,200,.22),0 0 90px rgba(120,190,170,.18),0 0 190px rgba(80,160,150,.12);animation:sh-flicker 5.5s infinite steps(1);}
+.sh-cone{position:absolute;left:50%;top:11vh;transform:translateX(-50%);width:36vw;height:70vh;clip-path:polygon(42% 0,58% 0,100% 100%,0 100%);background:linear-gradient(180deg,rgba(120,190,170,.14),transparent 76%);filter:blur(8px);opacity:.58;animation:sh-breath 7s infinite ease-in-out;}
+.sh-noise{position:absolute;inset:-20%;background-image:radial-gradient(circle,rgba(255,255,255,.13) 1px,transparent 1px);background-size:37px 37px;opacity:.05;animation:sh-drift 14s linear infinite;}
+.sh-drip{position:absolute;width:1px;height:42px;background:linear-gradient(180deg,rgba(170,220,210,0),rgba(170,220,210,.45),rgba(170,220,210,0));opacity:.3;animation:sh-drip 3.8s infinite linear;}
+@keyframes sh-flicker{0%,8%,11%,100%{opacity:1;}9%{opacity:.35;}10%{opacity:.82;}53%{opacity:.7;}54%{opacity:1;}78%{opacity:.55;}79%{opacity:.95;}}
+@keyframes sh-breath{0%,100%{opacity:.46;transform:translateX(-50%) scaleX(.94);}50%{opacity:.68;transform:translateX(-50%) scaleX(1.04);}}
+@keyframes sh-drip{0%{transform:translateY(-80px);opacity:0;}20%{opacity:.36;}100%{transform:translateY(120vh);opacity:0;}}
+@keyframes sh-drift{from{transform:translate3d(0,0,0);}to{transform:translate3d(90px,60px,0);}}
+</style>
+<div class="sh-scene">
+  <div class="sh-noise"></div>
+  <div class="sh-cone"></div>
+  <div class="sh-lamp"></div>
+  <section class="sh-back-wall">
+    <div class="sh-seam h" style="top:31%"></div>
+    <div class="sh-seam h" style="top:63%"></div>
+    <div class="sh-seam v" style="left:27%"></div>
+    <div class="sh-seam v" style="left:64%"></div>
+    <div class="sh-patch" style="--r:-4deg;left:11%;top:18%;width:145px;height:84px;"></div>
+    <div class="sh-patch" style="--r:2deg;right:15%;top:34%;width:105px;height:132px;"></div>
+    <div class="sh-patch" style="--r:6deg;left:46%;bottom:18%;width:160px;height:70px;"></div>
+  </section>
+  <div class="sh-pipe ph" style="left:17vw;top:21vh;"></div>
+  <div class="sh-pipe thin ph" style="left:31vw;top:33vh;"></div>
+  <div class="sh-pipe pv" style="left:14vw;top:8vh;"></div>
+  <div class="sh-pipe thin pv" style="right:17vw;top:16vh;"></div>
+  <div class="sh-pipe ph" style="left:21vw;bottom:23vh;width:39vw;height:24px;"></div>
+  <div class="sh-band" style="left:25vw;top:20.2vh;"></div>
+  <div class="sh-band" style="left:49vw;top:20.2vh;"></div>
+  <div class="sh-band" style="right:16.3vw;top:42vh;transform:rotate(90deg);"></div>
+  <div class="sh-band" style="left:13.6vw;top:48vh;transform:rotate(90deg);"></div>
+  <div class="sh-joint" style="left:13.2vw;top:19vh;"></div>
+  <div class="sh-joint" style="left:56vw;bottom:21.8vh;"></div>
+  <div class="sh-valve" style="left:34vw;top:16.5vh;"></div>
+  <div class="sh-valve" style="right:13vw;top:31vh;transform:scale(.72) rotate(-18deg);"></div>
+  <div class="sh-ladder">
+    <span style="top:8%"></span><span style="top:22%"></span><span style="top:36%"></span>
+    <span style="top:50%"></span><span style="top:64%"></span><span style="top:78%"></span>
+  </div>
+  <div class="sh-bunk"></div>
+  <div class="sh-floor"></div>
+  <div class="sh-drip" style="left:24vw;top:12vh;animation-delay:0s;"></div>
+  <div class="sh-drip" style="left:57vw;top:18vh;animation-delay:1.4s;"></div>
+  <div class="sh-drip" style="left:69vw;top:9vh;animation-delay:2.2s;"></div>
+</div>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 <script>
 let started=false,particles=[],hotspots=[],creatures=[],stationElements=[],fishSwarms=[],deepCreatures=[],stationBG=null;
-let seaDevilImg=null,stationBgImg=null;
+let seaDevilImg=null;
 let camDX=0,camDY=0,lastGlitch=0,lastInteract=0,idleWPlayed=false;
 let glitchFX,whisperN,whisperF,whisperG,hoverPing;
 let sceneBuses={},layerPlayers={},layerGains={},hotspotPlayers={},hotspotRev;
@@ -783,6 +855,8 @@ function buildScene(s){
   if(s===1)generateStationElements();
   if(s===2)generateEyeElements();
   updateSceneAudio();updateMenu();
+  const sbg=document.getElementById('station-html-bg');
+  if(sbg)sbg.style.display=(s===1)?'block':'none';
 }
 function genArch(s){
   archLines=[];
@@ -880,16 +954,14 @@ function windowResized(){resizeCanvas(windowWidth,windowHeight);buildScene(scene
 function draw(){
   if(!started){background(0);return;}
   const bgAdd=bgBrt*80;
-  background(bgAdd*0.3,bgAdd*0.4+scene*0.5,bgAdd*0.5+(scene===0?6:scene===1?2:2));
+  if(scene===1){clear();}
+  else{background(bgAdd*0.3,bgAdd*0.4+scene*0.5,bgAdd*0.5+(scene===0?6:2));}
   camDX=sin(frameCount*0.003)*(scene===2?3:8);camDY=cos(frameCount*0.0025)*(scene===2?2:6);
   push();translate(camDX,camDY);
   const ac=scene===0?[120,180,180]:scene===1?[70,65,55]:[35,35,30];
   for(let l of archLines){stroke(ac[0],ac[1],ac[2],l.a);strokeWeight(0.5);line(l.x1,l.y1,l.x2,l.y2);}noStroke();
   if(scene===0&&stationBG)stationBG.display();
-  if(scene===1){
-    if(stationBgImg){push();tint(255,180);image(stationBgImg,0,0,width,height);noTint();pop();}
-    drawStationInterior();
-  }
+  if(scene===1)drawStationInterior();
   if(scene===2)drawEyeBackground();
   for(let p of particles){p.update();p.display();}
   if(scene===0){
@@ -916,7 +988,6 @@ function navScene(target){if(transitioning||eyeActive||activeViz||target===scene
 document.getElementById('start-overlay').addEventListener('click',async()=>{await Tone.start();initAudio();document.getElementById('start-overlay').classList.add('fade');
   setTimeout(()=>document.getElementById('start-overlay').style.display='none',3000);
   loadImage('sea-devil.svg',img=>{seaDevilImg=img;},()=>{});
-  loadImage('station-bg.png',img=>{stationBgImg=img;},()=>{});
   setTimeout(()=>{started=true;showSub("you wake.\nthe air is heavy. wet.\nyou have never seen the surface.",6000);},2500);});
 // ===================== PRESENTATION MODE (step-by-step) =====================
 let presMode=false,presStep=-1;
