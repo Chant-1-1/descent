@@ -904,48 +904,27 @@ function drawVizSea(a){
   fill(240,185,45,fi*0.6*radT);textSize(9.5);
   text('ozone depletion · weakened magnetic field · UV-C surface penetration',width*0.06,wl*0.62+16);
 
-  // Water horizon line
-  stroke(255,200,40,a*0.3*radT);strokeWeight(0.6);noFill();line(0,wl,width,wl);
-
-  // === MOUNTAIN PEAKS above water ===
-  // pts terrain: small y = tall peak, large y = low terrain; wl rises as t grows
-  noStroke();
-  // Dark rock silhouette (terrain above waterline)
-  fill(36,58,52,a*0.9);
-  beginShape();
-  vertex(0,wl+2);
-  for(let p of pts)vertex(p.x,min(p.y,wl+1));
-  vertex(width,wl+2);
-  endShape(CLOSE);
-  // Snow/ice caps on tallest peaks
-  fill(195,222,246,a*0.55);
-  beginShape();
-  vertex(0,wl+2);
-  for(let p of pts)vertex(p.x,min(p.y+height*0.072,wl+1));
-  vertex(width,wl+2);
-  endShape(CLOSE);
-  // Rock edge highlight
-  stroke(60,95,85,a*0.55);strokeWeight(0.8);noFill();
-  beginShape();for(let p of pts){if(p.y<wl)vertex(p.x,p.y);}endShape();
+  // === MOUNTAIN TERRAIN (v1 style: stroke line) ===
+  // Dots for submerged terrain points
+  for(let p of pts){if(p.y>wl){stroke(20,55,70,a*0.6);strokeWeight(1);point(p.x,p.y);}}
+  // Terrain line through all pts (mountains as silhouette)
+  stroke(140,185,185,a*0.8);strokeWeight(1.5);noFill();
+  beginShape();for(let p of pts)vertex(p.x,p.y);endShape();
 
   // === OCEAN ===
-  noStroke();fill(11,36,52,a*0.94);rect(0,wl,width,height-wl);
-  // Animated wave surface
-  stroke(65,150,178,a*0.75);strokeWeight(1.5);noFill();
-  beginShape();
-  for(let x=0;x<=width;x+=4)vertex(x,wl+sin(x*0.017+frameCount*0.042)*2.4+sin(x*0.032+frameCount*0.027)*1.3);
-  endShape();
-  // Surface foam (noise-based so stable per frame)
-  noStroke();
-  for(let i=0;i<44;i++){const fx=i*(width/44)+sin(frameCount*0.02+i)*9;fill(115,188,212,a*0.15);ellipse(fx,wl+sin(fx*0.016+frameCount*0.03)*2.2,noise(i,frameCount*0.004)*24+5,2.2);}
-  // Underwater depth scatter (noise-based, stable)
-  for(let i=0;i<55;i++){fill(24,65,94,a*0.2);const ux=noise(i*3.8,42)*width,uy=wl+noise(i*2.2,99)*(height-wl-20)+10;circle(ux,uy,noise(i*5.4,12)*5+1.5);}
-  // Underwater caustic shimmer lines
-  stroke(40,95,120,a*0.1);strokeWeight(0.4);
-  for(let i=0;i<18;i++){const ly=wl+noise(i*1.7,frameCount*0.003)*(height-wl)*0.55;noFill();beginShape();for(let x=width*0.05;x<width*0.95;x+=14)vertex(x,ly+sin(x*0.04+frameCount*0.02+i)*3);endShape();}
+  noStroke();fill(15,40,55,a*0.9);rect(0,wl,width,height-wl);
+  // Waterline sparkle bubbles
+  noStroke();for(let i=0;i<80;i++){fill(30,80,100,a*0.25);circle(random(width),wl+random(-6,6),random(2,7));}
+  // Underwater hex shimmer (noise-based positions for stability)
+  stroke(40,100,120,a*0.18);strokeWeight(0.5);noFill();
+  for(let i=0;i<20;i++){const hx=noise(i*3.1,frameCount*0.002)*width,hy=wl+noise(i*2.7,frameCount*0.001)*(height-wl-20)+10;beginShape();for(let j=0;j<6;j++){const ang=j/6*TWO_PI;vertex(hx+cos(ang)*(noise(i*1.3,j)*8+4),hy+sin(ang)*(noise(i*0.9,j)*5+3));}endShape(CLOSE);}
 
-  noStroke();fill(72,155,178,a*0.72);textSize(13);textAlign(LEFT);
+  // World number rises with water level
+  const worldNum=floor(lerp(3000000000,3324255146,t));
+  noStroke();fill(72,155,178,a*0.72);textSize(11);textAlign(LEFT);
   text('sea level — year 3126',width*0.07,wl+22);
+  fill(100,185,210,a*0.88);textSize(15);textAlign(RIGHT);
+  text('WORLD '+worldNum,width*0.93,wl-12);
   fill(140,200,200,a*0.55);textSize(15);textAlign(CENTER);
   text('the seven continents no longer exist',width/2,height*0.87);
   text('only mountain peaks remain as scattered islands',width/2,height*0.87+22);
