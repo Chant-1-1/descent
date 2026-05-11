@@ -199,14 +199,7 @@ function triggerGlitch(){if(!glitchFX)return;glitchFX.wet.rampTo(0.85,0.02);setT
 function playWhisper(w){if(!whisperG)return;whisperG.gain.rampTo(0.06,0.5);setTimeout(()=>whisperG.gain.rampTo(0,1.5),1200);showSub(w,1800,'rgba(180,230,230,0.35)','14px');}
 function dismissViz(){if(activeViz&&!vizDismissing){vizDismissing=true;vizDismissStart=millis();}}
 
-// Scene navigation menu
-function navScene(target){
-  if(!scenesUnlocked[target]||transitioning||eyeActive||activeViz)return;
-  if(target===scene)return;
-  transitionTarget=target;
-  transitioning=true;transitionStart=millis();transitionBuilt=false;
-  document.getElementById('transition-overlay').classList.add('active');
-}
+// Scene navigation menu (single source of truth — see startTransition helper below)
 function updateMenu(){
   const btns=document.querySelectorAll('.scene-btn');
   btns.forEach((b,i)=>{b.classList.toggle('active',i===scene);b.classList.toggle('locked',!scenesUnlocked[i]);});
@@ -615,7 +608,7 @@ function drawVisualization(){
     const v=activeViz;
     if(v==='shrinking_belt')drawVizBelt(vizAlpha);else if(v==='deep_parade')drawVizParade(vizAlpha);else if(v==='sea_level')drawVizSea(vizAlpha);
     else if(v==='hierarchy')drawVizHierarchy(vizAlpha);else if(v==='daily_life')drawVizDaily(vizAlpha);
-    else if(v==='air_oxygen')drawVizAir(vizAlpha);else if(v==='number39')drawVizN39(vizAlpha);else if(v==='the_mothers')drawVizMothers(vizAlpha);
+    else if(v==='air_oxygen')drawVizAir(vizAlpha);else if(v==='the_mothers')drawVizMothers(vizAlpha);
     else if(v==='mythology')drawVizMyth(vizAlpha);else if(v==='selection')drawVizSelection(vizAlpha);
     pop();drawingContext.restore();
   }
@@ -719,7 +712,7 @@ function mollweide(lat,lon,cx,cy,rw,rh){
 }
 function drawVizBelt(a){
   const cx=width/2,cy=height/2,rw=min(width*0.42,height*0.7),rh=rw*0.5;
-  const t=min((millis()-vizStart-3500)/15000,1);
+  const t=min((millis()-vizStart)/15000,1);
   // Mollweide outline
   stroke(50,110,110,a*0.3);strokeWeight(1);noFill();ellipse(cx,cy,rw*2,rh*2);
   // Grid
@@ -800,7 +793,7 @@ function drawVizBelt(a){
 }
 // --- DEEP PARADE (bigger, more creatures) ---
 function drawVizParade(a){
-  const t=min((millis()-vizStart-3500)/12000,1);
+  const t=min((millis()-vizStart)/12000,1);
   for(let y=height*0.1;y<height*0.9;y+=3){stroke(10+map(y,height*0.1,height*0.9,0,5),20+map(y,height*0.1,height*0.9,0,10),35+map(y,height*0.1,height*0.9,0,15),a*0.3);strokeWeight(3);line(width*0.05,y,width*0.95,y);}
   noStroke();fill(80,140,140,a*0.4);textSize(12);textAlign(RIGHT);
   ['0m','—100m','—200m','—500m','—1000m','—2000m'].forEach((d,i)=>{text(d,width*0.05,height*0.12+i*(height*0.7/5));});
@@ -929,12 +922,12 @@ function drawVizSea(a){
   fill(100,170,170,a*0.38);textSize(12);text('global ocean · tidal ice · geothermal equatorial belt',width/2,height*0.87+42);
 }
 // --- HIERARCHY ---
-function drawVizHierarchy(a){const cx=width/2,t=min((millis()-vizStart-3500)/10000,1);const stW=width*0.3,stL=cx-stW/2,stR=cx+stW/2,stT=height*0.1,stB=height*0.85;stroke(80,140,140,a*0.4);strokeWeight(1);noFill();rect(stL,stT,stW,stB-stT,4);const levels=[{name:'UPPER LEVEL',sub:'council of mothers · filtered sunlight',y:stT,h:(stB-stT)*0.25,col:[200,180,100],la:0.25},{name:'MIDDLE LEVEL',sub:'workers · technicians · farmers',y:stT+(stB-stT)*0.28,h:(stB-stT)*0.32,col:[120,160,160],la:0.08},{name:'THE DEEPS',sub:'maintenance · outcasts · darkness',y:stT+(stB-stT)*0.63,h:(stB-stT)*0.35,col:[60,90,100],la:0}];for(let lv of levels){const fi3=constrain((t-0.1)*3,0,1);fill(lv.col[0],lv.col[1],lv.col[2],a*0.08*fi3);noStroke();rect(stL+2,lv.y+2,stW-4,lv.h-2);if(lv.la>0){for(let y2=0;y2<lv.h*0.5;y2++){stroke(220,200,120,a*lv.la*(1-y2/(lv.h*0.5))*fi3);line(stL+2,lv.y+y2,stR-2,lv.y+y2);}}noStroke();const fc=lv.name==='THE DEEPS'?2:lv.name==='UPPER LEVEL'?3:5;for(let i=0;i<fc;i++){const fx=stL+stW*0.2+i*(stW*0.6/(fc-1||1)),fy=lv.y+lv.h*0.5;stroke(lv.col[0]+40,lv.col[1]+40,lv.col[2]+40,a*0.5*fi3);strokeWeight(1);circle(fx,fy-12,6);line(fx,fy-9,fx,fy+5);line(fx,fy+5,fx-4,fy+14);line(fx,fy+5,fx+4,fy+14);}noStroke();fill(lv.col[0]+60,lv.col[1]+60,lv.col[2]+60,a*0.7*fi3);textSize(14);textAlign(CENTER);text(lv.name,cx,lv.y+lv.h*0.3);fill(lv.col[0]+30,lv.col[1]+30,lv.col[2]+30,a*0.45*fi3);textSize(11);text(lv.sub,cx,lv.y+lv.h*0.3+18);}stroke(80,140,140,a*0.25);strokeWeight(0.5);line(stL,levels[1].y,stR,levels[1].y);line(stL,levels[2].y,stR,levels[2].y);noStroke();fill(220,180,100,a*0.5*t);textSize(11);textAlign(CENTER);text('☀ light ↓',stL-60,height*0.3);text('authority ↓',stL-60,height*0.45);fill(100,180,160,a*0.5*t);text('resources ↑',stR+60,height*0.55);fill(120,180,180,a*0.5);textSize(15);text('proximity to light determines social standing',cx,stB+28);}
+function drawVizHierarchy(a){const cx=width/2,t=min((millis()-vizStart)/10000,1);const stW=width*0.3,stL=cx-stW/2,stR=cx+stW/2,stT=height*0.1,stB=height*0.85;stroke(80,140,140,a*0.4);strokeWeight(1);noFill();rect(stL,stT,stW,stB-stT,4);const levels=[{name:'UPPER LEVEL',sub:'council of mothers · filtered sunlight',y:stT,h:(stB-stT)*0.25,col:[200,180,100],la:0.25},{name:'MIDDLE LEVEL',sub:'workers · technicians · farmers',y:stT+(stB-stT)*0.28,h:(stB-stT)*0.32,col:[120,160,160],la:0.08},{name:'THE DEEPS',sub:'maintenance · outcasts · darkness',y:stT+(stB-stT)*0.63,h:(stB-stT)*0.35,col:[60,90,100],la:0}];for(let lv of levels){const fi3=constrain((t-0.1)*3,0,1);fill(lv.col[0],lv.col[1],lv.col[2],a*0.08*fi3);noStroke();rect(stL+2,lv.y+2,stW-4,lv.h-2);if(lv.la>0){for(let y2=0;y2<lv.h*0.5;y2++){stroke(220,200,120,a*lv.la*(1-y2/(lv.h*0.5))*fi3);line(stL+2,lv.y+y2,stR-2,lv.y+y2);}}noStroke();const fc=lv.name==='THE DEEPS'?2:lv.name==='UPPER LEVEL'?3:5;for(let i=0;i<fc;i++){const fx=stL+stW*0.2+i*(stW*0.6/(fc-1||1)),fy=lv.y+lv.h*0.5;stroke(lv.col[0]+40,lv.col[1]+40,lv.col[2]+40,a*0.5*fi3);strokeWeight(1);circle(fx,fy-12,6);line(fx,fy-9,fx,fy+5);line(fx,fy+5,fx-4,fy+14);line(fx,fy+5,fx+4,fy+14);}noStroke();fill(lv.col[0]+60,lv.col[1]+60,lv.col[2]+60,a*0.7*fi3);textSize(14);textAlign(CENTER);text(lv.name,cx,lv.y+lv.h*0.3);fill(lv.col[0]+30,lv.col[1]+30,lv.col[2]+30,a*0.45*fi3);textSize(11);text(lv.sub,cx,lv.y+lv.h*0.3+18);}stroke(80,140,140,a*0.25);strokeWeight(0.5);line(stL,levels[1].y,stR,levels[1].y);line(stL,levels[2].y,stR,levels[2].y);noStroke();fill(220,180,100,a*0.5*t);textSize(11);textAlign(CENTER);text('☀ light ↓',stL-60,height*0.3);text('authority ↓',stL-60,height*0.45);fill(100,180,160,a*0.5*t);text('resources ↑',stR+60,height*0.55);fill(120,180,180,a*0.5);textSize(15);text('proximity to light determines social standing',cx,stB+28);}
 // --- DAILY LIFE ---
-function drawVizDaily(a){const cx=width/2,cy=height/2,r=min(width,height)*0.3,t=min((millis()-vizStart-3500)/10000,1);stroke(60,120,120,a*0.3);strokeWeight(0.5);noFill();ellipse(cx,cy,r*2,r*2);const segs=[{name:'rest cycle',icon:'◌',ang:0,span:0.2,col:[40,70,90]},{name:'first interval',icon:'▢',ang:0.2,span:0.15,col:[80,130,120]},{name:'work shift',icon:'⚙',ang:0.35,span:0.25,col:[140,160,140]},{name:'communal meal',icon:'◎',ang:0.6,span:0.1,col:[160,140,100]},{name:'hull songs',icon:'∿',ang:0.7,span:0.12,col:[120,180,170]},{name:'silence hours',icon:'—',ang:0.82,span:0.18,col:[50,80,100]}];for(let sg of segs){const fi4=constrain((t-(sg.ang*0.5))*4,0,1);const a1=-HALF_PI+sg.ang*TWO_PI,a2=-HALF_PI+(sg.ang+sg.span)*TWO_PI;stroke(sg.col[0],sg.col[1],sg.col[2],a*0.4*fi4);strokeWeight(r*0.15);noFill();arc(cx,cy,r*1.6,r*1.6,a1,a2);const midA=(a1+a2)/2;noStroke();fill(sg.col[0]+60,sg.col[1]+60,sg.col[2]+60,a*0.6*fi4);textSize(11);textAlign(CENTER);text(sg.name,cx+cos(midA)*(r+50),cy+sin(midA)*(r+50));textSize(16);text(sg.icon,cx+cos(midA)*(r+50),cy+sin(midA)*(r+50)-16);}fill(120,180,180,a*0.5);textSize(14);textAlign(CENTER);text('mechanical cycle',cx,cy-8);fill(80,140,140,a*0.35);textSize(11);text('no sun · no day · no night',cx,cy+10);fill(120,180,180,a*0.5);textSize(15);text('life follows the rhythm of machines',cx,cy+r+65);}
+function drawVizDaily(a){const cx=width/2,cy=height/2,r=min(width,height)*0.3,t=min((millis()-vizStart)/10000,1);stroke(60,120,120,a*0.3);strokeWeight(0.5);noFill();ellipse(cx,cy,r*2,r*2);const segs=[{name:'rest cycle',icon:'◌',ang:0,span:0.2,col:[40,70,90]},{name:'first interval',icon:'▢',ang:0.2,span:0.15,col:[80,130,120]},{name:'work shift',icon:'⚙',ang:0.35,span:0.25,col:[140,160,140]},{name:'communal meal',icon:'◎',ang:0.6,span:0.1,col:[160,140,100]},{name:'hull songs',icon:'∿',ang:0.7,span:0.12,col:[120,180,170]},{name:'silence hours',icon:'—',ang:0.82,span:0.18,col:[50,80,100]}];for(let sg of segs){const fi4=constrain((t-(sg.ang*0.5))*4,0,1);const a1=-HALF_PI+sg.ang*TWO_PI,a2=-HALF_PI+(sg.ang+sg.span)*TWO_PI;stroke(sg.col[0],sg.col[1],sg.col[2],a*0.4*fi4);strokeWeight(r*0.15);noFill();arc(cx,cy,r*1.6,r*1.6,a1,a2);const midA=(a1+a2)/2;noStroke();fill(sg.col[0]+60,sg.col[1]+60,sg.col[2]+60,a*0.6*fi4);textSize(11);textAlign(CENTER);text(sg.name,cx+cos(midA)*(r+50),cy+sin(midA)*(r+50));textSize(16);text(sg.icon,cx+cos(midA)*(r+50),cy+sin(midA)*(r+50)-16);}fill(120,180,180,a*0.5);textSize(14);textAlign(CENTER);text('mechanical cycle',cx,cy-8);fill(80,140,140,a*0.35);textSize(11);text('no sun · no day · no night',cx,cy+10);fill(120,180,180,a*0.5);textSize(15);text('life follows the rhythm of machines',cx,cy+r+65);}
 // --- AIR & OXYGEN (new) ---
 function drawVizAir(a){
-  const cx=width/2,cy=height/2,t=min((millis()-vizStart-3500)/10000,1);
+  const cx=width/2,cy=height/2,t=min((millis()-vizStart)/10000,1);
   // Filter cross-section
   const fw=width*0.5,fh=height*0.35,fx=cx-fw/2,fy=cy-fh/2;
   stroke(70,90,80,a*0.5);strokeWeight(1);noFill();rect(fx,fy,fw,fh,4);
@@ -965,43 +958,9 @@ function drawVizAir(a){
   text('"once, people didn\'t have to work just to breathe."',cx,fy+fh+75);
   fill(100,160,160,a*0.35);textSize(12);text('systems built before the great flood · kept alive with patches',cx,fy+fh+95);
 }
-// --- NUMBER 39 (Sea Devil dying) ---
-function drawVizN39(a){
-  const cx=width/2,cy=height/2,t=min((millis()-vizStart-3500)/12000,1);
-  // Very minimal — just the creature and its fading light
-  // Body silhouette
-  const bodyA=a*(0.8-t*0.3); // fading over time
-  noStroke();fill(15,25,35,bodyA*0.6);ellipse(cx,cy,90,65);
-  fill(10,18,28,bodyA*0.5);ellipse(cx+5,cy+5,70,45);
-  // Eye — dimming
-  fill(120*(1-t*0.5),160*(1-t*0.3),140,bodyA*0.7);circle(cx-20,cy-10,6*(1-t*0.3));
-  // Jaw
-  stroke(40,60,55,bodyA*0.4);strokeWeight(1);noFill();
-  arc(cx+15,cy+5,40,25,0,PI);
-  // Lure — the light that's dying
-  const lureX=cx-25,lureY=cy-50;
-  stroke(60,100,90,bodyA*0.3);strokeWeight(0.8);noFill();
-  bezier(cx-15,cy-25,cx-20,cy-40,lureX+5,lureY+10,lureX,lureY);
-  // THE PULSE — getting weaker, interval getting longer
-  const pulseInterval=4.7+t*3; // slows from 4.7s to 7.7s
-  const lp=sin(frameCount*(TWO_PI/(pulseInterval*60)))*0.4+0.6;
-  const brightness=(1-t*0.7)*lp; // dimming
-  noStroke();
-  fill(100+brightness*100,200+brightness*55,180,a*brightness);circle(lureX,lureY,6+brightness*4);
-  fill(100+brightness*100,200+brightness*55,180,a*brightness*0.15);circle(lureX,lureY,30+brightness*20);
-  fill(100+brightness*100,200+brightness*55,180,a*brightness*0.05);circle(lureX,lureY,80+brightness*40);
-  // Text — appearing slowly
-  fill(120,180,180,a*0.5*min(t*3,1));textSize(14);textAlign(CENTER);
-  text('number 39',cx,cy+60);
-  fill(100,160,160,a*0.35*min(t*3,1));textSize(12);
-  text('sea devil \u00b7 nearly 30 years old \u00b7 her light is dimming',cx,cy+80);
-  if(t>0.4){fill(100,160,160,a*0.3*min((t-0.4)*3,1));text('alex checks on her every shift. he says she recognizes him.',cx,cy+100);}
-  if(t>0.7){fill(100,160,160,a*0.25*min((t-0.7)*3,1));text('i sat with her yesterday.',cx,cy+120);
-    text('i wanted to ask what it\u2019s like \u2014 when the light leaves.',cx,cy+140);}
-}
 // --- MYTHOLOGY ---
 function drawVizMyth(a){
-  const cx=width/2,cy=height/2,t=min((millis()-vizStart-3500)/12000,1);
+  const cx=width/2,cy=height/2,t=min((millis()-vizStart)/12000,1);
   const vY=cy-60-t*80,kY=cy+60+t*80,fi=a/255;
 
   // Sun Vahra
@@ -1054,7 +1013,7 @@ function drawVizMyth(a){
   fill(214,200,65,a*0.5*t);textSize(10);text('the eye of kheir',symX,symY+62);
 }
 // --- SELECTION ---
-function drawVizSelection(a){const t=millis()-vizStart-3500;const lines=['they say my name','once','that\'s enough','something tightens inside me','i walk','too fast then slower','i could stop','but i keep walking','the path narrows','the air thins','the chamber is smaller than i expected','the altar stands in the center','the eye','two tubes','they lean toward me','too close','i kneel','the floor is cold','i am not the first','the light is not mine','i raise my gaze','slowly','toward the openings'];noStroke();textAlign(CENTER);for(let i=0;i<lines.length;i++){const ls=i*1100;if(t<ls)break;const age=t-ls;const fi6=min(age/800,1),fo6=max(0,1-(age-6000)/1500),alp=min(fi6,fo6);if(alp<=0)continue;const warmth=i/lines.length;fill(140+warmth*80,180+warmth*40,180-warmth*120,a*0.7*alp);textSize(15+warmth*5);text(lines[i],width/2,height*0.12+i*24);}}
+function drawVizSelection(a){const t=millis()-vizStart;const lines=['they say my name','once','that\'s enough','something tightens inside me','i walk','too fast then slower','i could stop','but i keep walking','the path narrows','the air thins','the chamber is smaller than i expected','the altar stands in the center','the eye','two tubes','they lean toward me','too close','i kneel','the floor is cold','i am not the first','the light is not mine','i raise my gaze','slowly','toward the openings'];noStroke();textAlign(CENTER);for(let i=0;i<lines.length;i++){const ls=i*1100;if(t<ls)break;const age=t-ls;const fi6=min(age/800,1),fo6=max(0,1-(age-6000)/1500),alp=min(fi6,fo6);if(alp<=0)continue;const warmth=i/lines.length;fill(140+warmth*80,180+warmth*40,180-warmth*120,a*0.7*alp);textSize(15+warmth*5);text(lines[i],width/2,height*0.12+i*24);}}
 // ===================== FEATURE 3: CAGE SYSTEM =====================
 function generateCageSlots(){
   const cx=width*0.5,cy=height*0.45;
@@ -1090,7 +1049,7 @@ function captureSd(sd){
   const slot=cageSlots.find(c=>!c.occ);
   if(slot)slot.occ=true;
   // drawCages() handles rendering — no separate DeepCreature needed
-  if(hotspotPlayers['shrinking_belt']){try{hotspotPlayers['shrinking_belt'].stop();hotspotPlayers['shrinking_belt'].start();}catch(e){}}
+  if(hullPlayers['valve-relief']){try{hullPlayers['valve-relief'].stop();hullPlayers['valve-relief'].start();}catch(e){}}
   userBehavior.seaDevilsCaptured++;
 }
 // ===================== FEATURE 4: HULL SONG =====================
@@ -1143,7 +1102,7 @@ function computeLabel(){
   if(b.seaDevilsCaptured>=2)return{label:'the hunter',verb:'hunt in darkness'};
   if((b.timeInScenes[2]||0)>60)return{label:'the depth-dweller',verb:'dwell in the deep'};
   if(visited>=7)return{label:'the curious',verb:'search for signals'};
-  return{label:'the quiet one',verb:'pass through unseen'};
+  return{label:'the gentle',verb:'pass through unseen'};
 }
 // ===================== FEATURE 6: THE COUNT =====================
 function startCount(){if(countTriggered||countActive)return;countTriggered=true;countActive=true;countNum=0;countDone=false;countStart=millis();hideSub();}
@@ -1401,6 +1360,8 @@ function draw(){
   if(scene===0){
     for(let sw of fishSwarms){sw.update();sw.display();}
     for(let dc of deepCreatures){dc.update();dc.display();}
+    // Remove fully faded captured creatures (Feature 3)
+    deepCreatures=deepCreatures.filter(dc=>!(dc.fading&&dc.fadeAlpha<=0&&dc.bubbles.length===0));
     for(let i=creatures.length-1;i>=0;i--){if(!creatures[i].update())creatures.splice(i,1);else creatures[i].display();}
     drawCages(); // Feature 3
   }
@@ -1415,8 +1376,8 @@ function draw(){
   pop();
   drawSeenLightOverlay(); // Feature 7
   drawVisualization();drawEyeClimax();drawCount();updateTransition();
-  if(!presMode&&millis()>20000&&millis()-lastGlitch>random(20000,40000)){triggerGlitch();lastGlitch=millis();}
-  if(!presMode&&!eyeActive&&millis()-lastInteract>25000&&!idleWPlayed){playWhisper(random(['awake.','remember.','ascend.','listen.']));idleWPlayed=true;lastInteract=millis();}
+  if(!presMode&&!eyeActive&&!countActive&&!activeViz&&millis()>20000&&millis()-lastGlitch>random(20000,40000)){triggerGlitch();lastGlitch=millis();}
+  if(!presMode&&!eyeActive&&!countActive&&!activeViz&&millis()-lastInteract>25000&&!idleWPlayed){playWhisper(random(['awake.','remember.','ascend.','listen.']));idleWPlayed=true;lastInteract=millis();}
 }
 function mousePressed(){if(!started||transitioning)return;lastInteract=millis();idleWPlayed=false;
   if(presMode){presNext();return;}
@@ -1469,8 +1430,8 @@ const PRES_STEPS=[
   {type:'viz',idx:1,scene:1,label:'daily life · viz'},
   {type:'quote',idx:2,scene:1,label:'air/o2 · quote'},
   {type:'viz',idx:2,scene:1,label:'air/o2 · viz'},
-  {type:'quote',idx:3,scene:1,label:'number 39 · quote'},
-  {type:'viz',idx:3,scene:1,label:'number 39 · viz'},
+  {type:'quote',idx:3,scene:1,label:'the mothers · quote'},
+  {type:'viz',idx:3,scene:1,label:'the mothers · viz'},
   // — Transition to Scene 3 —
   {type:'transition',target:2,text:'the path narrows.\nthe air thins.\ni keep walking.',label:'transition'},
   {type:'text',text:'the chamber.\nthe altar.\nthe eye.',scene:2,label:'eye · intro'},
