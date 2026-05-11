@@ -48,7 +48,7 @@
   <button class="scene-btn" onclick="navScene(1)">ii · the station</button>
   <button class="scene-btn" onclick="navScene(2)">iii · the eye</button>
 </div>
-<div id="volume-control"><span>vol</span><input type="range" id="volume-slider" min="-20" max="20" value="6" step="1"><span style="margin-left:18px;">brt</span><input type="range" id="brightness-slider" min="80" max="250" value="100" step="5" oninput="document.querySelector('canvas').style.filter='brightness('+this.value+'%)'"></div>
+<div id="volume-control"><span>vol</span><input type="range" id="volume-slider" min="-20" max="20" value="6" step="1"><span style="margin-left:18px;">brt</span><input type="range" id="brightness-slider" min="80" max="400" value="100" step="5" oninput="document.querySelector('canvas').style.filter='brightness('+this.value+'%)'"></div>
 <div id="subtitle"></div><div id="dismiss-hint">click to return</div><div id="pres-badge">▶ auto</div>
 <div id="arr-next" class="pres-arrow" onclick="navNext()">›</div>
 <div id="arr-prev" class="pres-arrow" onclick="navPrev()">‹</div>
@@ -156,7 +156,7 @@ function initAudio(){
     hierarchy:'industrial-spire.mp3',
     daily_life:'metal-clanking.mp3',
     air_oxygen:'valve-relief.mp3',
-    number39:'pump-release.mp3',
+    the_mothers:'pump-release.mp3',
     mythology:'whale-low.mp3',
     selection:'whale-fx1.mp3'
   };
@@ -438,7 +438,7 @@ function drawVisualization(){
     const v=activeViz;
     if(v==='shrinking_belt')drawVizBelt(vizAlpha);else if(v==='deep_parade')drawVizParade(vizAlpha);else if(v==='sea_level')drawVizSea(vizAlpha);
     else if(v==='hierarchy')drawVizHierarchy(vizAlpha);else if(v==='daily_life')drawVizDaily(vizAlpha);
-    else if(v==='air_oxygen')drawVizAir(vizAlpha);else if(v==='number39')drawVizN39(vizAlpha);
+    else if(v==='air_oxygen')drawVizAir(vizAlpha);else if(v==='number39')drawVizN39(vizAlpha);else if(v==='the_mothers')drawVizMothers(vizAlpha);
     else if(v==='mythology')drawVizMyth(vizAlpha);else if(v==='selection')drawVizSelection(vizAlpha);
     pop();drawingContext.restore();
   }
@@ -458,7 +458,82 @@ function drawVisualization(){
     pop();
   }
 }
-// --- MOLLWEIDE BELT ---
+// --- MOTHERS ---
+function drawVizMothers(a){
+  const cx=width/2,cy=height*0.45,t=min((millis()-vizStart)/8000,1);
+  const fi=a/230;
+
+  // Filtered sunlight from above — their privilege
+  noStroke();
+  for(let i=0;i<8;i++){fill(200,180,100,(12-i*1.2)*fi);rect(cx-60-i*18,0,120+i*36,cy*0.6);}
+  fill(220,200,120,fi*18);rect(cx-30,0,60,cy*0.8);
+
+  // Chamber arc
+  stroke(140,160,140,a*0.3);strokeWeight(1);noFill();
+  arc(cx,cy+60,width*0.55,height*0.55,PI,TWO_PI);
+
+  // The mothers — semicircle arrangement
+  const mothers=[
+    {name:'FIRST MOTHER',role:'memory keeper',age:'born year 2891',col:[220,195,110]},
+    {name:'SECOND MOTHER',role:'resource council',age:'born year 2934',col:[180,200,160]},
+    {name:'THIRD MOTHER',role:'breeding records',age:'born year 2951',col:[160,185,200]},
+    {name:'FOURTH MOTHER',role:'light allocation',age:'born year 2968',col:[200,170,140]},
+    {name:'FIFTH MOTHER',role:'law of descent',age:'born year 2979',col:[170,160,210]},
+  ];
+  const total=mothers.length;
+
+  mothers.forEach((m,i)=>{
+    const ang=map(i,0,total-1,PI*1.1,TWO_PI*0.9);
+    const r=width*0.22;
+    const mx=cx+cos(ang)*r,my=cy+sin(ang)*r*0.55+40;
+    const fi2=constrain((t-i*0.12)*2,0,1);
+    if(fi2<=0)return;
+
+    // Figure silhouette
+    noStroke();fill(m.col[0],m.col[1],m.col[2],a*0.5*fi2);
+    // Head
+    circle(mx,my-28,16);
+    // Body
+    beginShape();vertex(mx-10,my-20);vertex(mx-14,my+18);vertex(mx+14,my+18);vertex(mx+10,my-20);endShape(CLOSE);
+    // Robe drape
+    fill(m.col[0],m.col[1],m.col[2],a*0.2*fi2);
+    triangle(mx-14,my+18,mx-22,my+38,mx+22,my+38);
+
+    // Light cone on face (from above)
+    fill(220,200,130,a*0.12*fi2);
+    triangle(mx-6,0,mx+6,0,mx+10,my-22);
+
+    // Name tag
+    noStroke();fill(m.col[0]+40,m.col[1]+40,m.col[2]+40,a*0.8*fi2);
+    textSize(10);textAlign(CENTER);text(m.name,mx,my+52);
+    fill(m.col[0],m.col[1],m.col[2],a*0.45*fi2);
+    textSize(8.5);text(m.role,mx,my+64);
+    fill(100,130,120,a*0.3*fi2);
+    textSize(8);text(m.age,mx,my+75);
+  });
+
+  // Central podium
+  const fi3=constrain((t-0.5)*2,0,1);
+  if(fi3>0){
+    fill(120,140,120,a*0.15*fi3);noStroke();
+    ellipse(cx,cy+65,80,20);
+    stroke(140,160,130,a*0.25*fi3);strokeWeight(0.6);noFill();
+    ellipse(cx,cy+65,80,20);
+    // Descent law tablet
+    fill(180,170,130,a*0.6*fi3);noStroke();rect(cx-20,cy+25,40,30,2);
+    fill(10,15,12,a*0.4*fi3);textSize(7.5);textAlign(CENTER);
+    text('LAW OF',cx,cy+38*fi3+25);text('DESCENT',cx,cy+38*fi3+35);text('year 2847',cx,cy+38*fi3+45);
+  }
+
+  // Bottom label
+  const fi4=constrain((t-0.7)*3,0,1);
+  if(fi4>0){
+    noStroke();fill(160,180,160,a*0.55*fi4);textSize(13);textAlign(CENTER);
+    text('the council of mothers · upper level · module 1',cx,cy+height*0.35);
+    fill(100,130,120,a*0.35*fi4);textSize(10.5);
+    text('5 of an original 7 · two lost to the deeps · year 3044',cx,cy+height*0.35+18);
+  }
+}
 function mollweide(lat,lon,cx,cy,rw,rh){
   const phi=lat*PI/180,lam=lon*PI/180;
   let th=phi;for(let i=0;i<10;i++){const d=(2*th+sin(2*th)-PI*sin(phi))/(2+2*cos(2*th));th-=d;if(abs(d)<0.001)break;}
@@ -673,7 +748,7 @@ function getSceneHotspots(s){
     {x:0.2,y:0.3,viz:'hierarchy',q:"proximity to light determines everything.\nthose above decide. those below maintain.\nthose at the bottom are forgotten."},
     {x:0.5,y:0.25,viz:'daily_life',q:"we speak in borrowed words and water sounds.\nyou eat what the ocean gives.\nyou sleep when the machines quiet.\nyou strike the walls — and call it singing."},
     {x:0.75,y:0.6,viz:'air_oxygen',q:"one of the lower modules lost pressure again.\nour systems are old — some built before the great flood.\nwe keep them running with patches and prayer."},
-    {x:0.35,y:0.7,viz:'number39',q:"number 39 is a sea devil.\nnearly thirty years old. her light is dimming.\ni sat with her yesterday.\ni wanted to ask what it's like —\nwhen the light leaves."}];
+    {x:0.35,y:0.7,viz:'the_mothers',q:"they count their years from the surface.\nthe oldest was born to someone who remembered sky.\nwe call them the mothers.\nthey have not been asked our names."}];
   return[
     {x:0.35,y:0.55,viz:'mythology',q:"vahra. the sun goddess. she turned away.\nkheir. the moon. he holds the ice. he mourns.\nwe built the eye to look back at her.\nif she accepts you — you see.\nif not — you never see again."},
     {x:0.65,y:0.45,viz:'selection',q:"they say my name. once.\nthat's enough.\nsomething tightens inside me."}];
