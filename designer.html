@@ -95,6 +95,10 @@ textarea{width:100%;height:300px;background:#0a0e12;color:#b8d8d8;border:1px sol
     <button class="btn sm" onclick="scalePts(1.1)">+ 10%</button>
     <button class="btn sm" onclick="centerPts()">center</button>
   </div>
+  <div class="btn-row">
+    <button class="btn sm" onclick="subdivide()" title="Fügt zwischen jedem Punkt einen Mittelpunkt ein">subdivide</button>
+    <button class="btn sm" onclick="smooth()" title="Verschiebt Punkte leicht in Richtung ihrer Nachbarn">smooth</button>
+  </div>
   <hr>
   <h2>swarm preview</h2>
   <label class="chk"><input type="checkbox" id="sw-on" onchange="render()"> enable</label>
@@ -184,9 +188,18 @@ svg.addEventListener('wheel',e=>{e.preventDefault();const b=toSVG(e);zoom=Math.m
 // EVENTS
 let lastClick={time:0,idx:-1};
 function handleDown(pos,shift,mid,alt,detail){
-  if(mid||alt||spaceDown){panning=true;panStart={...pos};return;}
+  if(mid||spaceDown){panning=true;panStart={...pos};return;}
   if(AL().locked)return;
   const pts=AL().points,idx=near(pos,pts,10);
+  // Alt+drag inside shape = duplicate layer and move copy
+  if(alt&&inPoly(pos,pts)){
+    pushUndo();
+    const src=AL();
+    const dup={...src,name:src.name+' copy',points:src.points.map(p=>({...p})),locked:false};
+    layers.push(dup);actIdx=layers.length-1;loadControls();
+    moveAll=true;moveStart={...pos};render();return;
+  }
+  if(alt){panning=true;panStart={...pos};return;}
   if(idx>=0){
     if(detail===2||idx===lastClick.idx&&Date.now()-lastClick.time<350){pushUndo();pts.splice(idx,1);lastClick={time:0,idx:-1};render();return;}
     lastClick={time:Date.now(),idx};pushUndo();dragging=true;dragIdx=idx;
@@ -266,10 +279,6 @@ function render(){
     // Edge lines
     if(pts.length>=2)for(let i=0;i<pts.length;i++){const j=(i+1)%pts.length,hov=(hoverEdgeIdx===i+1||hoverEdgeIdx===i);
       h+=`<line x1="${pts[i].x}" y1="${pts[i].y}" x2="${pts[j].x}" y2="${pts[j].y}" stroke="${hov?'#8ad8d8':'#4a8a8a'}" stroke-width="${(hov?.9:.4)/zoom}" opacity="${hov?.8:.3}"/>`;}
-    // Hover preview line from last point to cursor
-    if(pts.length>0&&!dragging&&!moveAll&&hoverIdx<0&&hoverEdgeIdx<0){const lp=pts[pts.length-1];
-      h+=`<line x1="${lp.x}" y1="${lp.y}" x2="${mousePos.x}" y2="${mousePos.y}" stroke="#6ac8c8" stroke-width="${0.7/zoom}" stroke-dasharray="${5/zoom} ${3/zoom}" opacity="0.55"/>`;
-      h+=`<circle cx="${mousePos.x}" cy="${mousePos.y}" r="${pr*.75}" fill="#6ac8c8" opacity="0.45"/>`;}
     // Edge insert hint
     if(hoverEdgeIdx>=0&&hoverIdx<0){
       h+=`<circle cx="${mousePos.x}" cy="${mousePos.y}" r="${pr*1.2}" fill="#7ad8c8" opacity="0.65" stroke="#b8d8d8" stroke-width="${0.4/zoom}"/>`;
@@ -334,6 +343,8 @@ function flipH(){if(AL().locked)return;pushUndo();const{cx}=gc();AL().points.for
 function flipV(){if(AL().locked)return;pushUndo();const{cy}=gc();AL().points.forEach(p=>p.y=Math.round(2*cy-p.y));render();}
 function scalePts(f){if(AL().locked)return;pushUndo();const{cx,cy}=gc();AL().points.forEach(p=>{p.x=Math.round(cx+(p.x-cx)*f);p.y=Math.round(cy+(p.y-cy)*f);});render();}
 function centerPts(){if(AL().locked)return;pushUndo();const{cx,cy}=gc(),dx=SVG_W/2-cx,dy=SVG_H/2-cy;AL().points.forEach(p=>{p.x=Math.round(p.x+dx);p.y=Math.round(p.y+dy);});render();}
+function subdivide(){if(AL().locked)return;pushUndo();const pts=AL().points;if(pts.length<2)return;const n=[];for(let i=0;i<pts.length;i++){const j=(i+1)%pts.length;n.push({...pts[i]});n.push({x:Math.round((pts[i].x+pts[j].x)/2),y:Math.round((pts[i].y+pts[j].y)/2)});}AL().points=n;render();}
+function smooth(){if(AL().locked)return;pushUndo();const pts=AL().points;if(pts.length<3)return;const n=pts.map((p,i)=>{const prev=pts[(i-1+pts.length)%pts.length],next=pts[(i+1)%pts.length];return{x:Math.round(p.x*0.5+(prev.x+next.x)*0.25),y:Math.round(p.y*0.5+(prev.y+next.y)*0.25)};});AL().points=n;render();}
 
 // REFERENCE IMAGE
 function loadRefFile(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{refImg=e.target.result;document.getElementById('ref-controls').style.display='block';render();};r.readAsDataURL(f);}
