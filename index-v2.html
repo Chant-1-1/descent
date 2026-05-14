@@ -674,7 +674,8 @@ function drawStationInterior(){
 function drawFlashlight(mx,my){
   const ctx=drawingContext;
   const lx=width/2,ly=height*0.11;
-  // Build & cache the 3 static gradients (lamp halo g2, downward cone gc, red ambient wash wg)
+  // Build & cache the 3 static gradients (lamp halo g2, downward cone gc, red ambient wash wg).
+  // wg spans the whole screen so the room reads red everywhere — no per-frame gradient.
   let gr=__resizeCache.gradients&&__resizeCache.gradients.flashlight;
   if(!gr){
     const g2=ctx.createRadialGradient(lx,ly,10,lx,ly,190);
@@ -683,16 +684,18 @@ function drawFlashlight(mx,my){
     const gc=ctx.createLinearGradient(lx,ly,lx,ly+height*0.65);
     gc.addColorStop(0,'rgba(0,0,0,0.5)');gc.addColorStop(0.5,'rgba(0,0,0,0.15)');
     gc.addColorStop(1,'rgba(0,0,0,0)');
-    // Red sub-style ambient wash centered on the lamp (replaces the old warm yellow)
-    const wg=ctx.createRadialGradient(lx,ly,0,lx,ly,210);
-    wg.addColorStop(0,'rgba(210,55,35,0.22)');wg.addColorStop(0.55,'rgba(170,30,20,0.09)');
-    wg.addColorStop(1,'rgba(0,0,0,0)');
+    // Full-room red wash: strongest under the ceiling lamp, falling off toward the floor
+    const wgR=Math.max(width,height)*1.1;
+    const wg=ctx.createRadialGradient(lx,ly,0,lx,ly,wgR);
+    wg.addColorStop(0,'rgba(230,70,45,0.55)');
+    wg.addColorStop(0.35,'rgba(190,45,30,0.32)');
+    wg.addColorStop(0.7,'rgba(140,25,18,0.16)');
+    wg.addColorStop(1,'rgba(80,12,10,0.06)');
     gr={g2,gc,wg};(__resizeCache.gradients=__resizeCache.gradients||{}).flashlight=gr;
   }
   ctx.save();
-  // Dim red-tinted dark base instead of opaque black — environment seeps through ~15%
-  // so the user can perceive shape; the torch is still the main reveal mechanic.
-  ctx.fillStyle='rgba(12,3,3,0.85)';ctx.fillRect(0,0,width,height);
+  // Red-tinted dark base — environment seeps through ~18% so shapes are perceptible
+  ctx.fillStyle='rgba(30,6,5,0.82)';ctx.fillRect(0,0,width,height);
   // Cut holes with destination-out
   ctx.globalCompositeOperation='destination-out';
   // Mouse torch — built every frame (mx,my move)
@@ -708,15 +711,8 @@ function drawFlashlight(mx,my){
   ctx.lineTo(lx+width*0.22,ly+height*0.65);ctx.lineTo(lx-width*0.22,ly+height*0.65);
   ctx.closePath();ctx.fill();
   ctx.restore();
-  // Red ambient wash near the ceiling lamp (fixed)
+  // Red room wash (fixed, cached) — sits on top of everything that just got revealed
   ctx.save();ctx.fillStyle=gr.wg;ctx.fillRect(0,0,width,height);ctx.restore();
-  // Red torch tint at mouse position — built every frame; gives the flashlight a sub-red hue
-  ctx.save();
-  const rg=ctx.createRadialGradient(mx,my,15,mx,my,230);
-  rg.addColorStop(0,'rgba(220,55,40,0.18)');rg.addColorStop(0.55,'rgba(170,30,20,0.07)');
-  rg.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=rg;ctx.fillRect(0,0,width,height);
-  ctx.restore();
 }
 // ===================== EYE BACKGROUND =====================
 let eyeElements=[];
