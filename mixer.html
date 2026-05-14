@@ -320,6 +320,7 @@
 <div id="status">audio: not started — click "start audio"</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" onerror="document.body.insertAdjacentHTML('afterbegin','<div style=\'padding:20px;color:#c08070;font-family:monospace\'>Tone.js failed to load — check connection and refresh.</div>')"></script>
+<script src="sounds.js"></script>
 <script>
 // ============================================================
 // SOUND LIBRARY — edit if filenames in repo differ
@@ -405,10 +406,16 @@ const hotspotState = []; // [{sel, btn, player, timer}]
 
 // Warn at boot if any default references a sound that no longer exists,
 // so dead entries like 'morning-ambient' don't silently turn into 404s.
+// Also cross-check the group list itself against the canonical file list
+// in sounds.js — catches drift when an MP3 is renamed in the repo.
 (() => {
-  const known = new Set(Object.values(SOUNDS_BY_GROUP).flat());
+  const grouped = new Set(Object.values(SOUNDS_BY_GROUP).flat());
+  const onDisk = window.DESCENT_SOUNDS ? new Set(window.DESCENT_SOUNDS) : null;
+  if (onDisk) grouped.forEach(name => {
+    if (!onDisk.has(name)) console.warn(`[mixer] SOUNDS_BY_GROUP lists '${name}' but no ${name}.mp3 in repo`);
+  });
   const check = (where, name) => {
-    if (name && name !== '__none__' && !known.has(name)) {
+    if (name && name !== '__none__' && !grouped.has(name)) {
       console.warn(`[mixer] ${where} references unknown sound: '${name}'`);
     }
   };
