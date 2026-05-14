@@ -84,13 +84,36 @@
     border-top: 1px solid #1a2025;
     padding: 12px 0;
     display: grid;
-    grid-template-columns: 22px 1fr 36px;
+    grid-template-columns: 22px 1fr 36px 22px;
     gap: 8px;
     align-items: center;
   }
   .layer:first-of-type { border-top: none; padding-top: 4px; }
   .layer-num { font-size: 10px; opacity: 0.4; text-align: center; }
   .layer-controls { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .layer-remove {
+    width: 22px; height: 22px; padding: 0;
+    background: none; border: 1px solid #2a3540;
+    color: #6a7580; cursor: pointer; font-size: 13px; line-height: 1;
+    font-family: inherit; border-radius: 50%;
+  }
+  .layer-remove:hover { color: #ff7755; border-color: #ff7755; }
+  .layer-add {
+    display: block; width: 100%; margin-top: 10px;
+    background: none; border: 1px dashed #2a3540;
+    color: #6a7580; cursor: pointer; padding: 8px;
+    font-family: inherit; font-size: 11px; letter-spacing: 0.2em;
+    text-transform: lowercase;
+  }
+  .layer-add:hover { color: #b8d8d8; border-color: #3a4550; }
+  .config-actions { margin-bottom: 16px; display: flex; gap: 10px; align-items: center; }
+  .config-actions button {
+    background: none; border: 1px solid #2a3540; color: #6a7580;
+    padding: 6px 10px; font-family: inherit; font-size: 10px;
+    letter-spacing: 0.18em; text-transform: lowercase; cursor: pointer;
+  }
+  .config-actions button:hover { color: #b8d8d8; border-color: #3a4550; }
+  .config-actions .hint { font-size: 10px; opacity: 0.4; margin-left: auto; }
 
   select {
     background: #0a0e12;
@@ -294,6 +317,11 @@
   </div>
 </div>
 
+<div class="config-actions">
+  <button id="reset-config">reset to defaults</button>
+  <span class="hint">layers, hotspot picks, and volumes auto-save to this browser</span>
+</div>
+
 <div class="scenes" id="scenes"></div>
 
 <div id="hotspots">
@@ -347,9 +375,11 @@ const SOUNDS_BY_GROUP = {
 };
 
 // ============================================================
-// SCENES — defaults; change anything via dropdowns
+// SCENES + HOTSPOTS — runtime config, persisted in localStorage.
+// Defaults below are seeds; user can add/remove layers and change
+// any selection. Reset via the "reset to defaults" button.
 // ============================================================
-const SCENES = [
+const DEFAULT_SCENES = [
   {
     id: 'world',
     title: 'i · the world',
@@ -382,7 +412,7 @@ const SCENES = [
   }
 ];
 
-const HOTSPOTS = [
+const DEFAULT_HOTSPOTS = [
   { name: 'world · belt',         def: 'metal-creak-short' },
   { name: 'world · parade',       def: 'whale-song' },
   { name: 'world · sea level',    def: 'abyss' },
@@ -394,6 +424,30 @@ const HOTSPOTS = [
   { name: 'eye · instrument',     def: 'machine-cycle' },
   { name: 'eye · selection',      def: 'whale-fx1' }
 ];
+
+const STORAGE_KEY = 'descent-mixer-config-v2';
+
+function loadConfig() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.scenes) || !Array.isArray(parsed.hotspots)) return null;
+    return parsed;
+  } catch (e) { return null; }
+}
+function saveConfig() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ scenes, hotspots })); } catch (e) {}
+}
+const __saved = loadConfig();
+// Mutable runtime state
+let scenes = __saved ? __saved.scenes : JSON.parse(JSON.stringify(DEFAULT_SCENES));
+let hotspots = __saved ? __saved.hotspots : JSON.parse(JSON.stringify(DEFAULT_HOTSPOTS));
+
+// Backwards-compat alias for any code still reading SCENES/HOTSPOTS via the
+// closure (e.g. validators run later). These are by-reference live views.
+const SCENES = scenes;
+const HOTSPOTS = hotspots;
 
 // ============================================================
 // STATE
@@ -434,99 +488,193 @@ function buildSelect(currentValue, allowNone = true) {
     o.textContent = '— none —';
     sel.appendChild(o);
   }
+  // DESCENT_SOUNDS (from sync-sounds.js) is the authoritative list of MP3s
+  // present on disk. SOUNDS_BY_GROUP organises them; anything in DESCENT_SOUNDS
+  // but not in any group falls into a "new (uncategorized)" group automatically.
+  const onDisk = new Set(window.DESCENT_SOUNDS || []);
+  const grouped = new Set();
   for (const [group, sounds] of Object.entries(SOUNDS_BY_GROUP)) {
     const og = document.createElement('optgroup');
     og.label = group;
     sounds.forEach(s => {
+      if (!onDisk.has(s) && onDisk.size > 0) return; // skip if file removed
+      grouped.add(s);
       const o = document.createElement('option');
-      o.value = s;
-      o.textContent = s;
+      o.value = s; o.textContent = s;
+      og.appendChild(o);
+    });
+    if (og.children.length) sel.appendChild(og);
+  }
+  const uncategorized = [...onDisk].filter(s => !grouped.has(s)).sort();
+  if (uncategorized.length) {
+    const og = document.createElement('optgroup');
+    og.label = 'new (uncategorized)';
+    uncategorized.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s; o.textContent = s;
       og.appendChild(o);
     });
     sel.appendChild(og);
   }
-  sel.value = currentValue;
+  // If currentValue is no longer in any option (file removed), append it as
+  // an orphan so the user can see what's missing instead of silently swapping.
+  if (currentValue && currentValue !== '__none__' && !sel.querySelector(`option[value="${CSS.escape(currentValue)}"]`)) {
+    const og = document.createElement('optgroup');
+    og.label = 'missing (file not in repo)';
+    const o = document.createElement('option');
+    o.value = currentValue; o.textContent = currentValue + ' (missing)';
+    og.appendChild(o);
+    sel.appendChild(og);
+  }
+  sel.value = currentValue || '__none__';
   return sel;
 }
 
-function buildScenes() {
-  const wrap = document.getElementById('scenes');
-  SCENES.forEach((scene) => {
-    layerState[scene.id] = [];
-    const div = document.createElement('div');
-    div.className = 'scene';
-    div.dataset.scene = scene.id;
+function disposeLayerState(s) {
+  if (!s) return;
+  if (s.player) { try { s.player.stop(); } catch(e) {} try { s.player.dispose(); } catch(e) {} }
+  if (s.gain) { try { s.gain.dispose(); } catch(e) {} }
+  if (s.testPlayer) { try { s.testPlayer.stop(); } catch(e) {} try { s.testPlayer.dispose(); } catch(e) {} }
+  if (s.testGain) { try { s.testGain.dispose(); } catch(e) {} }
+}
 
-    const h = document.createElement('h2');
-    h.textContent = scene.title;
-    div.appendChild(h);
+function buildLayerRow(scene, idx) {
+  const layer = scene.layers[idx];
+  const row = document.createElement('div');
+  row.className = 'layer';
 
-    const playBtn = document.createElement('button');
-    playBtn.className = 'scene-play';
-    playBtn.textContent = '▶ play scene';
-    playBtn.onclick = () => toggleScene(scene.id);
-    div.appendChild(playBtn);
+  const num = document.createElement('div');
+  num.className = 'layer-num';
+  num.textContent = String(idx + 1);
+  row.appendChild(num);
 
-    scene.layers.forEach((layer, idx) => {
-      const row = document.createElement('div');
-      row.className = 'layer';
+  const ctrl = document.createElement('div');
+  ctrl.className = 'layer-controls';
 
-      const num = document.createElement('div');
-      num.className = 'layer-num';
-      num.textContent = String(idx + 1);
-      row.appendChild(num);
+  const sel = buildSelect(layer.def, true);
+  sel.onchange = () => {
+    layer.def = sel.value;
+    saveConfig();
+    if (scenePlaying[scene.id]) replaceLayerInScene(scene.id, idx);
+  };
+  ctrl.appendChild(sel);
 
-      const ctrl = document.createElement('div');
-      ctrl.className = 'layer-controls';
+  const volRow = document.createElement('div');
+  volRow.className = 'vol-row';
+  const vol = document.createElement('input');
+  vol.type = 'range'; vol.min = 0; vol.max = 100; vol.value = layer.vol;
+  const volNum = document.createElement('span');
+  volNum.className = 'vol-num';
+  volNum.textContent = layer.vol;
+  vol.oninput = () => {
+    volNum.textContent = vol.value;
+    layer.vol = parseInt(vol.value);
+    saveConfig();
+    const s = layerState[scene.id][idx];
+    if (s && s.gain) s.gain.gain.rampTo(layer.vol/100, 0.1);
+    if (s && s.testGain) s.testGain.gain.rampTo(layer.vol/100, 0.1);
+  };
+  volRow.appendChild(vol);
+  volRow.appendChild(volNum);
+  ctrl.appendChild(volRow);
 
-      const sel = buildSelect(layer.def, true);
-      sel.onchange = () => {
-        if (scenePlaying[scene.id]) replaceLayerInScene(scene.id, idx);
-      };
-      ctrl.appendChild(sel);
+  row.appendChild(ctrl);
 
-      const volRow = document.createElement('div');
-      volRow.className = 'vol-row';
-      const vol = document.createElement('input');
-      vol.type = 'range'; vol.min = 0; vol.max = 100; vol.value = layer.vol;
-      const volNum = document.createElement('span');
-      volNum.className = 'vol-num';
-      volNum.textContent = layer.vol;
-      vol.oninput = () => {
-        volNum.textContent = vol.value;
-        const s = layerState[scene.id][idx];
-        if (s.gain) s.gain.gain.rampTo(parseInt(vol.value)/100, 0.1);
-        if (s.testGain) s.testGain.gain.rampTo(parseInt(vol.value)/100, 0.1);
-      };
-      volRow.appendChild(vol);
-      volRow.appendChild(volNum);
-      ctrl.appendChild(volRow);
+  const testBtn = document.createElement('button');
+  testBtn.className = 'layer-test';
+  testBtn.textContent = '▶';
+  testBtn.title = 'test this layer alone';
+  testBtn.onclick = () => toggleLayerTest(scene.id, idx);
+  row.appendChild(testBtn);
 
-      row.appendChild(ctrl);
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'layer-remove';
+  removeBtn.textContent = '×';
+  removeBtn.title = 'remove this layer';
+  removeBtn.onclick = () => removeLayer(scene.id, idx);
+  row.appendChild(removeBtn);
 
-      const testBtn = document.createElement('button');
-      testBtn.className = 'layer-test';
-      testBtn.textContent = '▶';
-      testBtn.title = 'test this layer alone';
-      testBtn.onclick = () => toggleLayerTest(scene.id, idx);
-      row.appendChild(testBtn);
-
-      layerState[scene.id].push({
-        sel, volInput: vol, volNum, testBtn,
-        player: null, gain: null,
-        testPlayer: null, testGain: null
-      });
-
-      div.appendChild(row);
-    });
-
-    wrap.appendChild(div);
+  layerState[scene.id].push({
+    sel, volInput: vol, volNum, testBtn,
+    player: null, gain: null,
+    testPlayer: null, testGain: null
   });
+
+  return row;
+}
+
+function buildScene(scene) {
+  const wrap = document.getElementById('scenes');
+  layerState[scene.id] = [];
+  const div = document.createElement('div');
+  div.className = 'scene';
+  div.dataset.scene = scene.id;
+
+  const h = document.createElement('h2');
+  h.textContent = scene.title;
+  div.appendChild(h);
+
+  const playBtn = document.createElement('button');
+  playBtn.className = 'scene-play';
+  playBtn.textContent = scenePlaying[scene.id] ? '■ stop scene' : '▶ play scene';
+  if (scenePlaying[scene.id]) playBtn.classList.add('playing');
+  playBtn.onclick = () => toggleScene(scene.id);
+  div.appendChild(playBtn);
+
+  scene.layers.forEach((_, idx) => div.appendChild(buildLayerRow(scene, idx)));
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'layer-add';
+  addBtn.textContent = '+ add layer';
+  addBtn.onclick = () => addLayer(scene.id);
+  div.appendChild(addBtn);
+
+  wrap.appendChild(div);
+}
+
+function buildScenes() {
+  scenes.forEach(buildScene);
+}
+
+function rerenderScene(sceneId) {
+  // Stop the scene so we don't leak players when we lose DOM refs
+  if (scenePlaying[sceneId]) stopScene(sceneId);
+  (layerState[sceneId] || []).forEach(disposeLayerState);
+  layerState[sceneId] = [];
+  const existing = document.querySelector(`.scene[data-scene="${sceneId}"]`);
+  const wrap = document.getElementById('scenes');
+  if (existing) {
+    const placeholder = document.createComment(sceneId);
+    wrap.replaceChild(placeholder, existing);
+    const scene = scenes.find(s => s.id === sceneId);
+    buildScene(scene);
+    const newDiv = wrap.lastElementChild;
+    wrap.insertBefore(newDiv, placeholder);
+    wrap.removeChild(placeholder);
+  } else {
+    const scene = scenes.find(s => s.id === sceneId);
+    buildScene(scene);
+  }
+}
+
+function addLayer(sceneId) {
+  const scene = scenes.find(s => s.id === sceneId);
+  scene.layers.push({ def: '__none__', vol: 50 });
+  saveConfig();
+  rerenderScene(sceneId);
+}
+
+function removeLayer(sceneId, idx) {
+  const scene = scenes.find(s => s.id === sceneId);
+  if (!scene || idx < 0 || idx >= scene.layers.length) return;
+  scene.layers.splice(idx, 1);
+  saveConfig();
+  rerenderScene(sceneId);
 }
 
 function buildHotspots() {
   const grid = document.getElementById('hotspot-grid');
-  HOTSPOTS.forEach((h) => {
+  hotspots.forEach((h) => {
     const wrap = document.createElement('div');
     wrap.className = 'hotspot';
 
@@ -536,6 +684,7 @@ function buildHotspots() {
     wrap.appendChild(nm);
 
     const sel = buildSelect(h.def, true);
+    sel.onchange = () => { h.def = sel.value; saveConfig(); };
     wrap.appendChild(sel);
 
     const btn = document.createElement('button');
@@ -549,6 +698,24 @@ function buildHotspots() {
 
     grid.appendChild(wrap);
   });
+}
+
+// Mutates scenes/hotspots in place (don't reassign — the SCENES/HOTSPOTS aliases
+// hold the array references) and re-renders everything.
+function resetConfig() {
+  if (!confirm('Reset all scene layers and hotspot picks to defaults?')) return;
+  // Stop any playing scenes first
+  Object.keys(scenePlaying).forEach(id => { if (scenePlaying[id]) stopScene(id); });
+  scenes.splice(0, scenes.length, ...JSON.parse(JSON.stringify(DEFAULT_SCENES)));
+  hotspots.splice(0, hotspots.length, ...JSON.parse(JSON.stringify(DEFAULT_HOTSPOTS)));
+  saveConfig();
+  document.getElementById('scenes').innerHTML = '';
+  document.getElementById('hotspot-grid').innerHTML = '';
+  Object.keys(layerState).forEach(id => (layerState[id] || []).forEach(disposeLayerState));
+  Object.keys(layerState).forEach(id => delete layerState[id]);
+  hotspotState.length = 0;
+  buildScenes();
+  buildHotspots();
 }
 
 // ============================================================
@@ -859,6 +1026,7 @@ document.getElementById('copy-btn').onclick = () => {
 // ============================================================
 buildScenes();
 buildHotspots();
+document.getElementById('reset-config').onclick = resetConfig;
 </script>
 </body>
 </html>
