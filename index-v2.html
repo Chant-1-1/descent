@@ -378,18 +378,6 @@ function initAudio(){
       {file:'underwater-choir.mp3',   vol:0.13}
     ]
   };
-  // Validate that every referenced MP3 exists in the canonical list, so a
-  // typo or renamed file surfaces in the console at boot instead of as a
-  // silent 404 during playback.
-  if(window.DESCENT_SOUNDS){
-    const known=new Set(window.DESCENT_SOUNDS.map(n=>n+'.mp3'));
-    Object.entries(sceneDef).forEach(([scn,layers])=>layers.forEach((l,i)=>{
-      if(!known.has(l.file))console.warn('[audio] '+scn+' layer '+(i+1)+' references unknown file: '+l.file);
-    }));
-    Object.entries(hsDef).forEach(([id,file])=>{
-      if(!known.has(file))console.warn('[audio] hotspot "'+id+'" references unknown file: '+file);
-    });
-  }
   // Create a gain bus per scene, routed through glitchFX
   ['world','station','eye'].forEach((name,idx)=>{
     const bus=new Tone.Gain(idx===0?1:0).connect(depthFilter);
@@ -415,6 +403,18 @@ function initAudio(){
     mythology:'whale-low.mp3',
     selection:'whale-fx1.mp3'
   };
+  // Validate that every referenced MP3 exists in the canonical list, so a
+  // typo or renamed file surfaces in the console at boot instead of as a
+  // silent 404 during playback. Must run after both sceneDef and hsDef exist.
+  if(window.DESCENT_SOUNDS){
+    const known=new Set(window.DESCENT_SOUNDS.map(n=>n+'.mp3'));
+    Object.entries(sceneDef).forEach(([scn,layers])=>layers.forEach((l,i)=>{
+      if(!known.has(l.file))console.warn('[audio] '+scn+' layer '+(i+1)+' references unknown file: '+l.file);
+    }));
+    Object.entries(hsDef).forEach(([id,file])=>{
+      if(!known.has(file))console.warn('[audio] hotspot "'+id+'" references unknown file: '+file);
+    });
+  }
   for(const[vizId,file] of Object.entries(hsDef)){
     hotspotPlayers[vizId]=new Tone.Player({url:file,loop:false,fadeOut:0.5}).connect(hotspotRev);
   }
