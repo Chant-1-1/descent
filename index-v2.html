@@ -185,6 +185,8 @@ let hullPieces=[],hullPlayers={},hullClickTimes=[];
 let hullLastClicked=null,hullChainCount=0,hullEverTriggered=false,hullHintShown=false;
 // "Morning touch" — single soft hull tap when entering the station, reset on leave
 let morningTouchPlayer=null,scene2EntryPlayed=false;
+// "Silence Hours" — 4s near-silence interlude on station→eye transition
+let silenceUnderwaterPlayer=null,silenceCreakPlayer=null,silenceHours=false,silenceTransition=false;
 // Daily-life ambient — looping layer under the daily_life hotspot viz
 let longRev=null,dailyLifeTricklingPlayer=null,dailyLifeFactoryPlayer=null,dailyLifeAmbientActive=false;
 function startDailyLifeAmbient(){
@@ -340,6 +342,11 @@ function initAudio(){
   // Own player so it can't be retriggered by the hull-song streak machinery.
   morningTouchPlayer=new Tone.Player({url:'metal-creak-short.mp3',loop:false,fadeOut:0.3}).connect(hotspotRev);
   morningTouchPlayer.volume.value=-12;
+  // "Silence Hours" — station→eye transition has a 4s audio silence with one creak
+  silenceUnderwaterPlayer=new Tone.Player({url:'underwater-base.mp3',loop:true,fadeIn:0.3,fadeOut:0.8}).toDestination();
+  silenceUnderwaterPlayer.volume.value=-32;
+  silenceCreakPlayer=new Tone.Player({url:'metal-creak-long.mp3',loop:false,fadeOut:0.5}).connect(hotspotRev);
+  silenceCreakPlayer.volume.value=-20;
   // Daily-life ambient: long-reverb bus + two looping layers gated by hotspot activation
   longRev=new Tone.Reverb({decay:8,wet:0.55}).connect(glitchFX);
   dailyLifeTricklingPlayer=new Tone.Player({url:'trickling-loop.mp3',loop:true,fadeIn:1.5,fadeOut:1.0}).connect(longRev);
@@ -367,9 +374,15 @@ function initAudio(){
     showSub('audio failed to load — refresh to retry',8000,'rgba(220,120,120,0.85)','14px');
   });
 }
-// Crossfade scene buses on scene change
+// Crossfade scene buses on scene change. During the silence-hours interlude
+// (station→eye), all scene buses ramp to 0 over 1.5s instead — the eye bus
+// is brought in after the silence window closes.
 function updateSceneAudio(){
   const map=['world','station','eye'];
+  if(silenceHours){
+    map.forEach(name=>{const b=sceneBuses[name];if(b)b.gain.rampTo(0,1.5);});
+    return;
+  }
   const target=map[scene];
   map.forEach(name=>{
     const bus=sceneBuses[name];
@@ -1476,13 +1489,49 @@ function drawEyeClimax(){
     }
   }
 }
-function startTransition(target){transitionTarget=target;transitioning=true;transitionStart=millis();transitionBuilt=false;transitionOverlayEl.classList.add('active');}
-function updateTransition(){if(!transitioning)return;const t=millis()-transitionStart;
-  if(t>1800&&!transitionBuilt){transitionBuilt=true;scene=transitionTarget;buildScene(scene);}
-  if(t>3500){transitioning=false;transitionOverlayEl.classList.remove('active');
+function startTransition(target){
+  // Silence Hours: station→eye transition gets a 4s silent interlude before
+  // the eye soundscape rises. Skipped in presentation mode (it has its own pacing).
+  silenceTransition=(started&&!presMode&&scene===1&&target===2);
+  if(silenceTransition){
+    silenceHours=true;
+    if(sceneBuses.station)sceneBuses.station.gain.rampTo(0,1.5);
+  }
+  transitionTarget=target;transitioning=true;transitionStart=millis();transitionBuilt=false;transitionOverlayEl.classList.add('active');
+}
+function updateTransition(){
+  if(!transitioning)return;
+  const t=millis()-transitionStart;
+  if(t>1800&&!transitionBuilt){
+    transitionBuilt=true;scene=transitionTarget;buildScene(scene);
+    if(silenceTransition){
+      try{silenceUnderwaterPlayer.start();}catch(e){__dbg(e);}
+      // One creak somewhere in t=2400..3600 (i.e. ~0.6–1.8s into the held silence)
+      const creakDelay=600+Math.random()*1200;
+      setTimeout(()=>{if(silenceHours&&silenceCreakPlayer){try{silenceCreakPlayer.start();}catch(e){__dbg(e);}}},creakDelay);
+    }
+  }
+  // Overlay clears at t=3500 regardless of silence mode so the eye scene
+  // is partially visible while the silence still holds (feels intentional).
+  if(t>3500)transitionOverlayEl.classList.remove('active');
+  if(silenceTransition){
+    if(silenceHours&&t>4000){
+      // End of silence: kill the bed, ramp eye bus in normally (2s)
+      silenceHours=false;
+      try{silenceUnderwaterPlayer.stop();}catch(e){__dbg(e);}
+      updateSceneAudio();
+    }
+    if(t>4000){
+      silenceTransition=false;transitioning=false;
+      if(!presMode)showSub('the chamber. the altar.\nthe eye.',5000);
+    }
+  }else if(t>3500){
+    transitioning=false;
     if(!presMode){if(scene===1)showSub('the station.\nsystems humming. walls pressing close.',5000);
     else if(scene===2)showSub('the chamber. the altar.\nthe eye.',5000);
-    else showSub('the world.\nyou wake. the air is heavy. wet.',5000);}}}
+    else showSub('the world.\nyou wake. the air is heavy. wet.',5000);}
+  }
+}
 // ===================== MAIN =====================
 function setup(){createCanvas(windowWidth,windowHeight).parent(document.body);noStroke();textFont('Courier New');buildScene(0);lastInteract=millis();
   // Apply default brightness on start
@@ -1602,6 +1651,7 @@ const PRES_STEPS=[
 function clearPresState(){
   if(activeViz){activeViz=null;vizDismissing=false;vizAlpha=0;}
   stopDailyLifeAmbient();
+  if(silenceHours){silenceHours=false;silenceTransition=false;try{silenceUnderwaterPlayer&&silenceUnderwaterPlayer.stop();}catch(e){__dbg(e);}}
   hideSub();hotspotPhase='idle';activeHotspot=null;eyeActive=false;
   dismissHintEl.classList.remove('show');
 }
