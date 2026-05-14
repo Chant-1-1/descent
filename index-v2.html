@@ -155,6 +155,7 @@
 <script>function __descentLoadFail(lib){const el=document.getElementById('start-overlay');if(!el)return;el.innerHTML='<div class="intro" style="color:#c08070">'+lib+' failed to load.<br><br>check your connection and refresh.</div>';el.style.cursor='default';}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js" onerror="__descentLoadFail('p5.js')"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" onerror="__descentLoadFail('Tone.js')"></script>
+<script src="sounds.js"></script>
 <script>
 const MAX_CREATURES=24;
 const HEARTBEAT_MS=4700; // global 4.7s pulse used in audio + viz
@@ -274,6 +275,18 @@ function initAudio(){
       {file:'underwater-choir.mp3',   vol:0.13}
     ]
   };
+  // Validate that every referenced MP3 exists in the canonical list, so a
+  // typo or renamed file surfaces in the console at boot instead of as a
+  // silent 404 during playback.
+  if(window.DESCENT_SOUNDS){
+    const known=new Set(window.DESCENT_SOUNDS.map(n=>n+'.mp3'));
+    Object.entries(sceneDef).forEach(([scn,layers])=>layers.forEach((l,i)=>{
+      if(!known.has(l.file))console.warn('[audio] '+scn+' layer '+(i+1)+' references unknown file: '+l.file);
+    }));
+    Object.entries(hsDef).forEach(([id,file])=>{
+      if(!known.has(file))console.warn('[audio] hotspot "'+id+'" references unknown file: '+file);
+    });
+  }
   // Create a gain bus per scene, routed through glitchFX
   ['world','station','eye'].forEach((name,idx)=>{
     const bus=new Tone.Gain(idx===0?1:0).connect(depthFilter);
