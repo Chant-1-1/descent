@@ -149,7 +149,6 @@
 <script>
 const MAX_CREATURES=24;
 let started=false,particles=[],hotspots=[],creatures=[],stationElements=[],fishSwarms=[],deepCreatures=[],stationBG=null;
-let seaDevilImg=null;
 let pulse47Phase=0; // global 4.7s heartbeat, 0..1
 let camDX=0,camDY=0,lastGlitch=0,lastInteract=0,idleWPlayed=false;
 let glitchFX,whisperN,whisperF,whisperG,hoverPing;
@@ -406,11 +405,7 @@ class DeepCreature{
   display(){
     drawingContext.globalAlpha=this.fadeAlpha;
     push();translate(this.cx,this.cy);if(this.dir<0)scale(-1,1);rotate(this.bodyRot);scale(this.sc);
-    if(this.type==='seadevil'&&seaDevilImg){
-      tint(70,130,140,180);image(seaDevilImg,-206,-193,413,387);noTint();
-    }else{
-      noStroke();for(let l of this.layers){fill(l.col[0],l.col[1],l.col[2],l.op*255);beginShape();for(let pt of l.pts)vertex(pt[0],pt[1]);endShape(CLOSE);}
-    }
+    noStroke();for(let l of this.layers){fill(l.col[0],l.col[1],l.col[2],l.op*255);beginShape();for(let pt of l.pts)vertex(pt[0],pt[1]);endShape(CLOSE);}
     pop();
     // Bioluminescent lure flash — wild irregular, captured exactly 4.7s
     if(this.type==='seadevil'){
@@ -1426,7 +1421,6 @@ function mousePressed(){if(!started||transitioning)return;lastInteract=millis();
 function navScene(target){if(transitioning||eyeActive||activeViz||target===scene)return;startTransition(target);}
 document.getElementById('start-overlay').addEventListener('click',async()=>{await Tone.start();initAudio();document.getElementById('start-overlay').classList.add('fade');
   setTimeout(()=>document.getElementById('start-overlay').style.display='none',3000);
-  loadImage('sea-devil.svg',img=>{seaDevilImg=img;},()=>{});
   setTimeout(()=>{started=true;showSub("you wake.\nthe air is heavy. wet.\nyou have never seen the surface.",6000);},2500);});
 // ===================== PRESENTATION MODE (step-by-step) =====================
 let presMode=false,presStep=-1;
