@@ -269,6 +269,8 @@ let hullLastClicked=null,hullChainCount=0,hullEverTriggered=false,hullHintShown=
 let morningTouchPlayer=null,scene2EntryPlayed=false;
 // "Silence Hours" — 4s near-silence interlude on station→eye transition
 let silenceUnderwaterPlayer=null,silenceCreakPlayer=null,silenceHours=false,silenceTransition=false;
+// Process-intro drone bridge — atmospheric thread from process scene to experience
+let processDronePlayer=null;
 // Daily-life ambient — looping layer under the daily_life hotspot viz
 let longRev=null,dailyLifeTricklingPlayer=null,dailyLifeFactoryPlayer=null,dailyLifeAmbientActive=false;
 function startDailyLifeAmbient(){
@@ -429,6 +431,12 @@ function initAudio(){
   silenceUnderwaterPlayer.volume.value=-32;
   silenceCreakPlayer=new Tone.Player({url:'metal-creak-long.mp3',loop:false,fadeOut:0.5}).connect(hotspotRev);
   silenceCreakPlayer.volume.value=-20;
+  // Process drone — bridges the process intro to the experience. Triggered on
+  // title click (first user gesture, which is when audio is allowed). Fades in
+  // over 2s, holds quietly under the "you wake" subtitle, then fades out so it
+  // doesn't permanently overlap with the eye scene's own drone-filter loop.
+  processDronePlayer=new Tone.Player({url:'drone-filter.mp3',loop:true,fadeIn:2.0,fadeOut:3.0}).connect(hotspotRev);
+  processDronePlayer.volume.value=-24;
   // Daily-life ambient: long-reverb bus + two looping layers gated by hotspot activation
   longRev=new Tone.Reverb({decay:8,wet:0.55}).connect(glitchFX);
   dailyLifeTricklingPlayer=new Tone.Player({url:'trickling-loop.mp3',loop:true,fadeIn:1.5,fadeOut:1.0}).connect(longRev);
@@ -438,7 +446,8 @@ function initAudio(){
   dailyLifeFactoryPlayer=new Tone.Player({url:'factory-ambience.mp3',loop:true,fadeIn:1.5,fadeOut:1.0}).connect(dailyLifeFactoryLP);
   dailyLifeFactoryPlayer.volume.value=-28;
   // Loading progress: count buffers as they resolve, show in start-overlay
-  const allPlayers=[].concat(...Object.values(layerPlayers),Object.values(hotspotPlayers),Object.values(hullPlayers));
+  const customPlayers=[morningTouchPlayer,silenceUnderwaterPlayer,silenceCreakPlayer,processDronePlayer,dailyLifeTricklingPlayer,dailyLifeFactoryPlayer].filter(Boolean);
+  const allPlayers=[].concat(...Object.values(layerPlayers),Object.values(hotspotPlayers),Object.values(hullPlayers),customPlayers);
   const total=allPlayers.length;let loaded=0;
   const progressEl=document.querySelector('#start-overlay .text');
   allPlayers.forEach(p=>{
@@ -1694,6 +1703,12 @@ function navScene(target){if(transitioning||eyeActive||activeViz||target===scene
 function fadeOutStartOverlay(after,cb){const el=document.getElementById('start-overlay');el.classList.add('fade');setTimeout(()=>{el.style.display='none';if(cb)cb();},after);}
 document.getElementById('start-overlay').addEventListener('click',async()=>{await Tone.start();initAudio();
   fadeOutStartOverlay(3000);
+  // Bridge from the process intro: spec wanted drone-filter under the matrix,
+  // but browsers block audio before a user gesture — so it lives here instead,
+  // crossing from title fade-out into the first "you wake" beats and then easing
+  // out so it doesn't double-up with the eye scene's drone-filter layer.
+  if(processDronePlayer){try{processDronePlayer.start();}catch(e){__dbg(e);}
+    setTimeout(()=>{try{processDronePlayer.stop();}catch(e){__dbg(e);}},9000);}
   setTimeout(()=>{started=true;showSub("you wake.\nthe air is heavy. wet.\nyou have never seen the surface.",6000);},2500);});
 // ===================== PRESENTATION MODE (step-by-step) =====================
 let presMode=false,presStep=-1;
