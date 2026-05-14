@@ -402,6 +402,19 @@ const layerState = {};   // sceneId -> [{sel, volInput, volNum, testBtn, player,
 const scenePlaying = {};
 const hotspotState = []; // [{sel, btn, player, timer}]
 
+// Warn at boot if any default references a sound that no longer exists,
+// so dead entries like 'morning-ambient' don't silently turn into 404s.
+(() => {
+  const known = new Set(Object.values(SOUNDS_BY_GROUP).flat());
+  const check = (where, name) => {
+    if (name && name !== '__none__' && !known.has(name)) {
+      console.warn(`[mixer] ${where} references unknown sound: '${name}'`);
+    }
+  };
+  SCENES.forEach(scene => scene.layers.forEach((l, i) => check(`${scene.id} layer ${i+1}`, l.def)));
+  HOTSPOTS.forEach(h => check(`hotspot "${h.name}"`, h.def));
+})();
+
 // ============================================================
 // UI BUILDERS
 // ============================================================
@@ -593,6 +606,12 @@ function requireAudio() {
   return true;
 }
 
+function connectViaGain(layer, player) {
+  const gain = new Tone.Gain(parseInt(layer.volInput.value)/100).connect(masterGain);
+  player.connect(gain);
+  return gain;
+}
+
 // ============================================================
 // SCENE PLAYBACK
 // ============================================================
@@ -613,10 +632,8 @@ async function playScene(sceneId) {
       try { player.dispose(); } catch(e) {}
       return;
     }
-    const gain = new Tone.Gain(parseInt(s.volInput.value)/100).connect(masterGain);
-    player.connect(gain);
     s.player = player;
-    s.gain = gain;
+    s.gain = connectViaGain(s, player);
     try { player.start(); } catch(e) { console.error(e); }
   }));
 }
@@ -678,10 +695,8 @@ async function replaceLayerInScene(sceneId, idx) {
     try { player.dispose(); } catch(e) {}
     return;
   }
-  const gain = new Tone.Gain(parseInt(s.volInput.value)/100).connect(masterGain);
-  player.connect(gain);
   s.player = player;
-  s.gain = gain;
+  s.gain = connectViaGain(s, player);
   try { player.start(); } catch(e) {}
 }
 
@@ -716,10 +731,8 @@ async function toggleLayerTest(sceneId, idx) {
     if (!player) setStatus('failed to load: ' + name + '.mp3', true);
     return;
   }
-  const gain = new Tone.Gain(parseInt(s.volInput.value)/100).connect(masterGain);
-  player.connect(gain);
   s.testPlayer = player;
-  s.testGain = gain;
+  s.testGain = connectViaGain(s, player);
   s.testBtn.classList.remove('loading');
   try { player.start(); } catch(e) {}
   s.testBtn.textContent = '■';
