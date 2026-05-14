@@ -182,6 +182,7 @@ let depthFilter=null,depthFilterFreq=4000;
 let cageSlots=[];
 // Feature 4: hull song
 let hullPieces=[],hullPlayers={},hullClickTimes=[];
+let hullLastClicked=null,hullChainCount=0,hullEverTriggered=false,hullHintShown=false;
 // Feature 5: behavior tracking
 let userBehavior={hotspotsVisited:{},timeInScenes:{0:0,1:0,2:0},seaDevilsCaptured:0,hullSongClicks:0,cursorStillness:0,lookedAtIt:false};
 let lastCursorX=0,lastCursorY=0,stillTimer=0;
@@ -1139,7 +1140,8 @@ function generateHullPieces(){
     [0.75,0.7],[0.4,0.54],[0.7,0.38],[0.14,0.64],[0.86,0.58],[0.5,0.74],[0.34,0.3],[0.64,0.74],[0.55,0.34],[0.24,0.44],
     [0.8,0.24],[0.4,0.7],[0.6,0.44],[0.18,0.8],[0.82,0.74],[0.48,0.84],[0.3,0.5],[0.72,0.54],[0.55,0.14],[0.35,0.84]];
   const keys=['metal-clanking','metal-creak-long','metal-creak-short','valve-relief','pump-release','water-pipe'];
-  for(let i=0;i<pos.length;i++)hullPieces.push({x:pos[i][0]*width,y:pos[i][1]*height,soundKey:keys[i%keys.length],flashT:0,cooldown:0,hovered:false});
+  for(let i=0;i<pos.length;i++){const x=pos[i][0]*width,y=pos[i][1]*height;
+    hullPieces.push({x,y,soundKey:keys[i%keys.length],flashT:0,cooldown:0,hovered:false,phase:(x+y)*0.001});}
 }
 function updateHullPieces(){
   let anyH=false;
@@ -1152,15 +1154,41 @@ function updateHullPieces(){
   if(anyH)curEl.classList.add('hover');
 }
 function drawHullPieces(){
+  // Baseline shimmer — peripheral cue that the walls are tappable.
+  // Each piece breathes on its own phase so they don't all blink in sync.
+  const fc=frameCount*0.012;
+  noStroke();
   for(let p of hullPieces){
-    if(p.flashT>0){const fi=min(p.flashT/350,1);noStroke();fill(180,220,200,fi*72);circle(p.x,p.y,50);fill(220,242,232,fi*140);circle(p.x,p.y,13);}
-    if(p.hovered&&p.cooldown<=0){stroke(120,180,170,58);strokeWeight(0.7);noFill();circle(p.x,p.y,23);noStroke();}
+    const bp=sin(fc+p.phase)*0.4+0.6;
+    fill(150,195,185,14*bp);circle(p.x,p.y,4);
+    if(p.flashT>0){const fi=min(p.flashT/350,1);fill(180,220,200,fi*72);circle(p.x,p.y,50);fill(220,242,232,fi*140);circle(p.x,p.y,13);}
+    if(p.hovered&&p.cooldown<=0){stroke(120,180,170,110);strokeWeight(0.7);noFill();circle(p.x,p.y,23);noStroke();}
+  }
+  // Expire the streak after 10s of silence so the ring doesn't linger forever
+  // (hullClickTimes is only filtered inside triggerHullPiece, which won't run
+  // again until the user clicks).
+  if(hullLastClicked&&hullClickTimes.length&&millis()-hullClickTimes[hullClickTimes.length-1]>10000){
+    hullLastClicked=null;hullClickTimes=[];
+  }
+  // Streak resonance: as the user accumulates clicks within 10s, a ring grows around
+  // the last-clicked piece. At 7/7 the chain fires and the glow vanishes.
+  if(hullLastClicked&&hullClickTimes.length>=3){
+    const ringPulse=sin(fc*4)*0.3+0.7;
+    const streak=min(hullClickTimes.length/7,1);
+    const lp=hullLastClicked;
+    const r=22+streak*48,ringA=40+streak*120;
+    noFill();stroke(150,210,200,ringA*ringPulse);strokeWeight(0.6+streak*0.8);
+    circle(lp.x,lp.y,r*2);
+    if(streak>0.6){stroke(180,230,220,ringA*0.6*ringPulse);circle(lp.x,lp.y,r*2.4);}
+    noStroke();
   }
 }
 function triggerHullPiece(p){
   p.flashT=350;p.cooldown=1500;
   if(hullPlayers[p.soundKey]){try{hullPlayers[p.soundKey].stop();hullPlayers[p.soundKey].start();}catch(e){__dbg(e);}}
   userBehavior.hullSongClicks++;
+  hullLastClicked=p;
+  if(!hullEverTriggered){hullEverTriggered=true;setTimeout(()=>playWhisper('the workers know this language.'),900);}
   hullClickTimes.push(millis());
   hullClickTimes=hullClickTimes.filter(t=>millis()-t<10000);
   if(hullClickTimes.length>=7){triggerHullChain();hullClickTimes=[];}
@@ -1171,8 +1199,14 @@ function triggerHullPiece(p){
   }
 }
 function triggerHullChain(){
+  hullChainCount++;
+  hullLastClicked=null; // glow vanishes — the song answered
   const sorted=[...hullPieces].sort((a,b)=>a.y-b.y);
   sorted.forEach((p,i)=>setTimeout(()=>{p.flashT=280;if(hullPlayers[p.soundKey]){try{hullPlayers[p.soundKey].stop();hullPlayers[p.soundKey].start();}catch(e){__dbg(e);};}},i*145));
+  // Narrative payoff — distinct text for first vs. repeat chains so players who
+  // discover it again get something new rather than the same line.
+  const line=hullChainCount===1?'the station sings back.':hullChainCount===2?"they're listening below.":'the deep answers.';
+  setTimeout(()=>showSub(line,3500,'rgba(150,210,200,0.72)','15px'),300);
 }
 // ===================== FEATURE 5: BEHAVIOR TRACKING =====================
 function computeLabel(){
@@ -1256,7 +1290,8 @@ function buildScene(s){
     // 3 whales
     for(let i=0;i<3;i++)deepCreatures.push(new DeepCreature(WHALE_SHAPE,random(0.2,0.4),random(0.06,0.15),'whale'));
   }
-  if(s===1){generateStationElements();generateHullPieces();countTriggerHovered=false;}
+  if(s===1){generateStationElements();generateHullPieces();countTriggerHovered=false;
+    if(!hullHintShown&&!presMode){hullHintShown=true;setTimeout(()=>{if(scene===1&&!activeViz&&!eyeActive&&!hullEverTriggered)playWhisper('the walls answer when struck.');},6500);}}
   if(s===2)generateEyeElements();
   updateSceneAudio();updateMenu();
   if(stationHtmlBgEl)stationHtmlBgEl.style.display=(s===1)?'block':'none';
