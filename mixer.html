@@ -229,17 +229,22 @@
   .panel { background:#141a20; border:1px solid #2a3540; padding:16px; margin-bottom:24px; }
   .panel h2 { font-size:13px; letter-spacing:0.25em; opacity:0.85; margin-bottom:4px; text-transform:lowercase; }
   .panel .hint { font-size:10px; opacity:0.4; margin-bottom:14px; }
-  .moment-row, .hull-row {
+  .moment-row {
     display: grid;
-    grid-template-columns: 220px 1fr 70px 36px;
-    gap: 10px; align-items: center;
+    grid-template-columns: 220px minmax(220px, 1fr) minmax(220px, 320px) 36px;
+    gap: 12px; align-items: center;
+    padding: 8px 0; border-top: 1px solid #1a2025;
+  }
+  .hull-row {
+    display: grid;
+    grid-template-columns: 30px 1fr 36px;
+    gap: 12px; align-items: center;
     padding: 8px 0; border-top: 1px solid #1a2025;
   }
   .moment-row:first-of-type, .hull-row:first-of-type { border-top: none; }
   .moment-label { font-size: 10px; opacity: 0.7; letter-spacing: 0.1em; }
   .moment-vol-row { display: flex; align-items: center; gap: 6px; }
   .moment-db { font-size: 10px; opacity: 0.5; min-width: 36px; text-align: right; }
-  .hull-row { grid-template-columns: 30px 1fr 36px; }
   .hull-idx { font-size: 10px; opacity: 0.4; text-align: center; }
 
   .viz-card { background:#1a2025; border:1px solid #2a3540; padding:12px; margin-bottom:10px; }
@@ -556,6 +561,17 @@ Object.values(vizConfig).forEach(v => {
   if (!Array.isArray(v.layers)) v.layers = [];
   v.layers.forEach(l => { if (typeof l.startMs !== 'number') l.startMs = 0; });
 });
+// Migration: old configs were saved before hotspots had vizId. Backfill it by
+// matching the display name against the defaults so buildVizCards finds them.
+(() => {
+  const vizIdByName = {};
+  DEFAULT_HOTSPOTS.forEach(h => { vizIdByName[h.name] = h.vizId; });
+  let migrated = false;
+  hotspots.forEach(h => {
+    if (!h.vizId && h.name && vizIdByName[h.name]) { h.vizId = vizIdByName[h.name]; migrated = true; }
+  });
+  if (migrated) try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ scenes, hotspots, moments, hullPalette, vizConfig })); } catch (e) {}
+})();
 
 // Backwards-compat alias for any code still reading SCENES/HOTSPOTS via the
 // closure (e.g. validators run later). These are by-reference live views.
