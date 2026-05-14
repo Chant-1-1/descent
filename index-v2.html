@@ -1664,9 +1664,8 @@ function draw(){
   if(!activeViz&&!eyeActive){
     for(let h of hotspots)h.update();
     // Red sub-light: multiply blend tints the room red without darkening it.
-    // Single solid-color fillRect — cheap. Drawn before the hotspot UI so the
-    // signals (yellow) and hull pieces stay readable on top of the red room.
-    if(scene===1){const ctx=drawingContext;ctx.save();ctx.globalCompositeOperation='multiply';ctx.fillStyle='rgb(210,55,42)';ctx.fillRect(0,0,width,height);ctx.restore();}
+    // globalAlpha softens the effect to ~40% so it reads as a tint, not a wash.
+    if(scene===1){const ctx=drawingContext;ctx.save();ctx.globalCompositeOperation='multiply';ctx.globalAlpha=0.4;ctx.fillStyle='rgb(210,80,60)';ctx.fillRect(0,0,width,height);ctx.restore();}
     let firstUnvisited=null;for(let i=0;i<hotspots.length;i++){if(!hotspots[i].visited){firstUnvisited=hotspots[i];break;}}
     for(let h of hotspots)h.display(h===firstUnvisited);
     if(scene===1){updateHullPieces();drawHullPieces();} // Feature 4
