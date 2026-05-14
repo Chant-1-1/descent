@@ -51,14 +51,37 @@
   .srow span{min-width:18px;text-align:right;}
   .srow input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:1px;background:rgba(74,138,138,0.35);outline:none;cursor:pointer;}
   .srow input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:rgba(180,230,230,0.85);cursor:pointer;box-shadow:0 0 8px rgba(180,230,230,0.6);}
+  /* Process intro — speculative world-making matrix, plays before title */
+  #process-overlay{position:fixed;inset:0;background:#000;z-index:2500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6vh 6vw;cursor:pointer;opacity:0;animation:proc-in 1.4s ease forwards;}
+  #process-overlay.out{animation:proc-out 1.4s ease forwards;pointer-events:none;}
+  @keyframes proc-in{from{opacity:0;}to{opacity:1;}}
+  @keyframes proc-out{from{opacity:1;}to{opacity:0;}}
+  .proc-head{color:rgba(255,255,255,0.78);font-size:11px;letter-spacing:0.55em;text-transform:uppercase;margin-bottom:38px;}
+  .proc-sub{color:rgba(255,255,255,0.35);font-size:9px;letter-spacing:0.32em;text-transform:uppercase;margin-bottom:42px;margin-top:-26px;}
+  .proc-grid{display:grid;grid-template-columns:auto 1fr;gap:14px 32px;max-width:1180px;width:100%;font-size:11px;letter-spacing:0.18em;line-height:1.4;}
+  .proc-axis{color:rgba(255,255,255,0.45);text-transform:uppercase;white-space:nowrap;align-self:center;}
+  .proc-poles{color:rgba(255,255,255,0.28);display:flex;flex-wrap:wrap;gap:6px 18px;text-transform:uppercase;align-self:center;}
+  .proc-poles .sep{opacity:0.35;}
+  .proc-poles .pole.hl{color:rgba(255,255,255,1);text-shadow:0 0 12px rgba(255,255,255,0.55);transition:color 0.6s,text-shadow 0.6s;}
+  .proc-hint{position:absolute;bottom:5%;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.32);font-size:10px;letter-spacing:0.42em;text-transform:lowercase;opacity:0;animation:proc-hint-in 1s ease 2s forwards;}
+  @keyframes proc-hint-in{from{opacity:0;}to{opacity:0.32;}}
   @media (prefers-reduced-motion:reduce){
     #glitch.active{animation:none!important;}
     .sh-lamp,.sh-cone,.sh-noise,.sh-drip{animation:none!important;}
     #start-overlay .text{animation:none!important;opacity:.5;}
+    #process-overlay,#process-overlay.out{animation:none!important;opacity:1;}
+    #process-overlay.out{display:none;}
+    .proc-poles .pole.hl{transition:none!important;}
   }
 </style>
 </head>
 <body>
+<div id="process-overlay" role="dialog" aria-label="speculative world-making matrix">
+  <div class="proc-head">speculative world-making</div>
+  <div class="proc-sub">first-semester game · selected axes</div>
+  <div class="proc-grid" id="proc-grid"></div>
+  <div class="proc-hint">click anywhere to skip</div>
+</div>
 <div id="start-overlay">
   <div class="intro">a world beneath ice.&nbsp; a station still breathing.<br>an eye watching below.<br><br>find the signals.&nbsp; listen before you ascend.</div>
   <div class="world">world 3324255146 &nbsp;·&nbsp; year 3126 &nbsp;·&nbsp; v2</div>
@@ -153,6 +176,65 @@
 </div>
 </div>
 <script>function __descentLoadFail(lib){const el=document.getElementById('start-overlay');if(!el)return;el.innerHTML='<div class="intro" style="color:#c08070">'+lib+' failed to load.<br><br>check your connection and refresh.</div>';el.style.cursor='default';}</script>
+<script>
+// === Process intro: Speculative World-Making matrix ===
+// Plays once on each page load (no persistence). Click anywhere to skip.
+// Each row = an axis with poles; one pole per axis is highlighted as "our choice".
+// NOTE: spec called for drone-filter.mp3 at -24dB under this scene; browsers block
+// audio without a prior user gesture, so the process scene runs silently. The
+// first click (skip or the eventual title click) is the gesture that unlocks audio.
+(function(){
+  const AXES=[
+    {ax:'time frame',     poles:['+50','+500','+1000','+5000','+10000','+1 million years'], hl:'+1000'},
+    {ax:'organization',   poles:['patriarchal','matriarchal','queer'],                       hl:'matriarchal'},
+    {ax:'hydrometry',     poles:['desert world','waterworld'],                               hl:'waterworld'},
+    {ax:'sound spectrum', poles:['silent','polyphonic'],                                     hl:'silent'},
+    {ax:'sun exposure',   poles:['almost no sunlight','deadly sun exposure'],                hl:'almost no sunlight'},
+    {ax:'technology',     poles:['low-tech','high-tech'],                                    hl:'low-tech'},
+    {ax:'temperature',    poles:['-44°c','0°c','+28°c','+38°c','+45°c','+73°c'],             hl:'0°c'},
+    {ax:'location',       poles:['antarctica','oceania','africa','south america','north america','eurasia'], hl:'africa'},
+    {ax:'color spectrum', poles:['ultraviolet','blue','infrared'],                           hl:'blue'},
+    {ax:'tonality',       poles:['dystopian','utopia'],                                      hl:'dystopian'}
+  ];
+  const grid=document.getElementById('proc-grid');
+  const overlay=document.getElementById('process-overlay');
+  if(!grid||!overlay)return;
+  const hlSpans=[];
+  AXES.forEach((row,rowIdx)=>{
+    const axLabel=document.createElement('div');axLabel.className='proc-axis';axLabel.textContent=row.ax;grid.appendChild(axLabel);
+    const polesEl=document.createElement('div');polesEl.className='proc-poles';
+    row.poles.forEach((p,i)=>{
+      if(i>0){const s=document.createElement('span');s.className='sep';s.textContent='·';polesEl.appendChild(s);}
+      const ps=document.createElement('span');ps.className='pole';ps.textContent=p;
+      if(p===row.hl)hlSpans[rowIdx]=ps;
+      polesEl.appendChild(ps);
+    });
+    grid.appendChild(polesEl);
+  });
+  const timers=[];
+  let done=false;
+  function finish(){
+    if(done)return;done=true;
+    timers.forEach(clearTimeout);
+    overlay.classList.add('out');
+    setTimeout(()=>{overlay.remove();},1500);
+  }
+  // Sequential highlight: start at 2s, one per second
+  hlSpans.forEach((span,i)=>{
+    timers.push(setTimeout(()=>{if(span)span.classList.add('hl');},2000+i*1000));
+  });
+  // After last highlight (2000 + 10*1000 = 12000), hold 1.5s, then auto-finish
+  timers.push(setTimeout(finish,13500));
+  // Click anywhere on the overlay skips to title
+  overlay.addEventListener('click',finish);
+  // Reduced motion: snap to all highlights immediately, hold briefly
+  if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches){
+    timers.forEach(clearTimeout);timers.length=0;
+    hlSpans.forEach(s=>{if(s)s.classList.add('hl');});
+    setTimeout(finish,3000);
+  }
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js" onerror="__descentLoadFail('p5.js')"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" onerror="__descentLoadFail('Tone.js')"></script>
 <script src="sounds.js"></script>
