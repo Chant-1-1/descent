@@ -183,6 +183,8 @@ let cageSlots=[];
 // Feature 4: hull song
 let hullPieces=[],hullPlayers={},hullClickTimes=[];
 let hullLastClicked=null,hullChainCount=0,hullEverTriggered=false,hullHintShown=false;
+// "Morning touch" — single soft hull tap when entering the station, reset on leave
+let morningTouchPlayer=null,scene2EntryPlayed=false;
 // Feature 5: behavior tracking
 let userBehavior={hotspotsVisited:{},timeInScenes:{0:0,1:0,2:0},seaDevilsCaptured:0,hullSongClicks:0,cursorStillness:0,lookedAtIt:false};
 let lastCursorX=0,lastCursorY=0,stillTimer=0;
@@ -320,6 +322,10 @@ function initAudio(){
   ['metal-clanking','metal-creak-long','metal-creak-short','valve-relief','pump-release','water-pipe'].forEach(k=>{
     hullPlayers[k]=new Tone.Player({url:k+'.mp3',loop:false,fadeOut:0.3}).connect(hotspotRev);
   });
+  // "Morning touch" — dedicated soft tap at -12dB, played once on station entry.
+  // Own player so it can't be retriggered by the hull-song streak machinery.
+  morningTouchPlayer=new Tone.Player({url:'metal-creak-short.mp3',loop:false,fadeOut:0.3}).connect(hotspotRev);
+  morningTouchPlayer.volume.value=-12;
   // Loading progress: count buffers as they resolve, show in start-overlay
   const allPlayers=[].concat(...Object.values(layerPlayers),Object.values(hotspotPlayers),Object.values(hullPlayers));
   const total=allPlayers.length;let loaded=0;
@@ -1291,7 +1297,17 @@ function buildScene(s){
     for(let i=0;i<3;i++)deepCreatures.push(new DeepCreature(WHALE_SHAPE,random(0.2,0.4),random(0.06,0.15),'whale'));
   }
   if(s===1){generateStationElements();generateHullPieces();countTriggerHovered=false;
-    if(!hullHintShown&&!presMode){hullHintShown=true;setTimeout(()=>{if(scene===1&&!activeViz&&!eyeActive&&!hullEverTriggered)playWhisper('the walls answer when struck.');},6500);}}
+    if(!hullHintShown&&!presMode){hullHintShown=true;setTimeout(()=>{if(scene===1&&!activeViz&&!eyeActive&&!hullEverTriggered)playWhisper('the walls answer when struck.');},6500);}
+    // Morning touch — one soft hull tap ~300ms after entering the station.
+    // Flag persists across hotspot returns + resizes within scene 1; resets
+    // when scene changes (see the else branch below) so re-entering replays it.
+    if(!scene2EntryPlayed){
+      scene2EntryPlayed=true;
+      setTimeout(()=>{if(scene===1&&morningTouchPlayer){try{morningTouchPlayer.start();}catch(e){__dbg(e);}}},300);
+    }
+  }else{
+    scene2EntryPlayed=false;
+  }
   if(s===2)generateEyeElements();
   updateSceneAudio();updateMenu();
   if(stationHtmlBgEl)stationHtmlBgEl.style.display=(s===1)?'block':'none';
