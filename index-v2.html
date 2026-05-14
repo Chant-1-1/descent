@@ -1219,11 +1219,10 @@ class Hotspot{
     this.sats=[];for(let i=0;i<12;i++)this.sats.push({a:random(TWO_PI),r:random(20,40),s:random(0.005,0.015),sz:random(1,2.5)});}
   update(){const d=dist(mouseX-camDX,mouseY-camDY,this.x,this.y);const w=this.hovered;this.hovered=d<45;
     if(this.hovered&&!w){curEl.classList.add('hover');playHoverPing();}else if(!this.hovered&&w)curEl.classList.remove('hover');}
-  display(){
+  display(isFirst=false){
     // Visited = muted teal-grey, unvisited = scene color
     const col=this.visited?[55,80,75]:this.scn===2?[170,240,240]:this.scn===1?[240,200,120]:[180,230,230];
     const scn1boost=this.scn===1&&!this.visited?1.8:1;
-    const isFirst=!this.visited&&hotspots.filter(h2=>h2.scn===this.scn&&!h2.visited).indexOf(this)==0;
     const pRate=isFirst?0.06:0.04;const pAmt=isFirst?0.45:0.3;
     const p=sin(frameCount*pRate)*pAmt+0.7;const r=(isFirst?16:14)*p;
     const glowMult=(isFirst?2.2:1)*scn1boost;
@@ -1366,7 +1365,8 @@ function draw(){
   camDX=sin(frameCount*0.003)*(scene===2?3:8);camDY=cos(frameCount*0.0025)*(scene===2?2:6);
   push();translate(camDX,camDY);
   const ac=scene===0?[120,180,180]:scene===1?[70,65,55]:[35,35,30];
-  for(let l of archLines){stroke(ac[0],ac[1],ac[2],l.a);strokeWeight(0.5);line(l.x1,l.y1,l.x2,l.y2);}noStroke();
+  strokeWeight(0.5);
+  for(let l of archLines){stroke(ac[0],ac[1],ac[2],l.a);line(l.x1,l.y1,l.x2,l.y2);}noStroke();
   if(scene===0&&stationBG)stationBG.display();
   if(scene===1)drawStationInterior();
   if(scene===2)drawEyeBackground();
@@ -1374,15 +1374,16 @@ function draw(){
   if(scene===0){
     for(let sw of fishSwarms){sw.update();sw.display();}
     for(let dc of deepCreatures){dc.update();dc.display();}
-    // Remove fully faded captured creatures (Feature 3)
-    deepCreatures=deepCreatures.filter(dc=>!(dc.fading&&dc.fadeAlpha<=0&&dc.bubbles.length===0));
+    // Remove fully faded captured creatures (Feature 3) — in-place to avoid per-frame alloc
+    for(let i=deepCreatures.length-1;i>=0;i--){const dc=deepCreatures[i];if(dc.fading&&dc.fadeAlpha<=0&&dc.bubbles.length===0)deepCreatures.splice(i,1);}
     for(let i=creatures.length-1;i>=0;i--){if(!creatures[i].update())creatures.splice(i,1);else creatures[i].display();}
     drawCages(); // Feature 3
   }
   if(!activeViz&&!eyeActive){
     for(let h of hotspots)h.update();
     if(scene===1&&!activeViz&&!eyeActive)drawFlashlight(mouseX,mouseY);
-    for(let h of hotspots)h.display();
+    const firstUnvisited=hotspots.find(h=>!h.visited);
+    for(let h of hotspots)h.display(h===firstUnvisited);
     if(scene===1){updateHullPieces();drawHullPieces();} // Feature 4
     drawCountTrigger(); // Feature 6
     drawAscend();
