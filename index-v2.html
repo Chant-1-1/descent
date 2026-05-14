@@ -282,22 +282,34 @@ function __rgba(hex, a) {
   if (!m) return hex;
   return 'rgba(' + parseInt(m[1],16) + ',' + parseInt(m[2],16) + ',' + parseInt(m[3],16) + ',' + a + ')';
 }
-// Inject CSS overrides that win over the inline <style> because they appear later
+// Inject CSS overrides that win over the inline <style> because they appear later.
+// Sub-elements within a category inherit the chosen font and re-use the chosen
+// color at relative opacities so the hierarchy stays readable when the user
+// shifts hue or weight.
 (function injectTextStyles(){
   const t = textCfg;
+  const aIntro = t.intro.alpha;
+  const aProc  = t.process.alpha;
   const rules = `
     #start-overlay { font-family: ${t.intro.font}; font-weight: ${t.intro.weight}; font-style: ${t.intro.italic ? 'italic' : 'normal'}; }
-    #start-overlay .intro { color: ${__rgba(t.intro.color, t.intro.alpha)}; font-size: ${t.intro.size}px; letter-spacing: ${t.intro.ls}em; line-height: ${t.intro.lh}; }
-    #start-overlay .world, #start-overlay .text { letter-spacing: ${t.intro.ls + 0.2}em; }
+    #start-overlay .intro { color: ${__rgba(t.intro.color, aIntro)}; font-size: ${t.intro.size}px; letter-spacing: ${t.intro.ls}em; line-height: ${t.intro.lh}; }
+    #start-overlay .world { color: ${__rgba(t.intro.color, aIntro * 0.85)}; font-size: ${Math.max(8, Math.round(t.intro.size * 0.79))}px; letter-spacing: ${t.intro.ls + 0.3}em; }
+    #start-overlay .text { color: ${__rgba(t.intro.color, aIntro * 0.55)}; font-size: ${Math.max(8, Math.round(t.intro.size * 0.93))}px; letter-spacing: ${t.intro.ls + 0.18}em; }
     #subtitle { font-family: ${t.subtitle.font}; color: ${__rgba(t.subtitle.color, t.subtitle.alpha)}; font-size: ${t.subtitle.size}px; letter-spacing: ${t.subtitle.ls}em; line-height: ${t.subtitle.lh}; font-weight: ${t.subtitle.weight}; font-style: ${t.subtitle.italic ? 'italic' : 'normal'}; }
     .scene-btn, #set-toggle, #dismiss-hint, .srow { font-family: ${t.nav.font}; font-weight: ${t.nav.weight}; font-style: ${t.nav.italic ? 'italic' : 'normal'}; }
     .scene-btn { color: ${__rgba(t.nav.color, t.nav.alpha)}; font-size: ${t.nav.size}px; letter-spacing: ${t.nav.ls}em; }
-    #process-overlay, .proc-head, .proc-axis, .proc-poles, .proc-hint { font-family: ${t.process.font}; }
-    .proc-grid { font-size: ${t.process.size}px; letter-spacing: ${t.process.ls}em; line-height: ${t.process.lh}; font-weight: ${t.process.weight}; font-style: ${t.process.italic ? 'italic' : 'normal'}; }
-    .proc-axis { color: ${__rgba(t.process.color, t.process.alpha * 0.55)}; }
-    .proc-poles { color: ${__rgba(t.process.color, t.process.alpha * 0.3)}; }
-    .proc-poles .pole.hl { color: ${__rgba(t.process.color, t.process.alpha)}; }
-    #pres-badge { font-family: ${t.system.font}; font-size: ${t.system.size}px; letter-spacing: ${t.system.ls}em; font-weight: ${t.system.weight}; font-style: ${t.system.italic ? 'italic' : 'normal'}; }
+    #set-toggle { color: ${__rgba(t.nav.color, t.nav.alpha * 1.1)}; }
+    #dismiss-hint { color: ${__rgba(t.nav.color, t.nav.alpha * 0.7)}; }
+    /* Process matrix — title + subtitle + axes + poles + skip hint */
+    #process-overlay, .proc-head, .proc-sub, .proc-axis, .proc-poles, .proc-hint { font-family: ${t.process.font}; font-weight: ${t.process.weight}; font-style: ${t.process.italic ? 'italic' : 'normal'}; }
+    .proc-head { color: ${__rgba(t.process.color, aProc)}; font-size: ${Math.max(9, Math.round(t.process.size * 1.0))}px; letter-spacing: ${Math.max(0.3, t.process.ls + 0.37)}em; }
+    .proc-sub  { color: ${__rgba(t.process.color, aProc * 0.4)}; font-size: ${Math.max(8, Math.round(t.process.size * 0.82))}px; letter-spacing: ${Math.max(0.2, t.process.ls + 0.14)}em; }
+    .proc-grid { font-size: ${t.process.size}px; letter-spacing: ${t.process.ls}em; line-height: ${t.process.lh}; }
+    .proc-axis { color: ${__rgba(t.process.color, aProc * 0.55)}; }
+    .proc-poles { color: ${__rgba(t.process.color, aProc * 0.33)}; }
+    .proc-poles .pole.hl { color: ${__rgba(t.process.color, aProc)}; }
+    .proc-hint { color: ${__rgba(t.process.color, aProc * 0.38)}; font-size: ${Math.max(8, Math.round(t.process.size * 0.91))}px; letter-spacing: ${Math.max(0.25, t.process.ls + 0.24)}em; }
+    #pres-badge { font-family: ${t.system.font}; font-size: ${t.system.size}px; letter-spacing: ${t.system.ls}em; font-weight: ${t.system.weight}; font-style: ${t.system.italic ? 'italic' : 'normal'}; color: ${__rgba(t.system.color, t.system.alpha)}; }
   `;
   const style = document.createElement('style');
   style.textContent = rules;
