@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DESCENT — Sound Mixer</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -318,7 +319,7 @@
 
 <div id="status">audio: not started — click "start audio"</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" onerror="document.body.insertAdjacentHTML('afterbegin','<div style=\'padding:20px;color:#c08070;font-family:monospace\'>Tone.js failed to load — check connection and refresh.</div>')"></script>
 <script>
 // ============================================================
 // SOUND LIBRARY — edit if filenames in repo differ

@@ -2,10 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>DESCENT v2 — World 3324255146</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;}
-  html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none;font-family:'Courier New',monospace;color:#4a8a8a;}
+  html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:'Courier New',monospace;color:#4a8a8a;}
+  @media (hover:hover){html,body{cursor:none;}}
   canvas{display:block;}
   #cursor{position:fixed;width:12px;height:12px;border-radius:50%;background:rgba(180,230,230,0.6);box-shadow:0 0 12px rgba(180,230,230,0.8);pointer-events:none;transform:translate(-50%,-50%);z-index:1000;transition:width 0.2s,height 0.2s,background 0.2s;}
   #cursor.hover{width:24px;height:24px;background:rgba(255,220,180,0.7);box-shadow:0 0 24px rgba(255,220,180,0.9);}
@@ -144,8 +146,9 @@
   <div class="sh-drip" style="left:69vw;top:9vh;animation-delay:2.2s;"></div>
 </div>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<script>function __descentLoadFail(lib){const el=document.getElementById('start-overlay');if(!el)return;el.innerHTML='<div class="intro" style="color:#c08070">'+lib+' failed to load.<br><br>check your connection and refresh.</div>';el.style.cursor='default';}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js" onerror="__descentLoadFail('p5.js')"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" onerror="__descentLoadFail('Tone.js')"></script>
 <script>
 const MAX_CREATURES=24;
 let started=false,particles=[],hotspots=[],creatures=[],stationElements=[],fishSwarms=[],deepCreatures=[],stationBG=null;
@@ -182,7 +185,10 @@ const glitchEl=document.getElementById('glitch');
 const dismissHintEl=document.getElementById('dismiss-hint');
 const transitionOverlayEl=document.getElementById('transition-overlay');
 const stationHtmlBgEl=document.getElementById('station-html-bg');
-document.addEventListener('mousemove',e=>{curEl.style.left=e.clientX+'px';curEl.style.top=e.clientY+'px';if(typeof millis==='function'){lastInteract=millis();idleWPlayed=false;}});
+function __moveCursor(x,y){curEl.style.left=x+'px';curEl.style.top=y+'px';if(typeof millis==='function'){lastInteract=millis();idleWPlayed=false;}}
+document.addEventListener('mousemove',e=>__moveCursor(e.clientX,e.clientY));
+document.addEventListener('touchmove',e=>{const t=e.touches[0];if(t)__moveCursor(t.clientX,t.clientY);},{passive:true});
+document.addEventListener('touchstart',e=>{const t=e.touches[0];if(t)__moveCursor(t.clientX,t.clientY);},{passive:true});
 document.getElementById('volume-slider').addEventListener('input',function(){if(Tone&&Tone.Destination)Tone.Destination.volume.value=parseFloat(this.value);});
 
 // Cache last shown state so per-frame calls (e.g. inside draw loop) skip DOM writes
@@ -288,12 +294,24 @@ function initAudio(){
   ['metal-clanking','metal-creak-long','metal-creak-short','valve-relief','pump-release','water-pipe'].forEach(k=>{
     hullPlayers[k]=new Tone.Player({url:k+'.mp3',loop:false,fadeOut:0.3}).connect(hotspotRev);
   });
+  // Loading progress: count buffers as they resolve, show in start-overlay
+  const allPlayers=[].concat(...Object.values(layerPlayers),Object.values(hotspotPlayers),Object.values(hullPlayers));
+  const total=allPlayers.length;let loaded=0;
+  const progressEl=document.querySelector('#start-overlay .text');
+  allPlayers.forEach(p=>{
+    if(p.buffer&&p.buffer.loaded){loaded++;return;}
+    if(p.buffer)p.buffer.onload=()=>{loaded++;if(progressEl&&!started)progressEl.textContent='loading '+loaded+'/'+total;};
+  });
+  if(progressEl&&loaded<total)progressEl.textContent='loading '+loaded+'/'+total;
   // Start all looping layers once buffers are loaded
   Tone.loaded().then(()=>{
     ['world','station','eye'].forEach(name=>{
       layerPlayers[name].forEach(p=>{try{p.start();}catch(e){console.warn('start failed:',e);}});
     });
-  }).catch(err=>console.error('Audio load error:',err));
+  }).catch(err=>{
+    console.error('Audio load error:',err);
+    showSub('audio failed to load — refresh to retry',8000,'rgba(220,120,120,0.85)','14px');
+  });
 }
 // Crossfade scene buses on scene change
 function updateSceneAudio(){
