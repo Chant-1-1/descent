@@ -157,8 +157,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" onerror="__descentLoadFail('Tone.js')"></script>
 <script>
 const MAX_CREATURES=24;
-let started=false,particles=[],hotspots=[],creatures=[],stationElements=[],fishSwarms=[],deepCreatures=[],stationBG=null;
+let started=false,particles=[],hotspots=[],creatures=[],stationElements=[],fishSwarms=[],deepCreatures=[],stationBG=null,archLines=[];
 let pulse47Phase=0; // global 4.7s heartbeat, 0..1
+// Per-resize caches for things that depend only on width/height
+const __resizeCache={vizSeaPts:null,vizBeltCont:null,gradients:null,w:0,h:0};
 let camDX=0,camDY=0,lastGlitch=0,lastInteract=0,idleWPlayed=false;
 let glitchFX,whisperN,whisperF,whisperG,hoverPing;
 let sceneBuses={},layerPlayers={},layerGains={},hotspotPlayers={},hotspotRev;
@@ -488,10 +490,14 @@ function drawStationInterior(){
   const lx=width*0.82,ly=height*0.48;
   const flicker=sin(frameCount*0.035)*0.1+0.9;
   noStroke();fill(200,160,80,8*flicker);circle(lx,ly,180);fill(210,170,90,14*flicker);circle(lx,ly,90);fill(220,185,100,22*flicker);circle(lx,ly,40);
-  // Downward light cone
+  // Downward light cone — gradient depends on lx,ly only; flicker varies only the alpha,
+  // so use globalAlpha for the per-frame flicker and cache the gradient shape itself.
   const ctx=drawingContext;ctx.save();
-  const g=ctx.createRadialGradient(lx,ly,5,lx,ly+60,120);
-  g.addColorStop(0,'rgba(210,175,95,'+(.06*flicker).toFixed(3)+')');g.addColorStop(1,'rgba(210,175,95,0)');
+  let g=__resizeCache.gradients&&__resizeCache.gradients.stationLamp;
+  if(!g){g=ctx.createRadialGradient(lx,ly,5,lx,ly+60,120);
+    g.addColorStop(0,'rgba(210,175,95,1)');g.addColorStop(1,'rgba(210,175,95,0)');
+    (__resizeCache.gradients=__resizeCache.gradients||{}).stationLamp=g;}
+  ctx.globalAlpha=0.06*flicker;
   ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(lx-8,ly);ctx.lineTo(lx-70,ly+140);ctx.lineTo(lx+70,ly+140);ctx.lineTo(lx+8,ly);ctx.fill();ctx.restore();
   for(let el of stationElements){
     if(el.type==='light'){
@@ -517,37 +523,42 @@ function drawStationInterior(){
   }
 }
 function drawFlashlight(mx,my){
-  const ctx=drawingContext;ctx.save();
+  const ctx=drawingContext;
+  const lx=width/2,ly=height*0.11;
+  // Build & cache the 3 static gradients (lamp halo g2, downward cone gc, warm overlay wg)
+  let gr=__resizeCache.gradients&&__resizeCache.gradients.flashlight;
+  if(!gr){
+    const g2=ctx.createRadialGradient(lx,ly,10,lx,ly,190);
+    g2.addColorStop(0,'rgba(0,0,0,1)');g2.addColorStop(0.45,'rgba(0,0,0,0.65)');
+    g2.addColorStop(0.82,'rgba(0,0,0,0.06)');g2.addColorStop(1,'rgba(0,0,0,0)');
+    const gc=ctx.createLinearGradient(lx,ly,lx,ly+height*0.65);
+    gc.addColorStop(0,'rgba(0,0,0,0.5)');gc.addColorStop(0.5,'rgba(0,0,0,0.15)');
+    gc.addColorStop(1,'rgba(0,0,0,0)');
+    const wg=ctx.createRadialGradient(lx,ly,0,lx,ly,150);
+    wg.addColorStop(0,'rgba(210,180,80,0.14)');wg.addColorStop(0.55,'rgba(190,155,55,0.05)');
+    wg.addColorStop(1,'rgba(0,0,0,0)');
+    gr={g2,gc,wg};(__resizeCache.gradients=__resizeCache.gradients||{}).flashlight=gr;
+  }
+  ctx.save();
   // Full darkness base
   ctx.fillStyle='rgba(0,0,0,0.97)';ctx.fillRect(0,0,width,height);
   // Cut holes with destination-out
   ctx.globalCompositeOperation='destination-out';
-  // Mouse torch
+  // Mouse torch — built every frame (mx,my move)
   const g1=ctx.createRadialGradient(mx,my,25,mx,my,270);
   g1.addColorStop(0,'rgba(0,0,0,1)');g1.addColorStop(0.45,'rgba(0,0,0,0.7)');
   g1.addColorStop(0.75,'rgba(0,0,0,0.08)');g1.addColorStop(1,'rgba(0,0,0,0)');
   ctx.fillStyle=g1;ctx.fillRect(0,0,width,height);
-  // Lamp (fixed, top center of station)
-  const lx=width/2,ly=height*0.11;
-  const g2=ctx.createRadialGradient(lx,ly,10,lx,ly,190);
-  g2.addColorStop(0,'rgba(0,0,0,1)');g2.addColorStop(0.45,'rgba(0,0,0,0.65)');
-  g2.addColorStop(0.82,'rgba(0,0,0,0.06)');g2.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=g2;ctx.fillRect(0,0,width,height);
-  // Lamp cone downward
-  const gc=ctx.createLinearGradient(lx,ly,lx,ly+height*0.65);
-  gc.addColorStop(0,'rgba(0,0,0,0.5)');gc.addColorStop(0.5,'rgba(0,0,0,0.15)');
-  gc.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=gc;
+  // Lamp halo (fixed)
+  ctx.fillStyle=gr.g2;ctx.fillRect(0,0,width,height);
+  // Lamp cone downward (fixed)
+  ctx.fillStyle=gr.gc;
   ctx.beginPath();ctx.moveTo(lx-30,ly);ctx.lineTo(lx+30,ly);
   ctx.lineTo(lx+width*0.22,ly+height*0.65);ctx.lineTo(lx-width*0.22,ly+height*0.65);
   ctx.closePath();ctx.fill();
   ctx.restore();
-  // Warm lamp glow overlay
-  ctx.save();
-  const wg=ctx.createRadialGradient(lx,ly,0,lx,ly,150);
-  wg.addColorStop(0,'rgba(210,180,80,0.14)');wg.addColorStop(0.55,'rgba(190,155,55,0.05)');
-  wg.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=wg;ctx.fillRect(0,0,width,height);
-  ctx.restore();
+  // Warm lamp glow overlay (fixed)
+  ctx.save();ctx.fillStyle=gr.wg;ctx.fillRect(0,0,width,height);ctx.restore();
 }
 // ===================== EYE BACKGROUND =====================
 let eyeElements=[];
@@ -612,11 +623,13 @@ function drawEyeBackground(){
     else{fill(140,170,190,18);circle(el.x+dx,realY,el.size);fill(120,150,170,8);circle(el.x+dx,realY,el.size*3);}
   }
 
-  // Subtle vignette
+  // Subtle vignette — depends only on cx/height — cache
   const ctx=drawingContext;ctx.save();
-  const g=ctx.createRadialGradient(cx,height*0.4,min(width,height)*0.1,cx,height*0.4,max(width,height)*0.6);
-  g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(0.5,'rgba(0,0,0,0.3)');
-  g.addColorStop(0.8,'rgba(0,0,0,0.7)');g.addColorStop(1,'rgba(0,0,0,0.92)');
+  let g=__resizeCache.gradients&&__resizeCache.gradients.eyeVignette;
+  if(!g){g=ctx.createRadialGradient(cx,height*0.4,min(width,height)*0.1,cx,height*0.4,max(width,height)*0.6);
+    g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(0.5,'rgba(0,0,0,0.3)');
+    g.addColorStop(0.8,'rgba(0,0,0,0.7)');g.addColorStop(1,'rgba(0,0,0,0.92)');
+    (__resizeCache.gradients=__resizeCache.gradients||{}).eyeVignette=g;}
   ctx.fillStyle=g;ctx.fillRect(0,0,width,height);ctx.restore();
 }
 // ===================== VISUALIZATIONS =====================
@@ -766,7 +779,13 @@ function drawVizBelt(a){
     samerica:[[-111,19],[-107,31],[-103,36],[-99,44],[-83,43],[-73,54],[-71,63],[-71,74],[-73,81],[-88,77],[-99,74],[-112,69],[-126,64],[-119,59],[-128,53],[-133,41],[-130,28],[-118,16],[-113,8],[-116,3],[-116,-1],[-117,-7],[-117,-12],[-112,-24],[-102,-31],[-91,-36],[-89,-42],[-87,-50],[-81,-59],[-76,-66],[-70,-67],[-74,-61],[-76,-52],[-74,-39],[-68,-31],[-63,-20],[-67,-10],[-80,-5],[-89,5],[-93,9],[-108,10]],
     australia:[[88,-53],[93,-40],[104,-32],[118,-30],[133,-31],[135,-35],[134,-43],[134,-52],[116,-57],[108,-59],[99,-61]]
   };
-  for(let name in cont){const pts=cont[name].map(c=>({x:cx+c[0]/180*rw,y:cy-c[1]/90*rh}));
+  // Continent points depend only on cx/cy/rw/rh — cache per resize
+  if(!__resizeCache.vizBeltCont||__resizeCache.vizBeltCont.w!==width||__resizeCache.vizBeltCont.h!==height){
+    const proj={};for(const name in cont)proj[name]=cont[name].map(c=>({x:cx+c[0]/180*rw,y:cy-c[1]/90*rh}));
+    __resizeCache.vizBeltCont={w:width,h:height,proj};
+  }
+  const contProj=__resizeCache.vizBeltCont.proj;
+  for(const name in contProj){const pts=contProj[name];
     noStroke();fill(35,75,65,a*0.2);beginShape();for(let p of pts)vertex(p.x,p.y);endShape(CLOSE);
     stroke(45,95,85,a*0.25);strokeWeight(0.7);noFill();beginShape();for(let p of pts)vertex(p.x,p.y);endShape(CLOSE);}
   // Ice caps — ellipse-based
@@ -875,7 +894,12 @@ function drawVizParade(a){
 function drawVizSea(a){
   const baseY=height*0.7,t=min((millis()-vizStart)/12000,1),wl=baseY-t*height*0.35;
   const fi=a/230;
-  const pts=[];for(let x=0;x<=width;x+=3)pts.push({x,y:baseY-(noise(x*0.003,42)*height*0.5+noise(x*0.01,42)*height*0.15)});
+  // pts depend only on width/baseY (noise is deterministic) — cache per resize
+  if(!__resizeCache.vizSeaPts||__resizeCache.vizSeaPts.w!==width||__resizeCache.vizSeaPts.h!==height){
+    const arr=[];for(let x=0;x<=width;x+=3)arr.push({x,y:baseY-(noise(x*0.003,42)*height*0.5+noise(x*0.01,42)*height*0.15)});
+    __resizeCache.vizSeaPts={w:width,h:height,arr};
+  }
+  const pts=__resizeCache.vizSeaPts.arr;
 
   // === SKY: bright burnt atmosphere ===
   const radT=constrain(t*1.5,0,1);
@@ -1374,7 +1398,7 @@ function setup(){createCanvas(windowWidth,windowHeight).parent(document.body);no
   const bSlider=document.getElementById('brightness-slider');
   if(bSlider)document.querySelector('canvas').style.filter='brightness('+bSlider.value+'%)';
 }
-function windowResized(){resizeCanvas(windowWidth,windowHeight);buildScene(scene);}
+function windowResized(){resizeCanvas(windowWidth,windowHeight);__resizeCache.vizSeaPts=null;__resizeCache.vizBeltCont=null;__resizeCache.gradients=null;buildScene(scene);}
 function draw(){
   if(!started){background(0);return;}
   pulse47Phase=(millis()%4700)/4700; // global heartbeat
@@ -1407,7 +1431,7 @@ function draw(){
   if(!activeViz&&!eyeActive){
     for(let h of hotspots)h.update();
     if(scene===1&&!activeViz&&!eyeActive)drawFlashlight(mouseX,mouseY);
-    const firstUnvisited=hotspots.find(h=>!h.visited);
+    let firstUnvisited=null;for(let i=0;i<hotspots.length;i++){if(!hotspots[i].visited){firstUnvisited=hotspots[i];break;}}
     for(let h of hotspots)h.display(h===firstUnvisited);
     if(scene===1){updateHullPieces();drawHullPieces();} // Feature 4
     drawCountTrigger(); // Feature 6
