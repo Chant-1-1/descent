@@ -674,7 +674,7 @@ function drawStationInterior(){
 function drawFlashlight(mx,my){
   const ctx=drawingContext;
   const lx=width/2,ly=height*0.11;
-  // Cached darkness gradients only — no wide radial wash any more
+  // Cached gradients: darkness cuts (g2, gc) + a fixed red lamp wash (lampR)
   let gr=__resizeCache.gradients&&__resizeCache.gradients.flashlight;
   if(!gr){
     const g2=ctx.createRadialGradient(lx,ly,10,lx,ly,190);
@@ -683,32 +683,42 @@ function drawFlashlight(mx,my){
     const gc=ctx.createLinearGradient(lx,ly,lx,ly+height*0.65);
     gc.addColorStop(0,'rgba(0,0,0,0.5)');gc.addColorStop(0.5,'rgba(0,0,0,0.15)');
     gc.addColorStop(1,'rgba(0,0,0,0)');
-    gr={g2,gc};(__resizeCache.gradients=__resizeCache.gradients||{}).flashlight=gr;
+    // Red emanation from the ceiling lamp — bounded to a 440px box, cheap.
+    const lampR=ctx.createRadialGradient(lx,ly,5,lx,ly,200);
+    lampR.addColorStop(0,'rgba(255,90,65,0.62)');
+    lampR.addColorStop(0.5,'rgba(220,55,40,0.30)');
+    lampR.addColorStop(1,'rgba(0,0,0,0)');
+    gr={g2,gc,lampR};(__resizeCache.gradients=__resizeCache.gradients||{}).flashlight=gr;
   }
-  // 1) Red sub-light: multiply blend over the room so every painted pixel reads red.
-  //    Pure black stays black (preserves darkness), bright pixels become deep red,
-  //    mid-tones become red-brown. Single solid-color fillRect — very cheap.
+  // 1) Pitch-black room
   ctx.save();
-  ctx.globalCompositeOperation='multiply';
-  ctx.fillStyle='rgb(210,55,42)';
-  ctx.fillRect(0,0,width,height);
-  ctx.restore();
-  // 2) Standard darkness + flashlight cuts
-  ctx.save();
-  ctx.fillStyle='rgba(0,0,0,0.82)';ctx.fillRect(0,0,width,height);
+  ctx.fillStyle='rgba(0,0,0,0.97)';ctx.fillRect(0,0,width,height);
+  // 2) Cut holes for mouse torch + ceiling lamp via destination-out
   ctx.globalCompositeOperation='destination-out';
-  // Mouse torch — per-frame because mx/my move
-  const g1=ctx.createRadialGradient(mx,my,25,mx,my,270);
+  const g1=ctx.createRadialGradient(mx,my,25,mx,my,260);
   g1.addColorStop(0,'rgba(0,0,0,1)');g1.addColorStop(0.45,'rgba(0,0,0,0.7)');
   g1.addColorStop(0.75,'rgba(0,0,0,0.08)');g1.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=g1;ctx.fillRect(0,0,width,height);
-  // Lamp halo (cached)
-  ctx.fillStyle=gr.g2;ctx.fillRect(0,0,width,height);
-  // Lamp cone (cached gradient, drawn into a polygon)
+  ctx.fillStyle=g1;ctx.fillRect(mx-270,my-270,540,540);
+  ctx.fillStyle=gr.g2;ctx.fillRect(lx-200,ly-200,400,400);
   ctx.fillStyle=gr.gc;
   ctx.beginPath();ctx.moveTo(lx-30,ly);ctx.lineTo(lx+30,ly);
   ctx.lineTo(lx+width*0.22,ly+height*0.65);ctx.lineTo(lx-width*0.22,ly+height*0.65);
   ctx.closePath();ctx.fill();
+  ctx.restore();
+  // 3) Red emanation from the ceiling lamp (cached, bounded fillRect)
+  ctx.save();
+  ctx.fillStyle=gr.lampR;
+  ctx.fillRect(lx-220,ly-220,440,440);
+  ctx.restore();
+  // 4) Red tint on the mouse flashlight beam — bounded radial gradient,
+  //    per-frame because mx/my move. fillRect bounded to torch size keeps cost low.
+  ctx.save();
+  const tg=ctx.createRadialGradient(mx,my,20,mx,my,250);
+  tg.addColorStop(0,'rgba(255,90,65,0.48)');
+  tg.addColorStop(0.5,'rgba(220,55,40,0.20)');
+  tg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=tg;
+  ctx.fillRect(mx-270,my-270,540,540);
   ctx.restore();
 }
 // ===================== EYE BACKGROUND =====================
@@ -1663,9 +1673,7 @@ function draw(){
   }
   if(!activeViz&&!eyeActive){
     for(let h of hotspots)h.update();
-    // Red sub-light: multiply blend tints the room red without darkening it.
-    // globalAlpha softens the effect to ~40% so it reads as a tint, not a wash.
-    if(scene===1){const ctx=drawingContext;ctx.save();ctx.globalCompositeOperation='multiply';ctx.globalAlpha=0.4;ctx.fillStyle='rgb(210,80,60)';ctx.fillRect(0,0,width,height);ctx.restore();}
+    if(scene===1&&!activeViz&&!eyeActive)drawFlashlight(mouseX,mouseY);
     let firstUnvisited=null;for(let i=0;i<hotspots.length;i++){if(!hotspots[i].visited){firstUnvisited=hotspots[i];break;}}
     for(let h of hotspots)h.display(h===firstUnvisited);
     if(scene===1){updateHullPieces();drawHullPieces();} // Feature 4
