@@ -185,6 +185,20 @@ let hullPieces=[],hullPlayers={},hullClickTimes=[];
 let hullLastClicked=null,hullChainCount=0,hullEverTriggered=false,hullHintShown=false;
 // "Morning touch" — single soft hull tap when entering the station, reset on leave
 let morningTouchPlayer=null,scene2EntryPlayed=false;
+// Daily-life ambient — looping layer under the daily_life hotspot viz
+let longRev=null,dailyLifeTricklingPlayer=null,dailyLifeFactoryPlayer=null,dailyLifeAmbientActive=false;
+function startDailyLifeAmbient(){
+  if(dailyLifeAmbientActive||!dailyLifeTricklingPlayer)return;
+  dailyLifeAmbientActive=true;
+  try{dailyLifeTricklingPlayer.start();}catch(e){__dbg(e);}
+  try{dailyLifeFactoryPlayer.start();}catch(e){__dbg(e);}
+}
+function stopDailyLifeAmbient(){
+  if(!dailyLifeAmbientActive)return;
+  dailyLifeAmbientActive=false;
+  try{dailyLifeTricklingPlayer.stop();}catch(e){__dbg(e);}
+  try{dailyLifeFactoryPlayer.stop();}catch(e){__dbg(e);}
+}
 // Feature 5: behavior tracking
 let userBehavior={hotspotsVisited:{},timeInScenes:{0:0,1:0,2:0},seaDevilsCaptured:0,hullSongClicks:0,cursorStillness:0,lookedAtIt:false};
 let lastCursorX=0,lastCursorY=0,stillTimer=0;
@@ -238,7 +252,7 @@ function playHoverPing(){if(hoverPing)hoverPing.triggerAttackRelease("E6","16n")
 const __reducedMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 function triggerGlitch(){if(!glitchFX||__reducedMotion)return;glitchFX.wet.rampTo(0.85,0.02);setTimeout(()=>glitchFX.wet.rampTo(0,0.4),600);glitchEl.classList.add('active');setTimeout(()=>glitchEl.classList.remove('active'),600);}
 function playWhisper(w){if(!whisperG)return;whisperG.gain.rampTo(0.06,0.5);setTimeout(()=>whisperG.gain.rampTo(0,1.5),1200);showSub(w,1800,'rgba(180,230,230,0.35)','14px');}
-function dismissViz(){if(activeViz&&!vizDismissing){vizDismissing=true;vizDismissStart=millis();}}
+function dismissViz(){if(activeViz&&!vizDismissing){vizDismissing=true;vizDismissStart=millis();if(activeViz==='daily_life')stopDailyLifeAmbient();}}
 
 // Scene navigation menu (single source of truth — see startTransition helper below)
 function updateMenu(){
@@ -326,6 +340,14 @@ function initAudio(){
   // Own player so it can't be retriggered by the hull-song streak machinery.
   morningTouchPlayer=new Tone.Player({url:'metal-creak-short.mp3',loop:false,fadeOut:0.3}).connect(hotspotRev);
   morningTouchPlayer.volume.value=-12;
+  // Daily-life ambient: long-reverb bus + two looping layers gated by hotspot activation
+  longRev=new Tone.Reverb({decay:8,wet:0.55}).connect(glitchFX);
+  dailyLifeTricklingPlayer=new Tone.Player({url:'trickling-loop.mp3',loop:true,fadeIn:1.5,fadeOut:1.0}).connect(longRev);
+  dailyLifeTricklingPlayer.volume.value=-22;
+  // Factory ambience low-passed to suggest distant kitchen/processing rather than open machinery
+  const dailyLifeFactoryLP=new Tone.Filter({frequency:800,type:'lowpass'}).connect(longRev);
+  dailyLifeFactoryPlayer=new Tone.Player({url:'factory-ambience.mp3',loop:true,fadeIn:1.5,fadeOut:1.0}).connect(dailyLifeFactoryLP);
+  dailyLifeFactoryPlayer.volume.value=-28;
   // Loading progress: count buffers as they resolve, show in start-overlay
   const allPlayers=[].concat(...Object.values(layerPlayers),Object.values(hotspotPlayers),Object.values(hullPlayers));
   const total=allPlayers.length;let loaded=0;
@@ -1274,6 +1296,7 @@ function getSceneHotspots(s){
     {x:0.65,y:0.45,viz:'selection',q:"they say my name. once.\nthat's enough.\nsomething tightens inside me."}];
 }
 function buildScene(s){
+  stopDailyLifeAmbient(); // no-op if not active; covers scene change, resize, ascend
   hotspots=[];particles=[];stationElements=[];creatures=[];fishSwarms=[];deepCreatures=[];stationBG=null;
   ascendVisible=false;sceneVisited[s]=0;activeViz=null;vizDismissing=false;hotspotPhase='idle';activeHotspot=null;
   vignetteEl.style.display=s===0?'block':'none';
@@ -1363,6 +1386,7 @@ class Hotspot{
     // Trigger hotspot MP3 sound
     const hp=hotspotPlayers[this.vizId];
     if(hp){try{hp.stop();hp.start();}catch(e){__dbg(e);}}
+    if(this.vizId==='daily_life')startDailyLifeAmbient();
     if(scene===0&&creatures.length<MAX_CREATURES)creatures.push(new Creature());
     if(sceneVisited[scene]>=sceneRequired[scene])setTimeout(()=>{ascendVisible=true;},500);
   }
@@ -1577,6 +1601,7 @@ const PRES_STEPS=[
 
 function clearPresState(){
   if(activeViz){activeViz=null;vizDismissing=false;vizAlpha=0;}
+  stopDailyLifeAmbient();
   hideSub();hotspotPhase='idle';activeHotspot=null;eyeActive=false;
   dismissHintEl.classList.remove('show');
 }
