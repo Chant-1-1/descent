@@ -157,6 +157,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" onerror="__descentLoadFail('Tone.js')"></script>
 <script>
 const MAX_CREATURES=24;
+const HEARTBEAT_MS=4700; // global 4.7s pulse used in audio + viz
+// Toggle in console: window.DEBUG=true; — surfaces silent retrigger errors etc.
+function __dbg(e){if(window.DEBUG)console.warn(e);}
 let started=false,particles=[],hotspots=[],creatures=[],stationElements=[],fishSwarms=[],deepCreatures=[],stationBG=null,archLines=[];
 let pulse47Phase=0; // global 4.7s heartbeat, 0..1
 // Per-resize caches for things that depend only on width/height
@@ -169,7 +172,7 @@ let scene=0,sceneVisited=[0,0,0],sceneRequired=[3,4,2],scenesUnlocked=[true,true
 let bgBrt=0;
 let ascendVisible=false,ascendX=0,ascendY=0,ascendHovered=false;
 let transitioning=false,transitionStart=0,transitionBuilt=false,transitionTarget=0;
-let eyeActive=false,eyeStart=0;
+let eyeActive=false;
 let hotspotPhase='idle'; // idle -> quote -> ready (click again for viz)
 let activeHotspot=null;
 // Feature 2: Y-depth filter
@@ -1113,7 +1116,7 @@ function captureSd(sd){
   const slot=cageSlots.find(c=>!c.occ);
   if(slot)slot.occ=true;
   // drawCages() handles rendering — no separate DeepCreature needed
-  if(hullPlayers['valve-relief']){try{hullPlayers['valve-relief'].stop();hullPlayers['valve-relief'].start();}catch(e){}}
+  if(hullPlayers['valve-relief']){try{hullPlayers['valve-relief'].stop();hullPlayers['valve-relief'].start();}catch(e){__dbg(e);}}
   userBehavior.seaDevilsCaptured++;
 }
 // ===================== FEATURE 4: HULL SONG =====================
@@ -1143,7 +1146,7 @@ function drawHullPieces(){
 }
 function triggerHullPiece(p){
   p.flashT=350;p.cooldown=1500;
-  if(hullPlayers[p.soundKey]){try{hullPlayers[p.soundKey].stop();hullPlayers[p.soundKey].start();}catch(e){}}
+  if(hullPlayers[p.soundKey]){try{hullPlayers[p.soundKey].stop();hullPlayers[p.soundKey].start();}catch(e){__dbg(e);}}
   userBehavior.hullSongClicks++;
   hullClickTimes.push(millis());
   hullClickTimes=hullClickTimes.filter(t=>millis()-t<10000);
@@ -1151,12 +1154,12 @@ function triggerHullPiece(p){
   if(Math.random()<0.3){
     const others=hullPieces.filter(q=>q!==p&&q.cooldown<=0);
     if(others.length){const rep=others[Math.floor(Math.random()*others.length)];
-      setTimeout(()=>{rep.flashT=200;rep.cooldown=1500;if(hullPlayers[rep.soundKey]){try{hullPlayers[rep.soundKey].stop();hullPlayers[rep.soundKey].start();}catch(e){};}},800+Math.random()*700);}
+      setTimeout(()=>{rep.flashT=200;rep.cooldown=1500;if(hullPlayers[rep.soundKey]){try{hullPlayers[rep.soundKey].stop();hullPlayers[rep.soundKey].start();}catch(e){__dbg(e);};}},800+Math.random()*700);}
   }
 }
 function triggerHullChain(){
   const sorted=[...hullPieces].sort((a,b)=>a.y-b.y);
-  sorted.forEach((p,i)=>setTimeout(()=>{p.flashT=280;if(hullPlayers[p.soundKey]){try{hullPlayers[p.soundKey].stop();hullPlayers[p.soundKey].start();}catch(e){};}},i*145));
+  sorted.forEach((p,i)=>setTimeout(()=>{p.flashT=280;if(hullPlayers[p.soundKey]){try{hullPlayers[p.soundKey].stop();hullPlayers[p.soundKey].start();}catch(e){__dbg(e);};}},i*145));
 }
 // ===================== FEATURE 5: BEHAVIOR TRACKING =====================
 function computeLabel(){
@@ -1295,7 +1298,7 @@ class Hotspot{
     updateNavBtn();
     // Trigger hotspot MP3 sound
     const hp=hotspotPlayers[this.vizId];
-    if(hp){try{hp.stop();hp.start();}catch(e){}}
+    if(hp){try{hp.stop();hp.start();}catch(e){__dbg(e);}}
     if(scene===0&&creatures.length<MAX_CREATURES)creatures.push(new Creature());
     if(sceneVisited[scene]>=sceneRequired[scene])setTimeout(()=>{ascendVisible=true;},500);
   }
@@ -1342,7 +1345,7 @@ function drawEyeClimax(){
 
   // Phase B: 4.7s cursor tracking window
   else if(eyeClimaxPhase==='B'){
-    const LOOK_R=210,progress=constrain(t/4700,0,1);
+    const LOOK_R=210,progress=constrain(t/HEARTBEAT_MS,0,1);
     const inR=dist(mouseX,mouseY,cx,tubeY)<LOOK_R;
     if(inR)userBehavior.lookedAtIt=true;
     eyeLookFrames.total++;if(inR)eyeLookFrames.looking++;
@@ -1360,7 +1363,7 @@ function drawEyeClimax(){
     // progress arc
     stroke(180,165,110,55);strokeWeight(1);noFill();arc(cx,tubeY,110,110,-HALF_PI,-HALF_PI+progress*TWO_PI);
     showSub(inR?'i raise my gaze\nslowly':'do not look directly at it',null,inR?'rgba(220,200,140,0.65)':'rgba(180,220,220,0.55)','18px');
-    if(t>=4700){
+    if(t>=HEARTBEAT_MS){
       const ratio=eyeLookFrames.looking/eyeLookFrames.total;
       eyeLookResult=ratio>0.55?'look':ratio>0.25?'undecided':'away';
       eyeClimaxPhase='C';eyePhaseStart=millis();hideSub();
@@ -1401,7 +1404,7 @@ function setup(){createCanvas(windowWidth,windowHeight).parent(document.body);no
 function windowResized(){resizeCanvas(windowWidth,windowHeight);__resizeCache.vizSeaPts=null;__resizeCache.vizBeltCont=null;__resizeCache.gradients=null;buildScene(scene);}
 function draw(){
   if(!started){background(0);return;}
-  pulse47Phase=(millis()%4700)/4700; // global heartbeat
+  pulse47Phase=(millis()%HEARTBEAT_MS)/HEARTBEAT_MS; // global heartbeat
   // Feature 2: map mouseY → lowpass filter frequency
   if(depthFilter){const tf=map(mouseY,0,height,7500,380,true);depthFilterFreq+=(tf-depthFilterFreq)*0.03;depthFilter.frequency.value=depthFilterFreq;}
   // Feature 5: time-in-scene tracking (every second)
@@ -1455,7 +1458,7 @@ function mousePressed(){if(!started||transitioning)return;lastInteract=millis();
   if(activeViz&&!vizDismissing&&millis()-vizStart>1500){dismissViz();return;}
   if(ascendVisible&&ascendHovered&&!activeViz){
     if(scene<2){startTransition(scene+1);ascendVisible=false;}
-    else{eyeActive=true;eyeStart=millis();eyeClimaxPhase='A';eyePhaseStart=millis();eyeLookResult=null;eyeLookFrames=null;eyeLabel=computeLabel();ascendVisible=false;}
+    else{eyeActive=true;eyeClimaxPhase='A';eyePhaseStart=millis();eyeLookResult=null;eyeLookFrames=null;eyeLabel=computeLabel();ascendVisible=false;}
     return;
   }
   // Feature 3: wild sea devil capture
@@ -1469,8 +1472,9 @@ function mousePressed(){if(!started||transitioning)return;lastInteract=millis();
   for(let h of hotspots)if(h.hovered){h.activate();break;}
 }
 function navScene(target){if(transitioning||eyeActive||activeViz||target===scene)return;startTransition(target);}
-document.getElementById('start-overlay').addEventListener('click',async()=>{await Tone.start();initAudio();document.getElementById('start-overlay').classList.add('fade');
-  setTimeout(()=>document.getElementById('start-overlay').style.display='none',3000);
+function fadeOutStartOverlay(after,cb){const el=document.getElementById('start-overlay');el.classList.add('fade');setTimeout(()=>{el.style.display='none';if(cb)cb();},after);}
+document.getElementById('start-overlay').addEventListener('click',async()=>{await Tone.start();initAudio();
+  fadeOutStartOverlay(3000);
   setTimeout(()=>{started=true;showSub("you wake.\nthe air is heavy. wet.\nyou have never seen the surface.",6000);},2500);});
 // ===================== PRESENTATION MODE (step-by-step) =====================
 let presMode=false,presStep=-1;
@@ -1532,7 +1536,7 @@ function goToStep(idx){
     h.lastAct=0;if(!h.visited){h.visited=true;sceneVisited[scene]++;}
     hotspotPhase='quote';activeHotspot=h;
     showSub(h.quote);
-    const hp=hotspotPlayers[h.vizId];if(hp){try{hp.stop();hp.start();}catch(e){}}
+    const hp=hotspotPlayers[h.vizId];if(hp){try{hp.stop();hp.start();}catch(e){__dbg(e);}}
     if(scene===0&&creatures.length<MAX_CREATURES)creatures.push(new Creature());
   }
   else if(step.type==='viz'){
@@ -1547,7 +1551,7 @@ function goToStep(idx){
     startTransition(step.target);
   }
   else if(step.type==='climax'){
-    eyeActive=true;eyeStart=millis();ascendVisible=false;
+    eyeActive=true;ascendVisible=false;
   }
   updatePresUI();
 }
@@ -1565,9 +1569,7 @@ function togglePres(){
   document.getElementById('pres-badge').style.display='block';
   if(!started){
     Tone.start().then(()=>{initAudio();
-      document.getElementById('start-overlay').classList.add('fade');
-      setTimeout(()=>{document.getElementById('start-overlay').style.display='none';started=true;
-        buildScene(0);goToStep(0);},2000);
+      fadeOutStartOverlay(2000,()=>{started=true;buildScene(0);goToStep(0);});
     });
   }else{
     buildScene(0);goToStep(0);

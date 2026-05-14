@@ -1,0 +1,10 @@
+{
+  "name": "descent",
+  "private": true,
+  "description": "interactive narrative art piece — world, station, eye",
+  "scripts": {
+    "dev": "npx http-server -c-1 -p 8080 -o /index-v2.html",
+    "mixer": "npx http-server -c-1 -p 8080 -o /mixer.html",
+    "designer": "npx http-server -c-1 -p 8080 -o /designer.html"
+  }
+}
