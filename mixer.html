@@ -260,6 +260,24 @@
   .viz-duck-row .vol-num { min-width: 36px; }
   .viz-disabled { opacity: 0.4; pointer-events: none; }
 
+  /* === TEXT === */
+  .text-card { background:#1a2025; border:1px solid #2a3540; padding:12px; margin-bottom:10px; }
+  .text-head { display:flex; align-items:center; gap:12px; margin-bottom:8px; cursor:pointer; }
+  .text-head .text-name { font-size:11px; letter-spacing:0.18em; flex:1; text-transform:lowercase; }
+  .text-card.collapsed .text-body { display:none; }
+  .text-body { padding-top:8px; border-top:1px solid #2a3540; display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+  .text-controls { display: flex; flex-direction: column; gap: 8px; }
+  .text-control-row { display: flex; align-items: center; gap: 8px; font-size: 10px; opacity: 0.75; }
+  .text-control-row label { letter-spacing: 0.12em; min-width: 76px; }
+  .text-control-row input[type=range] { flex: 1; }
+  .text-control-row input[type=number] { width: 64px; background:#0a0e12; color:#b8d8d8; border:1px solid #2a3540; padding:3px 5px; font-family:inherit; font-size:11px; }
+  .text-control-row input[type=color] { width: 32px; height: 22px; padding: 0; border: 1px solid #2a3540; background:#0a0e12; cursor: pointer; }
+  .text-control-row select { padding: 4px 6px; font-size: 11px; }
+  .text-control-row .val { font-size: 10px; opacity: 0.5; min-width: 36px; text-align: right; }
+  .text-control-row .chk { cursor:pointer; }
+  .text-preview { background:#0a0e12; border:1px dashed #2a3540; padding:14px 16px; min-height:80px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .text-preview .preview-content { width: 100%; text-align: center; word-break: break-word; }
+
   /* === EXPORT === */
   #export-bar {
     background: #141a20;
@@ -392,6 +410,12 @@
   <h2>visualizations</h2>
   <p class="hint">each viz can have its own layered sound and duck the scene while active</p>
   <div id="viz-cards"></div>
+</div>
+
+<div class="panel" id="text-panel">
+  <h2>text</h2>
+  <p class="hint">font, size, color, spacing for each text category in the experience · live preview · google fonts loaded on demand</p>
+  <div id="text-cards"></div>
 </div>
 
 <div id="export-bar">
@@ -531,6 +555,46 @@ const DEFAULT_VIZ_CONFIG = {
   selection:   { hasOwnSound: false, sceneDuck: 100, layers: [] }
 };
 
+// === TEXT — typography control per category ===
+// HTML categories (intro/subtitle/nav/process/system) become CSS variables.
+// Canvas categories (quote/viz) become JS values read inside drawViz*.
+// font is the CSS family string. ls (letter-spacing) is in em. lh (line-height) is unitless.
+// weight: 300/400/500/600/700. italic: bool.
+const DEFAULT_TEXT = {
+  intro:    { font: "'Courier New', monospace", size: 14, color: '#e6f2ee', alpha: 1.0,  ls: 0.17, lh: 2.2, weight: 400, italic: false },
+  subtitle: { font: "'Courier New', monospace", size: 20, color: '#b4e6e6', alpha: 0.95, ls: 0.06, lh: 1.9, weight: 400, italic: false },
+  quote:    { font: "'Courier New', monospace", size: 15, color: '#dcdcdc', alpha: 0.85, ls: 0.06, lh: 1.5, weight: 400, italic: false },
+  nav:      { font: "'Courier New', monospace", size: 14, color: '#78b4b4', alpha: 0.65, ls: 0.30, lh: 1.4, weight: 400, italic: false },
+  process:  { font: "'Courier New', monospace", size: 11, color: '#ffffff', alpha: 0.85, ls: 0.18, lh: 1.4, weight: 400, italic: false },
+  viz:      { font: "'Courier New', monospace", size: 12, color: '#b4e6e6', alpha: 0.6,  ls: 0.05, lh: 1.5, weight: 400, italic: false },
+  system:   { font: "'Courier New', monospace", size: 11, color: '#78b4b4', alpha: 0.6,  ls: 0.20, lh: 1.4, weight: 400, italic: false }
+};
+const TEXT_CATEGORIES = [
+  { key: 'intro',    label: 'intro (start overlay)',          preview: 'a world beneath ice.  a station still breathing.' },
+  { key: 'subtitle', label: 'subtitle (narrative beats)',     preview: 'you wake. the air is heavy. wet.' },
+  { key: 'quote',    label: 'quote (hotspot text, canvas)',   preview: 'the sun is lethal within hours.' },
+  { key: 'nav',      label: 'navigation + settings',          preview: 'ii · the station' },
+  { key: 'process',  label: 'process matrix (intro scene)',   preview: 'time frame  ·  +1000 years' },
+  { key: 'viz',      label: 'viz labels (canvas)',            preview: 'equatorial belt — geothermally stabilized' },
+  { key: 'system',   label: 'system (count, ascend, badge)',  preview: '▶ auto  ·  count: 39' }
+];
+const FONT_OPTIONS = [
+  { family: "'Courier New', monospace",            label: 'Courier New (system mono)' },
+  { family: "'JetBrains Mono', monospace",         label: 'JetBrains Mono (mono)' },
+  { family: "'Space Mono', monospace",             label: 'Space Mono (mono)' },
+  { family: "'IBM Plex Mono', monospace",          label: 'IBM Plex Mono (mono)' },
+  { family: "'Inter', sans-serif",                 label: 'Inter (sans)' },
+  { family: "'IBM Plex Sans', sans-serif",         label: 'IBM Plex Sans (sans)' },
+  { family: "'Source Sans 3', sans-serif",         label: 'Source Sans 3 (sans)' },
+  { family: 'Helvetica, Arial, sans-serif',        label: 'Helvetica (system sans)' },
+  { family: "'EB Garamond', serif",                label: 'EB Garamond (serif)' },
+  { family: "'Cormorant Garamond', serif",         label: 'Cormorant Garamond (serif)' },
+  { family: "'Crimson Text', serif",               label: 'Crimson Text (serif)' },
+  { family: 'Georgia, serif',                      label: 'Georgia (system serif)' },
+  { family: "'Source Serif 4', serif",             label: 'Source Serif 4 (serif)' }
+];
+const SYSTEM_FONTS = ['Courier New', 'Helvetica', 'Arial', 'Georgia', 'Times New Roman'];
+
 const STORAGE_KEY = 'descent-mixer-config-v2';
 
 function loadConfig() {
@@ -543,7 +607,7 @@ function loadConfig() {
   } catch (e) { return null; }
 }
 function saveConfig() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ scenes, hotspots, moments, hullPalette, vizConfig })); } catch (e) {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ scenes, hotspots, moments, hullPalette, vizConfig, text })); } catch (e) {}
 }
 const __saved = loadConfig();
 // Mutable runtime state. Old configs that predate moments/hull/viz fall back to
@@ -561,6 +625,12 @@ Object.values(vizConfig).forEach(v => {
   if (!Array.isArray(v.layers)) v.layers = [];
   v.layers.forEach(l => { if (typeof l.startMs !== 'number') l.startMs = 0; });
 });
+// Text: merge saved text overrides onto defaults so missing categories stay defaulted
+let text = JSON.parse(JSON.stringify(DEFAULT_TEXT));
+if (__saved && __saved.text) {
+  Object.keys(text).forEach(k => { if (__saved.text[k]) Object.assign(text[k], __saved.text[k]); });
+}
+
 // Migration: old configs were saved before hotspots had vizId. Backfill it by
 // matching the display name against the defaults so buildVizCards finds them.
 (() => {
@@ -1122,7 +1192,7 @@ function buildVizLayerRow(vizId, cfg, idx, rerender) {
 
 // Mutates scenes/hotspots/moments/hullPalette/vizConfig in place and rebuilds.
 function resetConfig() {
-  if (!confirm('Reset ALL audio config (scenes, hotspots, moments, hull, viz) to defaults?')) return;
+  if (!confirm('Reset ALL config (scenes, hotspots, moments, hull, viz, text) to defaults?')) return;
   Object.keys(scenePlaying).forEach(id => { if (scenePlaying[id]) stopScene(id); });
   scenes.splice(0, scenes.length, ...JSON.parse(JSON.stringify(DEFAULT_SCENES)));
   hotspots.splice(0, hotspots.length, ...JSON.parse(JSON.stringify(DEFAULT_HOTSPOTS)));
@@ -1131,6 +1201,8 @@ function resetConfig() {
   hullPalette.splice(0, hullPalette.length, ...DEFAULT_HULL_PALETTE);
   Object.keys(vizConfig).forEach(k => delete vizConfig[k]);
   Object.assign(vizConfig, JSON.parse(JSON.stringify(DEFAULT_VIZ_CONFIG)));
+  Object.keys(text).forEach(k => delete text[k]);
+  Object.assign(text, JSON.parse(JSON.stringify(DEFAULT_TEXT)));
   saveConfig();
   document.getElementById('scenes').innerHTML = '';
   document.getElementById('hotspot-grid').innerHTML = '';
@@ -1142,6 +1214,178 @@ function resetConfig() {
   buildMoments();
   buildHullPalette();
   buildVizCards();
+  buildTextCards();
+}
+
+// === Text panel ===
+const loadedFonts = new Set();
+function loadGoogleFontIfNeeded(family) {
+  if (!family) return;
+  const m = family.match(/['"]([^'"]+)['"]/);
+  const cleanFamily = (m ? m[1] : family.split(',')[0]).trim();
+  if (loadedFonts.has(cleanFamily)) return;
+  if (SYSTEM_FONTS.some(s => cleanFamily === s)) { loadedFonts.add(cleanFamily); return; }
+  loadedFonts.add(cleanFamily);
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(cleanFamily).replace(/%20/g, '+')}:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&display=swap`;
+  document.head.appendChild(link);
+}
+function rgbaFrom(hex, alpha) {
+  const m = hex.match(/^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/);
+  if (!m) return hex;
+  return `rgba(${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)},${alpha})`;
+}
+function applyTextPreview(previewEl, cfg) {
+  const inner = previewEl.querySelector('.preview-content');
+  inner.style.fontFamily = cfg.font;
+  inner.style.fontSize = cfg.size + 'px';
+  inner.style.color = rgbaFrom(cfg.color, cfg.alpha);
+  inner.style.letterSpacing = cfg.ls + 'em';
+  inner.style.lineHeight = cfg.lh;
+  inner.style.fontWeight = cfg.weight;
+  inner.style.fontStyle = cfg.italic ? 'italic' : 'normal';
+}
+function buildTextCard(cat) {
+  const cfg = text[cat.key];
+  const card = document.createElement('div');
+  card.className = 'text-card collapsed';
+
+  const head = document.createElement('div');
+  head.className = 'text-head';
+  const nm = document.createElement('div');
+  nm.className = 'text-name';
+  nm.textContent = cat.label;
+  head.appendChild(nm);
+  const tog = document.createElement('div');
+  tog.className = 'viz-toggle';
+  tog.textContent = '▾';
+  head.appendChild(tog);
+  head.onclick = () => {
+    card.classList.toggle('collapsed');
+    tog.textContent = card.classList.contains('collapsed') ? '▾' : '▴';
+  };
+  card.appendChild(head);
+
+  const body = document.createElement('div');
+  body.className = 'text-body';
+
+  const controls = document.createElement('div');
+  controls.className = 'text-controls';
+
+  const preview = document.createElement('div');
+  preview.className = 'text-preview';
+  const previewInner = document.createElement('div');
+  previewInner.className = 'preview-content';
+  previewInner.textContent = cat.preview;
+  preview.appendChild(previewInner);
+
+  const refresh = () => { applyTextPreview(preview, cfg); saveConfig(); };
+
+  // Font
+  const fontRow = document.createElement('div');
+  fontRow.className = 'text-control-row';
+  const fontLbl = document.createElement('label'); fontLbl.textContent = 'font';
+  const fontSel = document.createElement('select');
+  FONT_OPTIONS.forEach(opt => {
+    const o = document.createElement('option');
+    o.value = opt.family; o.textContent = opt.label;
+    fontSel.appendChild(o);
+  });
+  if (![...fontSel.options].some(o => o.value === cfg.font)) {
+    const o = document.createElement('option');
+    o.value = cfg.font; o.textContent = cfg.font + ' (custom)';
+    fontSel.appendChild(o);
+  }
+  fontSel.value = cfg.font;
+  fontSel.onchange = () => { cfg.font = fontSel.value; loadGoogleFontIfNeeded(cfg.font); refresh(); };
+  fontRow.appendChild(fontLbl); fontRow.appendChild(fontSel);
+  controls.appendChild(fontRow);
+
+  // Size
+  const sizeRow = document.createElement('div');
+  sizeRow.className = 'text-control-row';
+  const sl = document.createElement('label'); sl.textContent = 'size';
+  const sin = document.createElement('input'); sin.type = 'range'; sin.min = 6; sin.max = 60; sin.step = 1; sin.value = cfg.size;
+  const sv = document.createElement('span'); sv.className = 'val'; sv.textContent = cfg.size + 'px';
+  sin.oninput = () => { cfg.size = parseInt(sin.value); sv.textContent = cfg.size + 'px'; refresh(); };
+  sizeRow.appendChild(sl); sizeRow.appendChild(sin); sizeRow.appendChild(sv);
+  controls.appendChild(sizeRow);
+
+  // Color
+  const colorRow = document.createElement('div');
+  colorRow.className = 'text-control-row';
+  const cl = document.createElement('label'); cl.textContent = 'color';
+  const cin = document.createElement('input'); cin.type = 'color'; cin.value = cfg.color;
+  cin.oninput = () => { cfg.color = cin.value; refresh(); };
+  colorRow.appendChild(cl); colorRow.appendChild(cin);
+  controls.appendChild(colorRow);
+
+  // Alpha
+  const alphaRow = document.createElement('div');
+  alphaRow.className = 'text-control-row';
+  const al = document.createElement('label'); al.textContent = 'opacity';
+  const ain = document.createElement('input'); ain.type = 'range'; ain.min = 0; ain.max = 100; ain.step = 1; ain.value = Math.round(cfg.alpha * 100);
+  const av = document.createElement('span'); av.className = 'val'; av.textContent = Math.round(cfg.alpha * 100) + '%';
+  ain.oninput = () => { cfg.alpha = parseInt(ain.value) / 100; av.textContent = ain.value + '%'; refresh(); };
+  alphaRow.appendChild(al); alphaRow.appendChild(ain); alphaRow.appendChild(av);
+  controls.appendChild(alphaRow);
+
+  // Letter spacing
+  const lsRow = document.createElement('div');
+  lsRow.className = 'text-control-row';
+  const lsl = document.createElement('label'); lsl.textContent = 'letter-spacing';
+  const lsin = document.createElement('input'); lsin.type = 'range'; lsin.min = -0.05; lsin.max = 0.6; lsin.step = 0.01; lsin.value = cfg.ls;
+  const lsv = document.createElement('span'); lsv.className = 'val'; lsv.textContent = cfg.ls.toFixed(2) + 'em';
+  lsin.oninput = () => { cfg.ls = parseFloat(lsin.value); lsv.textContent = cfg.ls.toFixed(2) + 'em'; refresh(); };
+  lsRow.appendChild(lsl); lsRow.appendChild(lsin); lsRow.appendChild(lsv);
+  controls.appendChild(lsRow);
+
+  // Line height
+  const lhRow = document.createElement('div');
+  lhRow.className = 'text-control-row';
+  const lhl = document.createElement('label'); lhl.textContent = 'line-height';
+  const lhin = document.createElement('input'); lhin.type = 'range'; lhin.min = 1.0; lhin.max = 3.0; lhin.step = 0.05; lhin.value = cfg.lh;
+  const lhv = document.createElement('span'); lhv.className = 'val'; lhv.textContent = cfg.lh.toFixed(2);
+  lhin.oninput = () => { cfg.lh = parseFloat(lhin.value); lhv.textContent = cfg.lh.toFixed(2); refresh(); };
+  lhRow.appendChild(lhl); lhRow.appendChild(lhin); lhRow.appendChild(lhv);
+  controls.appendChild(lhRow);
+
+  // Weight
+  const wRow = document.createElement('div');
+  wRow.className = 'text-control-row';
+  const wl = document.createElement('label'); wl.textContent = 'weight';
+  const wsel = document.createElement('select');
+  [300,400,500,600,700].forEach(w => {
+    const o = document.createElement('option'); o.value = w; o.textContent = w; wsel.appendChild(o);
+  });
+  wsel.value = cfg.weight;
+  wsel.onchange = () => { cfg.weight = parseInt(wsel.value); refresh(); };
+  wRow.appendChild(wl); wRow.appendChild(wsel);
+  controls.appendChild(wRow);
+
+  // Italic
+  const itRow = document.createElement('div');
+  itRow.className = 'text-control-row';
+  const itl = document.createElement('label'); itl.textContent = 'italic';
+  const itin = document.createElement('input'); itin.type = 'checkbox'; itin.className = 'chk'; itin.checked = !!cfg.italic;
+  itin.onchange = () => { cfg.italic = itin.checked; refresh(); };
+  itRow.appendChild(itl); itRow.appendChild(itin);
+  controls.appendChild(itRow);
+
+  body.appendChild(controls);
+  body.appendChild(preview);
+  card.appendChild(body);
+
+  applyTextPreview(preview, cfg);
+  return card;
+}
+function buildTextCards() {
+  const wrap = document.getElementById('text-cards');
+  wrap.innerHTML = '';
+  // Preload any non-system fonts referenced in current config
+  Object.values(text).forEach(cfg => loadGoogleFontIfNeeded(cfg.font));
+  TEXT_CATEGORIES.forEach(cat => wrap.appendChild(buildTextCard(cat)));
 }
 
 // ============================================================
@@ -1463,6 +1707,7 @@ buildHotspots();
 buildMoments();
 buildHullPalette();
 buildVizCards();
+buildTextCards();
 document.getElementById('reset-config').onclick = resetConfig;
 </script>
 </body>

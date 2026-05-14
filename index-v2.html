@@ -239,6 +239,71 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" onerror="__descentLoadFail('Tone.js')"></script>
 <script src="sounds.js"></script>
 <script>
+// === Text typography from mixer config — applied as early as possible so the
+// start overlay and process intro use the user's fonts on first paint. ===
+const __DEFAULT_TEXT = {
+  intro:    { font: "'Courier New', monospace", size: 14, color: '#e6f2ee', alpha: 1.0,  ls: 0.17, lh: 2.2, weight: 400, italic: false },
+  subtitle: { font: "'Courier New', monospace", size: 20, color: '#b4e6e6', alpha: 0.95, ls: 0.06, lh: 1.9, weight: 400, italic: false },
+  quote:    { font: "'Courier New', monospace", size: 15, color: '#dcdcdc', alpha: 0.85, ls: 0.06, lh: 1.5, weight: 400, italic: false },
+  nav:      { font: "'Courier New', monospace", size: 14, color: '#78b4b4', alpha: 0.65, ls: 0.30, lh: 1.4, weight: 400, italic: false },
+  process:  { font: "'Courier New', monospace", size: 11, color: '#ffffff', alpha: 0.85, ls: 0.18, lh: 1.4, weight: 400, italic: false },
+  viz:      { font: "'Courier New', monospace", size: 12, color: '#b4e6e6', alpha: 0.6,  ls: 0.05, lh: 1.5, weight: 400, italic: false },
+  system:   { font: "'Courier New', monospace", size: 11, color: '#78b4b4', alpha: 0.6,  ls: 0.20, lh: 1.4, weight: 400, italic: false }
+};
+const __SYSTEM_FONTS = ['Courier New','Helvetica','Arial','Georgia','Times New Roman'];
+let textCfg = JSON.parse(JSON.stringify(__DEFAULT_TEXT));
+try {
+  const raw = localStorage.getItem('descent-mixer-config-v2');
+  if (raw) {
+    const cfg = JSON.parse(raw);
+    if (cfg && cfg.text) {
+      Object.keys(textCfg).forEach(k => { if (cfg.text[k]) Object.assign(textCfg[k], cfg.text[k]); });
+    }
+  }
+} catch (e) { console.warn('[text] load failed, using defaults:', e); }
+// Load Google Fonts for any non-system family
+(function loadFonts(){
+  const seen = new Set();
+  Object.values(textCfg).forEach(c => {
+    const m = (c.font || '').match(/['"]([^'"]+)['"]/);
+    const family = m ? m[1] : (c.font || '').split(',')[0].trim();
+    if (!family || seen.has(family)) return;
+    seen.add(family);
+    if (__SYSTEM_FONTS.includes(family)) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(family).replace(/%20/g, '+') + ':ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&display=swap';
+    document.head.appendChild(link);
+  });
+})();
+// Helper to convert #rrggbb + alpha → rgba()
+function __rgba(hex, a) {
+  const m = (hex || '').match(/^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/);
+  if (!m) return hex;
+  return 'rgba(' + parseInt(m[1],16) + ',' + parseInt(m[2],16) + ',' + parseInt(m[3],16) + ',' + a + ')';
+}
+// Inject CSS overrides that win over the inline <style> because they appear later
+(function injectTextStyles(){
+  const t = textCfg;
+  const rules = `
+    #start-overlay { font-family: ${t.intro.font}; font-weight: ${t.intro.weight}; font-style: ${t.intro.italic ? 'italic' : 'normal'}; }
+    #start-overlay .intro { color: ${__rgba(t.intro.color, t.intro.alpha)}; font-size: ${t.intro.size}px; letter-spacing: ${t.intro.ls}em; line-height: ${t.intro.lh}; }
+    #start-overlay .world, #start-overlay .text { letter-spacing: ${t.intro.ls + 0.2}em; }
+    #subtitle { font-family: ${t.subtitle.font}; color: ${__rgba(t.subtitle.color, t.subtitle.alpha)}; font-size: ${t.subtitle.size}px; letter-spacing: ${t.subtitle.ls}em; line-height: ${t.subtitle.lh}; font-weight: ${t.subtitle.weight}; font-style: ${t.subtitle.italic ? 'italic' : 'normal'}; }
+    .scene-btn, #set-toggle, #dismiss-hint, .srow { font-family: ${t.nav.font}; font-weight: ${t.nav.weight}; font-style: ${t.nav.italic ? 'italic' : 'normal'}; }
+    .scene-btn { color: ${__rgba(t.nav.color, t.nav.alpha)}; font-size: ${t.nav.size}px; letter-spacing: ${t.nav.ls}em; }
+    #process-overlay, .proc-head, .proc-axis, .proc-poles, .proc-hint { font-family: ${t.process.font}; }
+    .proc-grid { font-size: ${t.process.size}px; letter-spacing: ${t.process.ls}em; line-height: ${t.process.lh}; font-weight: ${t.process.weight}; font-style: ${t.process.italic ? 'italic' : 'normal'}; }
+    .proc-axis { color: ${__rgba(t.process.color, t.process.alpha * 0.55)}; }
+    .proc-poles { color: ${__rgba(t.process.color, t.process.alpha * 0.3)}; }
+    .proc-poles .pole.hl { color: ${__rgba(t.process.color, t.process.alpha)}; }
+    #pres-badge { font-family: ${t.system.font}; font-size: ${t.system.size}px; letter-spacing: ${t.system.ls}em; font-weight: ${t.system.weight}; font-style: ${t.system.italic ? 'italic' : 'normal'}; }
+  `;
+  const style = document.createElement('style');
+  style.textContent = rules;
+  document.head.appendChild(style);
+})();
+
 const MAX_CREATURES=24;
 const HEARTBEAT_MS=4700; // global 4.7s pulse used in audio + viz
 // Toggle in console: window.DEBUG=true; — surfaces silent retrigger errors etc.
@@ -974,6 +1039,7 @@ function drawVisualization(){
   if(rawVizA>0){
     drawingContext.save();drawingContext.beginPath();drawingContext.rect(0,-height*0.08,width,splitY+height*0.08);drawingContext.clip();
     push();translate(0,-height*0.07);
+    textFont(textCfg.viz.font);
     const v=activeViz;
     if(v==='shrinking_belt')drawVizBelt(vizAlpha);else if(v==='deep_parade')drawVizParade(vizAlpha);else if(v==='sea_level')drawVizSea(vizAlpha);
     else if(v==='hierarchy')drawVizHierarchy(vizAlpha);else if(v==='daily_life')drawVizDaily(vizAlpha);
@@ -987,12 +1053,16 @@ function drawVisualization(){
 
   // Quote text — same size as subtitle, stays in bottom zone
   if(activeVizQuote&&textA>0){
-    push();noStroke();textAlign(CENTER);
+    push();noStroke();textAlign(CENTER);textFont(textCfg.quote.font);
+    if(textCfg.quote.italic)drawingContext.font='italic '+textCfg.quote.weight+' '+textCfg.quote.size+'px '+textCfg.quote.font;
     const lines=activeVizQuote.split('\n');
-    const lh=26,totalH=lines.length*lh;
+    const qSize=textCfg.quote.size+2;
+    const lh=Math.round(qSize*textCfg.quote.lh*1.02),totalH=lines.length*lh;
     const zoneH=height-splitY,textY=splitY+zoneH/2-totalH/2+lh*0.5;
+    const qHex=textCfg.quote.color.match(/^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/);
+    const qR=qHex?parseInt(qHex[1],16):170,qG=qHex?parseInt(qHex[2],16):215,qB=qHex?parseInt(qHex[3],16):205;
     lines.forEach((ln,i)=>{
-      fill(170,215,205,textA*210);textSize(17);text(ln,width/2,textY+i*lh);
+      fill(qR,qG,qB,textA*255*textCfg.quote.alpha);textSize(qSize);text(ln,width/2,textY+i*lh);
     });
     pop();
   }
@@ -1795,7 +1865,7 @@ function updateTransition(){
   }
 }
 // ===================== MAIN =====================
-function setup(){createCanvas(windowWidth,windowHeight).parent(document.body);noStroke();textFont('Courier New');buildScene(0);lastInteract=millis();
+function setup(){createCanvas(windowWidth,windowHeight).parent(document.body);noStroke();textFont(textCfg.viz.font);buildScene(0);lastInteract=millis();
   // Apply default brightness on start
   const bSlider=document.getElementById('brightness-slider');
   if(bSlider)document.querySelector('canvas').style.filter='brightness('+bSlider.value+'%)';
