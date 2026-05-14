@@ -23,6 +23,18 @@ npm run designer  # opens designer.html
 
 No build step, no dependencies. `npx http-server` is fetched on first run.
 
+## adding new sounds
+
+Drop the `.mp3` into the repo root, then regenerate the manifest:
+
+```sh
+npm run sounds:sync
+```
+
+`sounds.js` will list every MP3 found. The mixer's dropdown picks them
+up automatically; index-v2 cross-checks its scene/hotspot definitions
+against the manifest and warns about any orphan references.
+
 ## controls (index-v2.html)
 
 - click signals (pulsing dots) to listen, click again to dismiss
