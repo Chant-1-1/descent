@@ -253,6 +253,11 @@ let sceneBuses={},layerPlayers={},layerGains={},hotspotPlayers={},hotspotRev;
 // Per-scene per-layer start delay (ms). Populated from mixer config; 0 = no delay.
 let layerStartMs={world:[],station:[],eye:[]},layerStartTimers={world:[],station:[],eye:[]};
 let sceneDef=null; // module-scope so updateSceneAudio can read layer.vol
+// Mixer config sections (loaded from localStorage with fallbacks set in initAudio)
+let momentsCfg=null,hullPalette=null,vizCfg=null;
+// Per-viz ambient players: vizId -> [{player, gain, targetVol, startMs, startTimer}]
+const vizPlayers={};
+let activeVizDuck=false; // true while a viz with hasOwnSound has ducked the scene
 let activeViz=null,vizStart=0,vizAlpha=0,vizDismissing=false,vizDismissStart=0,activeVizQuote='';
 let scene=0,sceneVisited=[0,0,0],sceneRequired=[3,4,2],scenesUnlocked=[true,true,true];
 let bgBrt=0;
@@ -275,18 +280,46 @@ let silenceUnderwaterPlayer=null,silenceCreakPlayer=null,silenceHours=false,sile
 // Process-intro drone bridge — atmospheric thread from process scene to experience
 let processDronePlayer=null;
 // Daily-life ambient — looping layer under the daily_life hotspot viz
-let longRev=null,dailyLifeTricklingPlayer=null,dailyLifeFactoryPlayer=null,dailyLifeAmbientActive=false;
-function startDailyLifeAmbient(){
-  if(dailyLifeAmbientActive||!dailyLifeTricklingPlayer)return;
-  dailyLifeAmbientActive=true;
-  try{dailyLifeTricklingPlayer.start();}catch(e){__dbg(e);}
-  try{dailyLifeFactoryPlayer.start();}catch(e){__dbg(e);}
+let longRev=null,activeVizAmbient=null; // vizId of the viz whose own-sound is currently playing
+// Start a viz's own ambient layers (if configured in mixer's vizConfig) AND duck
+// the underlying scene. Called from Hotspot.activate.
+function startVizAmbient(vizId){
+  if(!vizCfg||!vizPlayers[vizId])return;
+  const cfg=vizCfg[vizId];
+  if(!cfg||!cfg.hasOwnSound)return;
+  if(activeVizAmbient===vizId)return;
+  activeVizAmbient=vizId;
+  // Duck the active scene bus to sceneDuck% (0..1 multiplier)
+  const map=['world','station','eye'];
+  const targetScene=map[scene];
+  const bus=sceneBuses[targetScene];
+  if(bus){activeVizDuck=true;bus.gain.rampTo((cfg.sceneDuck||0)/100,0.4);}
+  // Start each pre-created layer with its startMs offset
+  vizPlayers[vizId].forEach(v=>{
+    if(v.startTimer){clearTimeout(v.startTimer);v.startTimer=null;}
+    try{v.player.start();}catch(e){__dbg(e);}
+    const fadeIn=()=>v.gain.gain.rampTo(v.targetVol,1.5);
+    if(v.startMs>0) v.startTimer=setTimeout(fadeIn,v.startMs);
+    else fadeIn();
+  });
 }
-function stopDailyLifeAmbient(){
-  if(!dailyLifeAmbientActive)return;
-  dailyLifeAmbientActive=false;
-  try{dailyLifeTricklingPlayer.stop();}catch(e){__dbg(e);}
-  try{dailyLifeFactoryPlayer.stop();}catch(e){__dbg(e);}
+function stopVizAmbient(){
+  if(!activeVizAmbient)return;
+  const vizId=activeVizAmbient;
+  activeVizAmbient=null;
+  (vizPlayers[vizId]||[]).forEach(v=>{
+    if(v.startTimer){clearTimeout(v.startTimer);v.startTimer=null;}
+    v.gain.gain.rampTo(0,1.0);
+    setTimeout(()=>{try{v.player.stop();}catch(e){__dbg(e);}},1100);
+  });
+  // Restore the active scene's bus level (updateSceneAudio will re-target it
+  // properly on next call; here we just unduck immediately).
+  if(activeVizDuck){
+    activeVizDuck=false;
+    const map=['world','station','eye'];
+    const bus=sceneBuses[map[scene]];
+    if(bus)bus.gain.rampTo(1,0.4);
+  }
 }
 // Feature 5: behavior tracking
 let userBehavior={hotspotsVisited:{},timeInScenes:{0:0,1:0,2:0},seaDevilsCaptured:0,hullSongClicks:0,cursorStillness:0,lookedAtIt:false};
@@ -341,7 +374,7 @@ function playHoverPing(){if(hoverPing)hoverPing.triggerAttackRelease("E6","16n")
 const __reducedMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 function triggerGlitch(){if(!glitchFX||__reducedMotion)return;glitchFX.wet.rampTo(0.85,0.02);setTimeout(()=>glitchFX.wet.rampTo(0,0.4),600);glitchEl.classList.add('active');setTimeout(()=>glitchEl.classList.remove('active'),600);}
 function playWhisper(w){if(!whisperG)return;whisperG.gain.rampTo(0.06,0.5);setTimeout(()=>whisperG.gain.rampTo(0,1.5),1200);showSub(w,1800,'rgba(180,230,230,0.35)','14px');}
-function dismissViz(){if(activeViz&&!vizDismissing){vizDismissing=true;vizDismissStart=millis();if(activeViz==='daily_life')stopDailyLifeAmbient();}}
+function dismissViz(){if(activeViz&&!vizDismissing){vizDismissing=true;vizDismissStart=millis();stopVizAmbient();}}
 
 // Scene navigation menu (single source of truth — see startTransition helper below)
 function updateMenu(){
@@ -395,9 +428,34 @@ function initAudio(){
     mythology:'whale-low.mp3',
     selection:'whale-fx1.mp3'
   };
+  // Fallback hardcoded values for moments, hull palette, viz config — used when
+  // localStorage has no override. Mirror DEFAULT_* in mixer.html.
+  const FALLBACK_MOMENTS={
+    morningTouch:      { def:'metal-creak-short', volDb:-12, loop:false },
+    silenceUnderwater: { def:'underwater-base',   volDb:-32, loop:true  },
+    silenceCreak:      { def:'metal-creak-long',  volDb:-20, loop:false },
+    processDrone:      { def:'drone-filter',      volDb:-24, loop:true  }
+  };
+  const FALLBACK_HULL_PALETTE=['metal-clanking','metal-creak-long','metal-creak-short','valve-relief','pump-release','water-pipe'];
+  const FALLBACK_VIZ_CONFIG={
+    shrinking_belt:{hasOwnSound:false,sceneDuck:100,layers:[]},
+    deep_parade:   {hasOwnSound:false,sceneDuck:100,layers:[]},
+    sea_level:     {hasOwnSound:false,sceneDuck:100,layers:[]},
+    hierarchy:     {hasOwnSound:false,sceneDuck:100,layers:[]},
+    daily_life:    {hasOwnSound:true, sceneDuck:50, layers:[
+                      {def:'trickling-loop',vol:25,startMs:0},
+                      {def:'factory-ambience',vol:15,startMs:0}]},
+    air_oxygen:    {hasOwnSound:false,sceneDuck:100,layers:[]},
+    the_mothers:   {hasOwnSound:false,sceneDuck:100,layers:[]},
+    mythology:     {hasOwnSound:false,sceneDuck:100,layers:[]},
+    selection:     {hasOwnSound:false,sceneDuck:100,layers:[]}
+  };
   // Pull mixer config (key shared with mixer.html). On schema mismatch fall back.
   sceneDef=FALLBACK_SCENE_DEF;
   let mixerHsDef=null;
+  momentsCfg=JSON.parse(JSON.stringify(FALLBACK_MOMENTS));
+  hullPalette=FALLBACK_HULL_PALETTE.slice();
+  vizCfg=JSON.parse(JSON.stringify(FALLBACK_VIZ_CONFIG));
   try {
     const raw=localStorage.getItem('descent-mixer-config-v2');
     if(raw){
@@ -417,6 +475,20 @@ function initAudio(){
         mixerHsDef={};
         cfg.hotspots.forEach(h=>{
           if(h && h.vizId && h.def && h.def!=='__none__') mixerHsDef[h.vizId]=h.def+'.mp3';
+        });
+      }
+      // Moments: shallow-merge user overrides onto fallback so missing keys stay defaulted
+      if(cfg && cfg.moments){
+        Object.keys(momentsCfg).forEach(k=>{
+          if(cfg.moments[k]) Object.assign(momentsCfg[k], cfg.moments[k]);
+        });
+      }
+      if(cfg && Array.isArray(cfg.hullPalette) && cfg.hullPalette.length===6){
+        hullPalette=cfg.hullPalette.map(s=>s||null);
+      }
+      if(cfg && cfg.vizConfig){
+        Object.keys(vizCfg).forEach(k=>{
+          if(cfg.vizConfig[k]) Object.assign(vizCfg[k], cfg.vizConfig[k]);
         });
       }
     }
@@ -460,36 +532,43 @@ function initAudio(){
   for(const[vizId,file] of Object.entries(hsDef)){
     hotspotPlayers[vizId]=new Tone.Player({url:file,loop:false,fadeOut:0.5}).connect(hotspotRev);
   }
-  // Feature 4: Hull sound players
-  ['metal-clanking','metal-creak-long','metal-creak-short','valve-relief','pump-release','water-pipe'].forEach(k=>{
+  // Feature 4: Hull sound players — sources from mixer's hullPalette (6 slots).
+  // Slots can be null/__none__ (silent piece). Keys de-duplicated so we don't
+  // build the same Tone.Player twice if the user picks the same sound twice.
+  const hullSet=new Set(hullPalette.filter(s=>s&&s!=='__none__'));
+  hullSet.forEach(k=>{
     hullPlayers[k]=new Tone.Player({url:k+'.mp3',loop:false,fadeOut:0.3}).connect(hotspotRev);
   });
-  // "Morning touch" — dedicated soft tap at -12dB, played once on station entry.
-  // Own player so it can't be retriggered by the hull-song streak machinery.
-  morningTouchPlayer=new Tone.Player({url:'metal-creak-short.mp3',loop:false,fadeOut:0.3}).connect(hotspotRev);
-  morningTouchPlayer.volume.value=-12;
-  // "Silence Hours" — station→eye transition has a 4s audio silence with one creak
-  silenceUnderwaterPlayer=new Tone.Player({url:'underwater-base.mp3',loop:true,fadeIn:0.3,fadeOut:0.8}).toDestination();
-  silenceUnderwaterPlayer.volume.value=-32;
-  silenceCreakPlayer=new Tone.Player({url:'metal-creak-long.mp3',loop:false,fadeOut:0.5}).connect(hotspotRev);
-  silenceCreakPlayer.volume.value=-20;
-  // Process drone — bridges the process intro to the experience. Triggered on
-  // title click (first user gesture, which is when audio is allowed). Fades in
-  // over 2s, holds quietly under the "you wake" subtitle, then fades out so it
-  // doesn't permanently overlap with the eye scene's own drone-filter loop.
-  processDronePlayer=new Tone.Player({url:'drone-filter.mp3',loop:true,fadeIn:2.0,fadeOut:3.0}).connect(hotspotRev);
-  processDronePlayer.volume.value=-24;
-  // Daily-life ambient: long-reverb bus + two looping layers gated by hotspot activation
+  // Moments — single named events with user-tunable sound + dB level.
+  const mkMoment=(key,routeTo,opts)=>{
+    const m=momentsCfg[key];
+    if(!m||!m.def||m.def==='__none__')return null;
+    const p=new Tone.Player(Object.assign({url:m.def+'.mp3',fadeOut:opts.fadeOut||0.3},opts.extra||{})).connect(routeTo);
+    p.volume.value=m.volDb;
+    return p;
+  };
+  morningTouchPlayer=mkMoment('morningTouch', hotspotRev, {});
+  silenceUnderwaterPlayer=mkMoment('silenceUnderwater', Tone.Destination, { extra:{loop:true,fadeIn:0.3,fadeOut:0.8} });
+  silenceCreakPlayer=mkMoment('silenceCreak', hotspotRev, { extra:{fadeOut:0.5} });
+  processDronePlayer=mkMoment('processDrone', hotspotRev, { extra:{loop:true,fadeIn:2.0,fadeOut:3.0} });
+  // Long reverb bus for viz ambient layers
   longRev=new Tone.Reverb({decay:8,wet:0.55}).connect(glitchFX);
-  dailyLifeTricklingPlayer=new Tone.Player({url:'trickling-loop.mp3',loop:true,fadeIn:1.5,fadeOut:1.0}).connect(longRev);
-  dailyLifeTricklingPlayer.volume.value=-22;
-  // Factory ambience low-passed to suggest distant kitchen/processing rather than open machinery
-  const dailyLifeFactoryLP=new Tone.Filter({frequency:800,type:'lowpass'}).connect(longRev);
-  dailyLifeFactoryPlayer=new Tone.Player({url:'factory-ambience.mp3',loop:true,fadeIn:1.5,fadeOut:1.0}).connect(dailyLifeFactoryLP);
-  dailyLifeFactoryPlayer.volume.value=-28;
+  // Pre-create viz ambient players (one set per viz with hasOwnSound). Each
+  // layer has its own gain so we can stagger fade-ins via startMs.
+  Object.entries(vizCfg).forEach(([vizId,cfg])=>{
+    if(!cfg.hasOwnSound||!Array.isArray(cfg.layers))return;
+    vizPlayers[vizId]=[];
+    cfg.layers.forEach(layer=>{
+      if(!layer.def||layer.def==='__none__')return;
+      const gain=new Tone.Gain(0).connect(longRev);
+      const player=new Tone.Player({url:layer.def+'.mp3',loop:true,fadeIn:1.5,fadeOut:1.0}).connect(gain);
+      vizPlayers[vizId].push({player,gain,targetVol:(layer.vol||0)/100,startMs:layer.startMs||0,startTimer:null});
+    });
+  });
   // Loading progress: count buffers as they resolve, show in start-overlay
-  const customPlayers=[morningTouchPlayer,silenceUnderwaterPlayer,silenceCreakPlayer,processDronePlayer,dailyLifeTricklingPlayer,dailyLifeFactoryPlayer].filter(Boolean);
-  const allPlayers=[].concat(...Object.values(layerPlayers),Object.values(hotspotPlayers),Object.values(hullPlayers),customPlayers);
+  const customPlayers=[morningTouchPlayer,silenceUnderwaterPlayer,silenceCreakPlayer,processDronePlayer].filter(Boolean);
+  const vizCustomPlayers=Object.values(vizPlayers).flat().map(v=>v.player);
+  const allPlayers=[].concat(...Object.values(layerPlayers),Object.values(hotspotPlayers),Object.values(hullPlayers),customPlayers,vizCustomPlayers);
   const total=allPlayers.length;let loaded=0;
   const progressEl=document.querySelector('#start-overlay .text');
   allPlayers.forEach(p=>{
@@ -1359,9 +1438,13 @@ function generateHullPieces(){
   const pos=[[0.15,0.28],[0.5,0.2],[0.8,0.48],[0.3,0.64],[0.65,0.24],[0.2,0.5],[0.84,0.34],[0.44,0.4],[0.6,0.58],[0.25,0.2],
     [0.75,0.7],[0.4,0.54],[0.7,0.38],[0.14,0.64],[0.86,0.58],[0.5,0.74],[0.34,0.3],[0.64,0.74],[0.55,0.34],[0.24,0.44],
     [0.8,0.24],[0.4,0.7],[0.6,0.44],[0.18,0.8],[0.82,0.74],[0.48,0.84],[0.3,0.5],[0.72,0.54],[0.55,0.14],[0.35,0.84]];
-  const keys=['metal-clanking','metal-creak-long','metal-creak-short','valve-relief','pump-release','water-pipe'];
+  // Hull palette comes from mixer config (6 slots). Slots can be null/__none__
+  // for silent pieces. Falls back to the historical hardcoded order if the
+  // config isn't loaded yet (only possible before the title click).
+  const keys=hullPalette||['metal-clanking','metal-creak-long','metal-creak-short','valve-relief','pump-release','water-pipe'];
   for(let i=0;i<pos.length;i++){const x=pos[i][0]*width,y=pos[i][1]*height;
-    hullPieces.push({x,y,soundKey:keys[i%keys.length],flashT:0,cooldown:0,hovered:false,phase:(x+y)*0.001});}
+    const k=keys[i%keys.length];
+    hullPieces.push({x,y,soundKey:(k&&k!=='__none__')?k:null,flashT:0,cooldown:0,hovered:false,phase:(x+y)*0.001});}
 }
 function updateHullPieces(){
   let anyH=false;
@@ -1488,7 +1571,7 @@ function getSceneHotspots(s){
     {x:0.65,y:0.45,viz:'selection',q:"they say my name. once.\nthat's enough.\nsomething tightens inside me."}];
 }
 function buildScene(s){
-  stopDailyLifeAmbient(); // no-op if not active; covers scene change, resize, ascend
+  stopVizAmbient(); // no-op if not active; covers scene change, resize, ascend
   hotspots=[];particles=[];stationElements=[];creatures=[];fishSwarms=[];deepCreatures=[];stationBG=null;
   ascendVisible=false;sceneVisited[s]=0;activeViz=null;vizDismissing=false;hotspotPhase='idle';activeHotspot=null;
   vignetteEl.style.display=s===0?'block':'none';
@@ -1578,7 +1661,7 @@ class Hotspot{
     // Trigger hotspot MP3 sound
     const hp=hotspotPlayers[this.vizId];
     if(hp){try{hp.stop();hp.start();}catch(e){__dbg(e);}}
-    if(this.vizId==='daily_life')startDailyLifeAmbient();
+    startVizAmbient(this.vizId);
     if(scene===0&&creatures.length<MAX_CREATURES)creatures.push(new Creature());
     if(sceneVisited[scene]>=sceneRequired[scene])setTimeout(()=>{ascendVisible=true;},500);
   }
@@ -1835,7 +1918,7 @@ const PRES_STEPS=[
 
 function clearPresState(){
   if(activeViz){activeViz=null;vizDismissing=false;vizAlpha=0;}
-  stopDailyLifeAmbient();
+  stopVizAmbient();
   if(silenceHours){silenceHours=false;silenceTransition=false;try{silenceUnderwaterPlayer&&silenceUnderwaterPlayer.stop();}catch(e){__dbg(e);}}
   hideSub();hotspotPhase='idle';activeHotspot=null;eyeActive=false;
   dismissHintEl.classList.remove('show');
