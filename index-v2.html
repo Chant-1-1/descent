@@ -1663,7 +1663,8 @@ function draw(){
   }
   if(!activeViz&&!eyeActive){
     for(let h of hotspots)h.update();
-    if(scene===1&&!activeViz&&!eyeActive)drawFlashlight(mouseX,mouseY);
+    // Flashlight removed in scene 1 — station now reads as a normally lit space.
+    // drawFlashlight() is still defined in case we re-enable it later.
     let firstUnvisited=null;for(let i=0;i<hotspots.length;i++){if(!hotspots[i].visited){firstUnvisited=hotspots[i];break;}}
     for(let h of hotspots)h.display(h===firstUnvisited);
     if(scene===1){updateHullPieces();drawHullPieces();} // Feature 4
