@@ -250,6 +250,9 @@ const __resizeCache={vizSeaPts:null,vizBeltCont:null,gradients:null,w:0,h:0};
 let camDX=0,camDY=0,lastGlitch=0,lastInteract=0,idleWPlayed=false;
 let glitchFX,whisperN,whisperF,whisperG,hoverPing;
 let sceneBuses={},layerPlayers={},layerGains={},hotspotPlayers={},hotspotRev;
+// Per-scene per-layer start delay (ms). Populated from mixer config; 0 = no delay.
+let layerStartMs={world:[],station:[],eye:[]},layerStartTimers={world:[],station:[],eye:[]};
+let sceneDef=null; // module-scope so updateSceneAudio can read layer.vol
 let activeViz=null,vizStart=0,vizAlpha=0,vizDismissing=false,vizDismissStart=0,activeVizQuote='';
 let scene=0,sceneVisited=[0,0,0],sceneRequired=[3,4,2],scenesUnlocked=[true,true,true];
 let bgBrt=0;
@@ -360,39 +363,28 @@ function initAudio(){
   // Feature 2: Y-depth master filter between buses and glitchFX
   depthFilter=new Tone.Filter({frequency:4000,type:'lowpass',rolloff:-24}).connect(glitchFX);
   // === SCENE LAYERS (looped MP3s) ===
-  const sceneDef={
+  // Hardcoded fallback. The actual config is loaded from the mixer's
+  // localStorage entry below, so changes made in mixer.html take effect here
+  // after a reload. If localStorage is empty/invalid we use these defaults.
+  const FALLBACK_SCENE_DEF={
     world:[
-      {file:'underwater-base.mp3',    vol:0.70},
-      {file:'underwater-ambience-lake.mp3', vol:0.93},
-      {file:'humpback-whale.mp3',     vol:0.23},
-      {file:'abyss.mp3',             vol:0.50}
+      {file:'underwater-base.mp3',    vol:0.70, startMs:0},
+      {file:'underwater-ambience-lake.mp3', vol:0.93, startMs:0},
+      {file:'humpback-whale.mp3',     vol:0.23, startMs:0},
+      {file:'abyss.mp3',             vol:0.50, startMs:0}
     ],
     station:[
-      {file:'spaceship-ambience.mp3', vol:0.60},
-      {file:'factory-ambience.mp3',   vol:0.35},
-      {file:'machine-cycle.mp3',      vol:0.30},
-      {file:'metal-creak-long.mp3',   vol:0.50}
+      {file:'spaceship-ambience.mp3', vol:0.60, startMs:0},
+      {file:'factory-ambience.mp3',   vol:0.35, startMs:0},
+      {file:'machine-cycle.mp3',      vol:0.30, startMs:0},
+      {file:'metal-creak-long.mp3',   vol:0.50, startMs:0}
     ],
     eye:[
-      {file:'drone-filter.mp3',       vol:0.40},
-      {file:'underwater-choir.mp3',   vol:0.13}
+      {file:'drone-filter.mp3',       vol:0.40, startMs:0},
+      {file:'underwater-choir.mp3',   vol:0.13, startMs:0}
     ]
   };
-  // Create a gain bus per scene, routed through glitchFX
-  ['world','station','eye'].forEach((name,idx)=>{
-    const bus=new Tone.Gain(idx===0?1:0).connect(depthFilter);
-    sceneBuses[name]=bus;
-    layerPlayers[name]=[];
-    layerGains[name]=[];
-    sceneDef[name].forEach(layer=>{
-      const gain=new Tone.Gain(layer.vol).connect(bus);
-      const player=new Tone.Player({url:layer.file,loop:true,fadeIn:2,fadeOut:2}).connect(gain);
-      layerPlayers[name].push(player);
-      layerGains[name].push(gain);
-    });
-  });
-  // === HOTSPOT TRIGGERS (one-shot MP3s) ===
-  const hsDef={
+  const FALLBACK_HS_DEF={
     shrinking_belt:'metal-creak-short.mp3',
     deep_parade:'whale-song.mp3',
     sea_level:'abyss.mp3',
@@ -403,6 +395,56 @@ function initAudio(){
     mythology:'whale-low.mp3',
     selection:'whale-fx1.mp3'
   };
+  // Pull mixer config (key shared with mixer.html). On schema mismatch fall back.
+  sceneDef=FALLBACK_SCENE_DEF;
+  let mixerHsDef=null;
+  try {
+    const raw=localStorage.getItem('descent-mixer-config-v2');
+    if(raw){
+      const cfg=JSON.parse(raw);
+      if(cfg && Array.isArray(cfg.scenes)){
+        const built={};
+        cfg.scenes.forEach(scene=>{
+          if(!scene || !scene.id || !Array.isArray(scene.layers))return;
+          built[scene.id]=scene.layers
+            .filter(l=>l && l.def && l.def!=='__none__')
+            .map(l=>({file:l.def+'.mp3', vol:(l.vol||0)/100, startMs:l.startMs||0}));
+        });
+        // Only adopt if all three scenes resolved
+        if(built.world && built.station && built.eye) sceneDef=built;
+      }
+      if(cfg && Array.isArray(cfg.hotspots)){
+        mixerHsDef={};
+        cfg.hotspots.forEach(h=>{
+          if(h && h.vizId && h.def && h.def!=='__none__') mixerHsDef[h.vizId]=h.def+'.mp3';
+        });
+      }
+    }
+  } catch(e) { console.warn('[audio] mixer config load failed, using fallback:', e); }
+  // Create a gain bus per scene, routed through glitchFX. Layers with startMs > 0
+  // start at gain 0 — their target volume is ramped in after the offset elapses
+  // (handled in updateSceneAudio when the scene becomes active).
+  ['world','station','eye'].forEach((name,idx)=>{
+    const bus=new Tone.Gain(idx===0?1:0).connect(depthFilter);
+    sceneBuses[name]=bus;
+    layerPlayers[name]=[];
+    layerGains[name]=[];
+    layerStartMs[name]=[];
+    layerStartTimers[name]=[];
+    sceneDef[name].forEach(layer=>{
+      const startMs=layer.startMs||0;
+      const initialVol=startMs>0?0:layer.vol;
+      const gain=new Tone.Gain(initialVol).connect(bus);
+      const player=new Tone.Player({url:layer.file,loop:true,fadeIn:2,fadeOut:2}).connect(gain);
+      layerPlayers[name].push(player);
+      layerGains[name].push(gain);
+      layerStartMs[name].push(startMs);
+      layerStartTimers[name].push(null);
+    });
+  });
+  // === HOTSPOT TRIGGERS (one-shot MP3s) ===
+  // Falls back to defaults if no/partial mixer config; per-vizId overrides win.
+  const hsDef=Object.assign({}, FALLBACK_HS_DEF, mixerHsDef||{});
   // Validate that every referenced MP3 exists in the canonical list, so a
   // typo or renamed file surfaces in the console at boot instead of as a
   // silent 404 during playback. Must run after both sceneDef and hsDef exist.
@@ -464,10 +506,16 @@ function initAudio(){
     console.error('Audio load error:',err);
     showSub('audio failed to load — refresh to retry',8000,'rgba(220,120,120,0.85)','14px');
   });
+  // Now that sceneDef + gains exist, re-run updateSceneAudio so staggered layer
+  // timers for the current scene get scheduled (the earlier call in setup() ran
+  // before initAudio populated sceneDef and early-returned).
+  updateSceneAudio();
 }
 // Crossfade scene buses on scene change. During the silence-hours interlude
 // (station→eye), all scene buses ramp to 0 over 1.5s instead — the eye bus
 // is brought in after the silence window closes.
+// Also schedules per-layer staggered starts: layers with startMs > 0 are kept
+// at gain 0 until startMs after their scene becomes active, then fade in.
 function updateSceneAudio(){
   const map=['world','station','eye'];
   if(silenceHours){
@@ -479,6 +527,34 @@ function updateSceneAudio(){
     const bus=sceneBuses[name];
     if(!bus)return;
     bus.gain.rampTo(name===target?1:0,2);
+  });
+  if(!sceneDef)return;
+  // Non-target scenes: cancel any pending stagger timers + reset delayed layers to 0
+  map.filter(n=>n!==target).forEach(name=>{
+    (layerStartTimers[name]||[]).forEach((t,i)=>{
+      if(t){clearTimeout(t);layerStartTimers[name][i]=null;}
+      if(layerStartMs[name][i]>0 && layerGains[name][i]){
+        layerGains[name][i].gain.rampTo(0,1);
+      }
+    });
+  });
+  // Target scene: schedule each delayed layer's fade-in; immediate layers ramp up now
+  const tDef=sceneDef[target];
+  if(!tDef)return;
+  tDef.forEach((layer,i)=>{
+    const gain=layerGains[target][i];
+    if(!gain)return;
+    if(layerStartTimers[target][i]){clearTimeout(layerStartTimers[target][i]);layerStartTimers[target][i]=null;}
+    const startMs=layerStartMs[target][i]||0;
+    if(startMs<=0){
+      gain.gain.rampTo(layer.vol,2);
+    } else {
+      gain.gain.rampTo(0,0.05); // ensure muted before scheduled fade-in
+      layerStartTimers[target][i]=setTimeout(()=>{
+        gain.gain.rampTo(layer.vol,2);
+        layerStartTimers[target][i]=null;
+      },startMs);
+    }
   });
 }
 // ===================== CREATURES =====================

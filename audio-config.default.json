@@ -1,0 +1,44 @@
+{
+  "_comment": "Original audio configuration for index-v2.html — backup before mixer integration. To restore: copy this content to audio-config.json or wipe localStorage('descent-mixer-config-v2'). vol is 0..1 (multiplier); startMs is the delay after scene activation before the layer fades in.",
+  "scenes": [
+    {
+      "id": "world",
+      "title": "i · the world",
+      "layers": [
+        { "def": "underwater-base",         "vol": 70, "startMs": 0 },
+        { "def": "underwater-ambience-lake","vol": 93, "startMs": 0 },
+        { "def": "humpback-whale",          "vol": 23, "startMs": 0 },
+        { "def": "abyss",                   "vol": 50, "startMs": 0 }
+      ]
+    },
+    {
+      "id": "station",
+      "title": "ii · the station",
+      "layers": [
+        { "def": "spaceship-ambience",      "vol": 60, "startMs": 0 },
+        { "def": "factory-ambience",        "vol": 35, "startMs": 0 },
+        { "def": "machine-cycle",           "vol": 30, "startMs": 0 },
+        { "def": "metal-creak-long",        "vol": 50, "startMs": 0 }
+      ]
+    },
+    {
+      "id": "eye",
+      "title": "iii · the eye",
+      "layers": [
+        { "def": "drone-filter",            "vol": 40, "startMs": 0 },
+        { "def": "underwater-choir",        "vol": 13, "startMs": 0 }
+      ]
+    }
+  ],
+  "hotspots": [
+    { "vizId": "shrinking_belt", "name": "world · belt",        "def": "metal-creak-short" },
+    { "vizId": "deep_parade",    "name": "world · parade",      "def": "whale-song" },
+    { "vizId": "sea_level",      "name": "world · sea level",   "def": "abyss" },
+    { "vizId": "hierarchy",      "name": "station · hierarchy", "def": "industrial-spire" },
+    { "vizId": "daily_life",     "name": "station · daily",     "def": "metal-clanking" },
+    { "vizId": "air_oxygen",     "name": "station · air/o2",    "def": "valve-relief" },
+    { "vizId": "the_mothers",    "name": "station · n°39",      "def": "pump-release" },
+    { "vizId": "mythology",      "name": "eye · mythology",     "def": "whale-low" },
+    { "vizId": "selection",      "name": "eye · selection",     "def": "whale-fx1" }
+  ]
+}

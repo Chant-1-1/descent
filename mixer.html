@@ -91,6 +91,17 @@
   .layer:first-of-type { border-top: none; padding-top: 4px; }
   .layer-num { font-size: 10px; opacity: 0.4; text-align: center; }
   .layer-controls { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .start-row { display: flex; align-items: center; gap: 8px; font-size: 10px; opacity: 0.55; }
+  .start-row label { letter-spacing: 0.15em; min-width: 38px; }
+  .start-row input[type=number] {
+    flex: 1; max-width: 90px;
+    background: #0a0e12; color: #b8d8d8;
+    border: 1px solid #2a3540; padding: 4px 6px;
+    font-family: inherit; font-size: 11px; -moz-appearance: textfield;
+  }
+  .start-row input[type=number]::-webkit-outer-spin-button,
+  .start-row input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .start-row .start-unit { font-size: 10px; opacity: 0.4; }
   .layer-remove {
     width: 22px; height: 22px; padding: 0;
     background: none; border: 1px solid #2a3540;
@@ -379,50 +390,51 @@ const SOUNDS_BY_GROUP = {
 // Defaults below are seeds; user can add/remove layers and change
 // any selection. Reset via the "reset to defaults" button.
 // ============================================================
+// startMs is the delay (in ms) before the layer fades in after scene activation.
+// vizId on hotspots is the key index-v2.html uses to look up the trigger sound.
 const DEFAULT_SCENES = [
   {
     id: 'world',
     title: 'i · the world',
     layers: [
-      { def: 'underwater-base',         vol: 70 },
-      { def: 'underwater-choir',        vol: 40 },
-      { def: 'humpback-whale',          vol: 35 },
-      { def: '__none__',                vol: 50 }
+      { def: 'underwater-base',         vol: 70, startMs: 0 },
+      { def: 'underwater-choir',        vol: 40, startMs: 0 },
+      { def: 'humpback-whale',          vol: 35, startMs: 0 },
+      { def: '__none__',                vol: 50, startMs: 0 }
     ]
   },
   {
     id: 'station',
     title: 'ii · the station',
     layers: [
-      { def: 'spaceship-ambience',      vol: 60 },
-      { def: 'factory-ambience',        vol: 35 },
-      { def: 'machine-cycle',           vol: 30 },
-      { def: '__none__',                vol: 50 }
+      { def: 'spaceship-ambience',      vol: 60, startMs: 0 },
+      { def: 'factory-ambience',        vol: 35, startMs: 0 },
+      { def: 'machine-cycle',           vol: 30, startMs: 0 },
+      { def: '__none__',                vol: 50, startMs: 0 }
     ]
   },
   {
     id: 'eye',
     title: 'iii · the eye',
     layers: [
-      { def: 'drone-filter',            vol: 55 },
-      { def: '__none__',                vol: 45 },
-      { def: 'dive-deep',               vol: 30 },
-      { def: '__none__',                vol: 50 }
+      { def: 'drone-filter',            vol: 55, startMs: 0 },
+      { def: '__none__',                vol: 45, startMs: 0 },
+      { def: 'dive-deep',               vol: 30, startMs: 0 },
+      { def: '__none__',                vol: 50, startMs: 0 }
     ]
   }
 ];
 
 const DEFAULT_HOTSPOTS = [
-  { name: 'world · belt',         def: 'metal-creak-short' },
-  { name: 'world · parade',       def: 'whale-song' },
-  { name: 'world · sea level',    def: 'abyss' },
-  { name: 'station · hierarchy',  def: 'industrial-spire' },
-  { name: 'station · daily',      def: 'metal-clanking' },
-  { name: 'station · air/o2',     def: 'valve-relief' },
-  { name: 'station · n°39',       def: 'pump-release' },
-  { name: 'eye · mythology',      def: 'whale-low' },
-  { name: 'eye · instrument',     def: 'machine-cycle' },
-  { name: 'eye · selection',      def: 'whale-fx1' }
+  { vizId: 'shrinking_belt', name: 'world · belt',        def: 'metal-creak-short' },
+  { vizId: 'deep_parade',    name: 'world · parade',      def: 'whale-song' },
+  { vizId: 'sea_level',      name: 'world · sea level',   def: 'abyss' },
+  { vizId: 'hierarchy',      name: 'station · hierarchy', def: 'industrial-spire' },
+  { vizId: 'daily_life',     name: 'station · daily',     def: 'metal-clanking' },
+  { vizId: 'air_oxygen',     name: 'station · air/o2',    def: 'valve-relief' },
+  { vizId: 'the_mothers',    name: 'station · n°39',      def: 'pump-release' },
+  { vizId: 'mythology',      name: 'eye · mythology',     def: 'whale-low' },
+  { vizId: 'selection',      name: 'eye · selection',     def: 'whale-fx1' }
 ];
 
 const STORAGE_KEY = 'descent-mixer-config-v2';
@@ -532,6 +544,7 @@ function buildSelect(currentValue, allowNone = true) {
 
 function disposeLayerState(s) {
   if (!s) return;
+  if (s.startTimer) { clearTimeout(s.startTimer); s.startTimer = null; }
   if (s.player) { try { s.player.stop(); } catch(e) {} try { s.player.dispose(); } catch(e) {} }
   if (s.gain) { try { s.gain.dispose(); } catch(e) {} }
   if (s.testPlayer) { try { s.testPlayer.stop(); } catch(e) {} try { s.testPlayer.dispose(); } catch(e) {} }
@@ -540,6 +553,7 @@ function disposeLayerState(s) {
 
 function buildLayerRow(scene, idx) {
   const layer = scene.layers[idx];
+  if (typeof layer.startMs !== 'number') layer.startMs = 0; // migrate old configs
   const row = document.createElement('div');
   row.className = 'layer';
 
@@ -577,6 +591,27 @@ function buildLayerRow(scene, idx) {
   volRow.appendChild(vol);
   volRow.appendChild(volNum);
   ctrl.appendChild(volRow);
+
+  // Start-time row: delay before this layer fades in after the scene starts
+  const startRow = document.createElement('div');
+  startRow.className = 'start-row';
+  const startLabel = document.createElement('label');
+  startLabel.textContent = 'start';
+  const startInput = document.createElement('input');
+  startInput.type = 'number'; startInput.min = 0; startInput.step = 0.5;
+  startInput.value = (layer.startMs || 0) / 1000;
+  startInput.oninput = () => {
+    const sec = Math.max(0, parseFloat(startInput.value) || 0);
+    layer.startMs = Math.round(sec * 1000);
+    saveConfig();
+  };
+  const startUnit = document.createElement('span');
+  startUnit.className = 'start-unit';
+  startUnit.textContent = 'sec';
+  startRow.appendChild(startLabel);
+  startRow.appendChild(startInput);
+  startRow.appendChild(startUnit);
+  ctrl.appendChild(startRow);
 
   row.appendChild(ctrl);
 
@@ -794,7 +829,8 @@ async function playScene(sceneId) {
   scenePlaying[sceneId] = true;
   updateScenePlayBtn(sceneId, true);
   const state = layerState[sceneId];
-  await Promise.all(state.map(async (s) => {
+  const scene = scenes.find(s => s.id === sceneId);
+  await Promise.all(state.map(async (s, idx) => {
     const name = s.sel.value;
     if (!name || name === '__none__') return;
     const player = await makePlayer(name, { loop: true });
@@ -809,13 +845,20 @@ async function playScene(sceneId) {
     }
     s.player = player;
     s.gain = connectViaGain(s, player);
-    try { player.start(); } catch(e) { console.error(e); }
+    const startMs = (scene && scene.layers[idx] && scene.layers[idx].startMs) || 0;
+    const startFn = () => { try { if (scenePlaying[sceneId] && s.player === player) player.start(); } catch(e) { console.error(e); } };
+    if (startMs > 0) {
+      s.startTimer = setTimeout(startFn, startMs);
+    } else {
+      startFn();
+    }
   }));
 }
 
 function stopScene(sceneId) {
   const state = layerState[sceneId];
   state.forEach(s => {
+    if (s.startTimer) { clearTimeout(s.startTimer); s.startTimer = null; }
     if (s.player) {
       try { s.player.stop(); } catch(e) {}
       try { s.player.dispose(); } catch(e) {}
