@@ -7,7 +7,6 @@ Interactive narrative art piece. Three scenes — the world, the station, the ey
 | file | purpose |
 |---|---|
 | `index-v2.html` | the experience itself |
-| `index.html` | older backup of the experience (kept intentionally) |
 | `mixer.html` | live sound mixer — preview MP3s, design scenes |
 | `designer.html` | vector shape editor — generates the polygon arrays used for creatures |
 
