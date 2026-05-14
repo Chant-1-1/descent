@@ -225,6 +225,36 @@
   .hotspot-play:hover { background: #3a4550; }
   .hotspot-play.playing { background: #ff7755; color: #000; border-color: #ff7755; }
 
+  /* === MOMENTS / HULL PALETTE / VIZ === */
+  .panel { background:#141a20; border:1px solid #2a3540; padding:16px; margin-bottom:24px; }
+  .panel h2 { font-size:13px; letter-spacing:0.25em; opacity:0.85; margin-bottom:4px; text-transform:lowercase; }
+  .panel .hint { font-size:10px; opacity:0.4; margin-bottom:14px; }
+  .moment-row, .hull-row {
+    display: grid;
+    grid-template-columns: 220px 1fr 70px 36px;
+    gap: 10px; align-items: center;
+    padding: 8px 0; border-top: 1px solid #1a2025;
+  }
+  .moment-row:first-of-type, .hull-row:first-of-type { border-top: none; }
+  .moment-label { font-size: 10px; opacity: 0.7; letter-spacing: 0.1em; }
+  .moment-vol-row { display: flex; align-items: center; gap: 6px; }
+  .moment-db { font-size: 10px; opacity: 0.5; min-width: 36px; text-align: right; }
+  .hull-row { grid-template-columns: 30px 1fr 36px; }
+  .hull-idx { font-size: 10px; opacity: 0.4; text-align: center; }
+
+  .viz-card { background:#1a2025; border:1px solid #2a3540; padding:12px; margin-bottom:10px; }
+  .viz-head { display:flex; align-items:center; gap:12px; margin-bottom:8px; cursor:pointer; }
+  .viz-head .viz-name { font-size:11px; letter-spacing:0.18em; flex:1; text-transform:lowercase; }
+  .viz-head .viz-toggle { font-size:10px; opacity:0.65; letter-spacing:0.15em; }
+  .viz-card.collapsed .viz-body { display:none; }
+  .viz-body { padding-top:8px; border-top:1px solid #2a3540; }
+  .viz-own-toggle { display:flex; align-items:center; gap:8px; font-size:10px; opacity:0.75; margin-bottom:10px; cursor:pointer; }
+  .viz-own-toggle input[type=checkbox] { cursor:pointer; }
+  .viz-duck-row { display:flex; align-items:center; gap:8px; font-size:10px; opacity:0.7; margin-bottom:10px; }
+  .viz-duck-row label { letter-spacing:0.12em; min-width:80px; }
+  .viz-duck-row .vol-num { min-width: 36px; }
+  .viz-disabled { opacity: 0.4; pointer-events: none; }
+
   /* === EXPORT === */
   #export-bar {
     background: #141a20;
@@ -341,6 +371,24 @@
   <div class="hotspot-grid" id="hotspot-grid"></div>
 </div>
 
+<div class="panel" id="moments-panel">
+  <h2>moments</h2>
+  <p class="hint">named audio events triggered by the experience · volume in dB</p>
+  <div id="moments-rows"></div>
+</div>
+
+<div class="panel" id="hull-panel">
+  <h2>hull palette</h2>
+  <p class="hint">six sounds cycled across the 30 tappable hull pieces in the station</p>
+  <div id="hull-rows"></div>
+</div>
+
+<div class="panel" id="viz-panel">
+  <h2>visualizations</h2>
+  <p class="hint">each viz can have its own layered sound and duck the scene while active</p>
+  <div id="viz-cards"></div>
+</div>
+
 <div id="export-bar">
   <button id="export-btn">export configuration</button>
 </div>
@@ -437,6 +485,47 @@ const DEFAULT_HOTSPOTS = [
   { vizId: 'selection',      name: 'eye · selection',     def: 'whale-fx1' }
 ];
 
+// === MOMENTS — single named audio events triggered by the experience ===
+// volDb is in decibels (-60 quiet, 0 loud). loop=true keeps playing until the
+// experience stops it; loop=false is a one-shot.
+const DEFAULT_MOMENTS = {
+  morningTouch:      { def: 'metal-creak-short', volDb: -12, loop: false, label: 'morning touch · station entry tap' },
+  silenceUnderwater: { def: 'underwater-base',   volDb: -32, loop: true,  label: 'silence hours · underwater bed' },
+  silenceCreak:      { def: 'metal-creak-long',  volDb: -20, loop: false, label: 'silence hours · single creak' },
+  processDrone:      { def: 'drone-filter',      volDb: -24, loop: true,  label: 'process intro · title-click drone' }
+};
+
+// === HULL PALETTE — 6 sounds cycled across the 30 hull pieces in the station ===
+const DEFAULT_HULL_PALETTE = [
+  'metal-clanking', 'metal-creak-long', 'metal-creak-short',
+  'valve-relief',   'pump-release',     'water-pipe'
+];
+
+// === VIZ CONFIG — per-visualization audio override ===
+// hasOwnSound: when true, the viz starts its own layered audio AND ducks the
+//   underlying scene to sceneDuck% during the viz.
+// sceneDuck: 0..100 (% of scene volume to keep while viz plays). 0 = scene off.
+// layers: same shape as scene layers (def + vol 0..100 + startMs).
+// vizes without hasOwnSound just play their existing single-shot hotspot trigger
+// from the hotspots section above; the scene continues at full.
+const DEFAULT_VIZ_CONFIG = {
+  shrinking_belt: { hasOwnSound: false, sceneDuck: 100, layers: [] },
+  deep_parade:    { hasOwnSound: false, sceneDuck: 100, layers: [] },
+  sea_level:      { hasOwnSound: false, sceneDuck: 100, layers: [] },
+  hierarchy:      { hasOwnSound: false, sceneDuck: 100, layers: [] },
+  daily_life: {
+    hasOwnSound: true, sceneDuck: 50,
+    layers: [
+      { def: 'trickling-loop',   vol: 25, startMs: 0 },
+      { def: 'factory-ambience', vol: 15, startMs: 0 }
+    ]
+  },
+  air_oxygen:  { hasOwnSound: false, sceneDuck: 100, layers: [] },
+  the_mothers: { hasOwnSound: false, sceneDuck: 100, layers: [] },
+  mythology:   { hasOwnSound: false, sceneDuck: 100, layers: [] },
+  selection:   { hasOwnSound: false, sceneDuck: 100, layers: [] }
+};
+
 const STORAGE_KEY = 'descent-mixer-config-v2';
 
 function loadConfig() {
@@ -449,12 +538,24 @@ function loadConfig() {
   } catch (e) { return null; }
 }
 function saveConfig() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ scenes, hotspots })); } catch (e) {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ scenes, hotspots, moments, hullPalette, vizConfig })); } catch (e) {}
 }
 const __saved = loadConfig();
-// Mutable runtime state
-let scenes = __saved ? __saved.scenes : JSON.parse(JSON.stringify(DEFAULT_SCENES));
-let hotspots = __saved ? __saved.hotspots : JSON.parse(JSON.stringify(DEFAULT_HOTSPOTS));
+// Mutable runtime state. Old configs that predate moments/hull/viz fall back to
+// the defaults for those sections (deep-cloned so user edits stay local).
+let scenes      = __saved && __saved.scenes      ? __saved.scenes      : JSON.parse(JSON.stringify(DEFAULT_SCENES));
+let hotspots    = __saved && __saved.hotspots    ? __saved.hotspots    : JSON.parse(JSON.stringify(DEFAULT_HOTSPOTS));
+let moments     = __saved && __saved.moments     ? Object.assign(JSON.parse(JSON.stringify(DEFAULT_MOMENTS)), __saved.moments) : JSON.parse(JSON.stringify(DEFAULT_MOMENTS));
+let hullPalette = __saved && Array.isArray(__saved.hullPalette) && __saved.hullPalette.length === 6 ? __saved.hullPalette.slice() : DEFAULT_HULL_PALETTE.slice();
+let vizConfig   = __saved && __saved.vizConfig   ? Object.assign(JSON.parse(JSON.stringify(DEFAULT_VIZ_CONFIG)), __saved.vizConfig) : JSON.parse(JSON.stringify(DEFAULT_VIZ_CONFIG));
+// Ensure every viz in DEFAULT_VIZ_CONFIG has a config (in case the user's saved
+// vizConfig is missing some vizIds added later).
+Object.keys(DEFAULT_VIZ_CONFIG).forEach(k => { if (!vizConfig[k]) vizConfig[k] = JSON.parse(JSON.stringify(DEFAULT_VIZ_CONFIG[k])); });
+// Ensure each layer has the full shape
+Object.values(vizConfig).forEach(v => {
+  if (!Array.isArray(v.layers)) v.layers = [];
+  v.layers.forEach(l => { if (typeof l.startMs !== 'number') l.startMs = 0; });
+});
 
 // Backwards-compat alias for any code still reading SCENES/HOTSPOTS via the
 // closure (e.g. validators run later). These are by-reference live views.
@@ -735,14 +836,285 @@ function buildHotspots() {
   });
 }
 
-// Mutates scenes/hotspots in place (don't reassign — the SCENES/HOTSPOTS aliases
-// hold the array references) and re-renders everything.
+// === Moments panel ===
+const momentPreviewState = {}; // momentKey -> { player, btn }
+function buildMoments() {
+  const wrap = document.getElementById('moments-rows');
+  wrap.innerHTML = '';
+  Object.keys(DEFAULT_MOMENTS).forEach(key => {
+    const m = moments[key];
+    const row = document.createElement('div');
+    row.className = 'moment-row';
+    const label = document.createElement('div');
+    label.className = 'moment-label';
+    label.textContent = m.label || key;
+    row.appendChild(label);
+    const sel = buildSelect(m.def, true);
+    sel.onchange = () => { m.def = sel.value; saveConfig(); };
+    row.appendChild(sel);
+    const volWrap = document.createElement('div');
+    volWrap.className = 'moment-vol-row';
+    const vol = document.createElement('input');
+    vol.type = 'range'; vol.min = -60; vol.max = 0; vol.step = 1; vol.value = m.volDb;
+    const db = document.createElement('span');
+    db.className = 'moment-db';
+    db.textContent = m.volDb + ' dB';
+    vol.oninput = () => {
+      m.volDb = parseInt(vol.value);
+      db.textContent = m.volDb + ' dB';
+      saveConfig();
+      const s = momentPreviewState[key];
+      if (s && s.player) s.player.volume.value = m.volDb;
+    };
+    volWrap.appendChild(vol); volWrap.appendChild(db);
+    row.appendChild(volWrap);
+    const test = document.createElement('button');
+    test.className = 'layer-test';
+    test.textContent = '▶';
+    test.title = m.loop ? 'preview loop (click again to stop)' : 'play once';
+    test.onclick = () => toggleMomentPreview(key, test);
+    row.appendChild(test);
+    wrap.appendChild(row);
+  });
+}
+async function toggleMomentPreview(key, btn) {
+  if (!requireAudio()) return;
+  const m = moments[key];
+  const s = momentPreviewState[key] || (momentPreviewState[key] = {});
+  if (s.player) {
+    try { s.player.stop(); } catch(e) {}
+    try { s.player.dispose(); } catch(e) {}
+    s.player = null;
+    btn.classList.remove('playing');
+    btn.textContent = '▶';
+    return;
+  }
+  if (!m.def || m.def === '__none__') return;
+  btn.classList.add('loading');
+  const player = await makePlayer(m.def, { loop: !!m.loop, fadeIn: 0.1, fadeOut: 0.3 });
+  btn.classList.remove('loading');
+  if (!player) { setStatus('failed to load: '+m.def+'.mp3', true); return; }
+  player.volume.value = m.volDb;
+  player.toDestination();
+  s.player = player;
+  try { player.start(); } catch(e) {}
+  if (m.loop) {
+    btn.classList.add('playing');
+    btn.textContent = '■';
+  } else {
+    btn.textContent = '▶';
+    // auto-clear state after a short window for one-shots
+    setTimeout(() => {
+      if (s.player === player) {
+        try { player.dispose(); } catch(e) {}
+        s.player = null;
+      }
+    }, 6000);
+  }
+}
+
+// === Hull palette panel ===
+function buildHullPalette() {
+  const wrap = document.getElementById('hull-rows');
+  wrap.innerHTML = '';
+  for (let i = 0; i < 6; i++) {
+    const row = document.createElement('div');
+    row.className = 'hull-row';
+    const idx = document.createElement('div');
+    idx.className = 'hull-idx';
+    idx.textContent = String(i + 1);
+    row.appendChild(idx);
+    const sel = buildSelect(hullPalette[i] || '__none__', true);
+    sel.onchange = () => { hullPalette[i] = sel.value === '__none__' ? null : sel.value; saveConfig(); };
+    row.appendChild(sel);
+    const test = document.createElement('button');
+    test.className = 'layer-test';
+    test.textContent = '▶';
+    test.title = 'play this hull sound once';
+    test.onclick = async () => {
+      if (!requireAudio()) return;
+      const name = hullPalette[i];
+      if (!name || name === '__none__') return;
+      test.classList.add('loading');
+      const player = await makePlayer(name, { loop: false, fadeOut: 0.3 });
+      test.classList.remove('loading');
+      if (!player) return;
+      player.toDestination();
+      try { player.start(); } catch(e) {}
+      setTimeout(() => { try { player.dispose(); } catch(e) {} }, 6000);
+    };
+    row.appendChild(test);
+    wrap.appendChild(row);
+  }
+}
+
+// === Viz config panel ===
+function buildVizCards() {
+  const wrap = document.getElementById('viz-cards');
+  wrap.innerHTML = '';
+  // Display order matches hotspots so labels are familiar
+  hotspots.forEach(h => {
+    if (!h.vizId) return;
+    const cfg = vizConfig[h.vizId];
+    if (!cfg) return;
+    wrap.appendChild(buildVizCard(h.vizId, h.name, cfg));
+  });
+}
+function buildVizCard(vizId, displayName, cfg) {
+  const card = document.createElement('div');
+  card.className = 'viz-card collapsed';
+  card.dataset.vizId = vizId;
+
+  const head = document.createElement('div');
+  head.className = 'viz-head';
+  const nm = document.createElement('div');
+  nm.className = 'viz-name';
+  nm.textContent = displayName + (cfg.hasOwnSound ? '' : ' · (no own sound)');
+  head.appendChild(nm);
+  const toggleLbl = document.createElement('div');
+  toggleLbl.className = 'viz-toggle';
+  toggleLbl.textContent = card.classList.contains('collapsed') ? '▾' : '▴';
+  head.appendChild(toggleLbl);
+  head.onclick = () => {
+    card.classList.toggle('collapsed');
+    toggleLbl.textContent = card.classList.contains('collapsed') ? '▾' : '▴';
+  };
+  card.appendChild(head);
+
+  const body = document.createElement('div');
+  body.className = 'viz-body';
+
+  // Own-sound toggle
+  const ownLabel = document.createElement('label');
+  ownLabel.className = 'viz-own-toggle';
+  const own = document.createElement('input');
+  own.type = 'checkbox';
+  own.checked = !!cfg.hasOwnSound;
+  ownLabel.appendChild(own);
+  ownLabel.appendChild(document.createTextNode('this viz has its own sound'));
+  body.appendChild(ownLabel);
+
+  // Scene duck row
+  const duckRow = document.createElement('div');
+  duckRow.className = 'viz-duck-row';
+  const duckLbl = document.createElement('label');
+  duckLbl.textContent = 'scene at';
+  duckRow.appendChild(duckLbl);
+  const duck = document.createElement('input');
+  duck.type = 'range'; duck.min = 0; duck.max = 100; duck.step = 5; duck.value = cfg.sceneDuck;
+  const duckNum = document.createElement('span');
+  duckNum.className = 'vol-num';
+  duckNum.textContent = cfg.sceneDuck + '%';
+  duck.oninput = () => {
+    cfg.sceneDuck = parseInt(duck.value);
+    duckNum.textContent = cfg.sceneDuck + '%';
+    saveConfig();
+  };
+  duckRow.appendChild(duck); duckRow.appendChild(duckNum);
+  body.appendChild(duckRow);
+
+  // Layers
+  const layersWrap = document.createElement('div');
+  layersWrap.dataset.role = 'viz-layers';
+  body.appendChild(layersWrap);
+  const renderLayers = () => {
+    layersWrap.innerHTML = '';
+    cfg.layers.forEach((layer, idx) => layersWrap.appendChild(buildVizLayerRow(vizId, cfg, idx, renderLayers)));
+    const add = document.createElement('button');
+    add.className = 'layer-add';
+    add.textContent = '+ add layer';
+    add.onclick = () => {
+      cfg.layers.push({ def: '__none__', vol: 50, startMs: 0 });
+      saveConfig();
+      renderLayers();
+    };
+    layersWrap.appendChild(add);
+  };
+  renderLayers();
+
+  // Wire own-toggle to enable/disable the rest
+  function applyOwnState() {
+    duckRow.classList.toggle('viz-disabled', !cfg.hasOwnSound);
+    layersWrap.classList.toggle('viz-disabled', !cfg.hasOwnSound);
+    nm.textContent = displayName + (cfg.hasOwnSound ? '' : ' · (no own sound)');
+  }
+  applyOwnState();
+  own.onchange = () => {
+    cfg.hasOwnSound = own.checked;
+    saveConfig();
+    applyOwnState();
+  };
+
+  card.appendChild(body);
+  return card;
+}
+function buildVizLayerRow(vizId, cfg, idx, rerender) {
+  const layer = cfg.layers[idx];
+  if (typeof layer.startMs !== 'number') layer.startMs = 0;
+  const row = document.createElement('div');
+  row.className = 'layer';
+  const num = document.createElement('div');
+  num.className = 'layer-num';
+  num.textContent = String(idx + 1);
+  row.appendChild(num);
+
+  const ctrl = document.createElement('div');
+  ctrl.className = 'layer-controls';
+
+  const sel = buildSelect(layer.def, true);
+  sel.onchange = () => { layer.def = sel.value; saveConfig(); };
+  ctrl.appendChild(sel);
+
+  const volRow = document.createElement('div');
+  volRow.className = 'vol-row';
+  const vol = document.createElement('input');
+  vol.type = 'range'; vol.min = 0; vol.max = 100; vol.value = layer.vol;
+  const volNum = document.createElement('span');
+  volNum.className = 'vol-num';
+  volNum.textContent = layer.vol;
+  vol.oninput = () => {
+    layer.vol = parseInt(vol.value);
+    volNum.textContent = layer.vol;
+    saveConfig();
+  };
+  volRow.appendChild(vol); volRow.appendChild(volNum);
+  ctrl.appendChild(volRow);
+
+  const startRow = document.createElement('div');
+  startRow.className = 'start-row';
+  const sl = document.createElement('label'); sl.textContent = 'start';
+  const si = document.createElement('input');
+  si.type = 'number'; si.min = 0; si.step = 0.5; si.value = (layer.startMs || 0) / 1000;
+  si.oninput = () => { layer.startMs = Math.max(0, Math.round((parseFloat(si.value) || 0) * 1000)); saveConfig(); };
+  const su = document.createElement('span'); su.className = 'start-unit'; su.textContent = 'sec';
+  startRow.appendChild(sl); startRow.appendChild(si); startRow.appendChild(su);
+  ctrl.appendChild(startRow);
+  row.appendChild(ctrl);
+
+  // Spacer where test button sits in scene rows — kept for grid alignment
+  const spacer = document.createElement('div');
+  row.appendChild(spacer);
+
+  const rm = document.createElement('button');
+  rm.className = 'layer-remove';
+  rm.textContent = '×';
+  rm.onclick = () => { cfg.layers.splice(idx, 1); saveConfig(); rerender(); };
+  row.appendChild(rm);
+
+  return row;
+}
+
+// Mutates scenes/hotspots/moments/hullPalette/vizConfig in place and rebuilds.
 function resetConfig() {
-  if (!confirm('Reset all scene layers and hotspot picks to defaults?')) return;
-  // Stop any playing scenes first
+  if (!confirm('Reset ALL audio config (scenes, hotspots, moments, hull, viz) to defaults?')) return;
   Object.keys(scenePlaying).forEach(id => { if (scenePlaying[id]) stopScene(id); });
   scenes.splice(0, scenes.length, ...JSON.parse(JSON.stringify(DEFAULT_SCENES)));
   hotspots.splice(0, hotspots.length, ...JSON.parse(JSON.stringify(DEFAULT_HOTSPOTS)));
+  Object.keys(moments).forEach(k => delete moments[k]);
+  Object.assign(moments, JSON.parse(JSON.stringify(DEFAULT_MOMENTS)));
+  hullPalette.splice(0, hullPalette.length, ...DEFAULT_HULL_PALETTE);
+  Object.keys(vizConfig).forEach(k => delete vizConfig[k]);
+  Object.assign(vizConfig, JSON.parse(JSON.stringify(DEFAULT_VIZ_CONFIG)));
   saveConfig();
   document.getElementById('scenes').innerHTML = '';
   document.getElementById('hotspot-grid').innerHTML = '';
@@ -751,6 +1123,9 @@ function resetConfig() {
   hotspotState.length = 0;
   buildScenes();
   buildHotspots();
+  buildMoments();
+  buildHullPalette();
+  buildVizCards();
 }
 
 // ============================================================
@@ -1069,6 +1444,9 @@ document.getElementById('copy-btn').onclick = () => {
 // ============================================================
 buildScenes();
 buildHotspots();
+buildMoments();
+buildHullPalette();
+buildVizCards();
 document.getElementById('reset-config').onclick = resetConfig;
 </script>
 </body>
