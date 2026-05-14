@@ -674,8 +674,7 @@ function drawStationInterior(){
 function drawFlashlight(mx,my){
   const ctx=drawingContext;
   const lx=width/2,ly=height*0.11;
-  // Build & cache the 3 static gradients (lamp halo g2, downward cone gc, red ambient wash wg).
-  // wg spans the whole screen so the room reads red everywhere — no per-frame gradient.
+  // Cached darkness gradients only — no wide radial wash any more
   let gr=__resizeCache.gradients&&__resizeCache.gradients.flashlight;
   if(!gr){
     const g2=ctx.createRadialGradient(lx,ly,10,lx,ly,190);
@@ -684,35 +683,33 @@ function drawFlashlight(mx,my){
     const gc=ctx.createLinearGradient(lx,ly,lx,ly+height*0.65);
     gc.addColorStop(0,'rgba(0,0,0,0.5)');gc.addColorStop(0.5,'rgba(0,0,0,0.15)');
     gc.addColorStop(1,'rgba(0,0,0,0)');
-    // Full-room red wash: strongest under the ceiling lamp, falling off toward the floor
-    const wgR=Math.max(width,height)*1.1;
-    const wg=ctx.createRadialGradient(lx,ly,0,lx,ly,wgR);
-    wg.addColorStop(0,'rgba(230,70,45,0.55)');
-    wg.addColorStop(0.35,'rgba(190,45,30,0.32)');
-    wg.addColorStop(0.7,'rgba(140,25,18,0.16)');
-    wg.addColorStop(1,'rgba(80,12,10,0.06)');
-    gr={g2,gc,wg};(__resizeCache.gradients=__resizeCache.gradients||{}).flashlight=gr;
+    gr={g2,gc};(__resizeCache.gradients=__resizeCache.gradients||{}).flashlight=gr;
   }
+  // 1) Red sub-light: multiply blend over the room so every painted pixel reads red.
+  //    Pure black stays black (preserves darkness), bright pixels become deep red,
+  //    mid-tones become red-brown. Single solid-color fillRect — very cheap.
   ctx.save();
-  // Red-tinted dark base — environment seeps through ~18% so shapes are perceptible
-  ctx.fillStyle='rgba(30,6,5,0.82)';ctx.fillRect(0,0,width,height);
-  // Cut holes with destination-out
+  ctx.globalCompositeOperation='multiply';
+  ctx.fillStyle='rgb(210,55,42)';
+  ctx.fillRect(0,0,width,height);
+  ctx.restore();
+  // 2) Standard darkness + flashlight cuts
+  ctx.save();
+  ctx.fillStyle='rgba(0,0,0,0.82)';ctx.fillRect(0,0,width,height);
   ctx.globalCompositeOperation='destination-out';
-  // Mouse torch — built every frame (mx,my move)
+  // Mouse torch — per-frame because mx/my move
   const g1=ctx.createRadialGradient(mx,my,25,mx,my,270);
   g1.addColorStop(0,'rgba(0,0,0,1)');g1.addColorStop(0.45,'rgba(0,0,0,0.7)');
   g1.addColorStop(0.75,'rgba(0,0,0,0.08)');g1.addColorStop(1,'rgba(0,0,0,0)');
   ctx.fillStyle=g1;ctx.fillRect(0,0,width,height);
-  // Lamp halo (fixed)
+  // Lamp halo (cached)
   ctx.fillStyle=gr.g2;ctx.fillRect(0,0,width,height);
-  // Lamp cone downward (fixed)
+  // Lamp cone (cached gradient, drawn into a polygon)
   ctx.fillStyle=gr.gc;
   ctx.beginPath();ctx.moveTo(lx-30,ly);ctx.lineTo(lx+30,ly);
   ctx.lineTo(lx+width*0.22,ly+height*0.65);ctx.lineTo(lx-width*0.22,ly+height*0.65);
   ctx.closePath();ctx.fill();
   ctx.restore();
-  // Red room wash (fixed, cached) — sits on top of everything that just got revealed
-  ctx.save();ctx.fillStyle=gr.wg;ctx.fillRect(0,0,width,height);ctx.restore();
 }
 // ===================== EYE BACKGROUND =====================
 let eyeElements=[];
