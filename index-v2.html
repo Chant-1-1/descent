@@ -147,6 +147,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 <script>
+const MAX_CREATURES=24;
 let started=false,particles=[],hotspots=[],creatures=[],stationElements=[],fishSwarms=[],deepCreatures=[],stationBG=null;
 let seaDevilImg=null;
 let pulse47Phase=0; // global 4.7s heartbeat, 0..1
@@ -176,11 +177,30 @@ let countActive=false,countNum=0,countDone=false,countStart=0,countTriggered=fal
 let eyeClimaxPhase='A',eyePhaseStart=0,eyeLookResult=null,seenLight=false,eyeLabel=null,eyeLookFrames=null;
 
 const curEl=document.getElementById('cursor');
+const subEl=document.getElementById('subtitle');
+const vignetteEl=document.getElementById('vignette');
+const glitchEl=document.getElementById('glitch');
+const dismissHintEl=document.getElementById('dismiss-hint');
+const transitionOverlayEl=document.getElementById('transition-overlay');
+const stationHtmlBgEl=document.getElementById('station-html-bg');
 document.addEventListener('mousemove',e=>{curEl.style.left=e.clientX+'px';curEl.style.top=e.clientY+'px';if(typeof millis==='function'){lastInteract=millis();idleWPlayed=false;}});
 document.getElementById('volume-slider').addEventListener('input',function(){if(Tone&&Tone.Destination)Tone.Destination.volume.value=parseFloat(this.value);});
 
-function showSub(t,dur,col,sz){const s=document.getElementById('subtitle');s.style.color=col||'rgba(180,230,230,0.95)';s.style.fontSize=sz||'20px';s.textContent=t;s.classList.add('show');if(dur)setTimeout(()=>s.classList.remove('show'),dur);}
-function hideSub(){document.getElementById('subtitle').classList.remove('show');}
+// Cache last shown state so per-frame calls (e.g. inside draw loop) skip DOM writes
+const _subState={text:null,color:null,size:null,timer:null};
+function showSub(t,dur,col,sz){
+  const c=col||'rgba(180,230,230,0.95)',s=sz||'20px';
+  if(_subState.text!==t||_subState.color!==c||_subState.size!==s){
+    subEl.style.color=c;subEl.style.fontSize=s;subEl.textContent=t;
+    subEl.classList.add('show');
+    _subState.text=t;_subState.color=c;_subState.size=s;
+  }
+  if(dur){
+    if(_subState.timer)clearTimeout(_subState.timer);
+    _subState.timer=setTimeout(()=>{subEl.classList.remove('show');_subState.text=null;_subState.timer=null;},dur);
+  }
+}
+function hideSub(){subEl.classList.remove('show');_subState.text=null;if(_subState.timer){clearTimeout(_subState.timer);_subState.timer=null;}}
 function updateNavBtn(){
   const next=document.getElementById('arr-next'),prev=document.getElementById('arr-prev');
   if(activeViz&&!vizDismissing){next.classList.add('show');prev.classList.add('show');}
@@ -195,7 +215,7 @@ function navPrev(){
   if(activeViz&&!vizDismissing){dismissViz();return;}
 }
 function playHoverPing(){if(hoverPing)hoverPing.triggerAttackRelease("E6","16n");}
-function triggerGlitch(){if(!glitchFX)return;glitchFX.wet.rampTo(0.85,0.02);setTimeout(()=>glitchFX.wet.rampTo(0,0.4),600);document.getElementById('glitch').classList.add('active');setTimeout(()=>document.getElementById('glitch').classList.remove('active'),600);}
+function triggerGlitch(){if(!glitchFX)return;glitchFX.wet.rampTo(0.85,0.02);setTimeout(()=>glitchFX.wet.rampTo(0,0.4),600);glitchEl.classList.add('active');setTimeout(()=>glitchEl.classList.remove('active'),600);}
 function playWhisper(w){if(!whisperG)return;whisperG.gain.rampTo(0.06,0.5);setTimeout(()=>whisperG.gain.rampTo(0,1.5),1200);showSub(w,1800,'rgba(180,230,230,0.35)','14px');}
 function dismissViz(){if(activeViz&&!vizDismissing){vizDismissing=true;vizDismissStart=millis();}}
 
@@ -592,7 +612,7 @@ function drawVisualization(){
 
   if(vizDismissing&&millis()-vizDismissStart>700){
     activeViz=null;vizDismissing=false;vizAlpha=0;
-    document.getElementById('dismiss-hint').classList.remove('show');
+    dismissHintEl.classList.remove('show');
     hotspotPhase='idle';updateNavBtn();return;
   }
 
@@ -1156,7 +1176,7 @@ function getSceneHotspots(s){
 function buildScene(s){
   hotspots=[];particles=[];stationElements=[];creatures=[];fishSwarms=[];deepCreatures=[];stationBG=null;
   ascendVisible=false;sceneVisited[s]=0;activeViz=null;vizDismissing=false;hotspotPhase='idle';activeHotspot=null;
-  document.getElementById('vignette').style.display=s===0?'block':'none';
+  vignetteEl.style.display=s===0?'block':'none';
   const cfg=getSceneHotspots(s);
   for(let c of cfg)hotspots.push(new Hotspot(c.x*width,c.y*height,c.viz,c.q,s));
   const pCount=s===2?60:s===1?100:350;
@@ -1179,8 +1199,7 @@ function buildScene(s){
   if(s===1){generateStationElements();generateHullPieces();countTriggerHovered=false;}
   if(s===2)generateEyeElements();
   updateSceneAudio();updateMenu();
-  const sbg=document.getElementById('station-html-bg');
-  if(sbg)sbg.style.display=(s===1)?'block':'none';
+  if(stationHtmlBgEl)stationHtmlBgEl.style.display=(s===1)?'block':'none';
 }
 function genArch(s){
   archLines=[];
@@ -1234,7 +1253,7 @@ class Hotspot{
     // Trigger hotspot MP3 sound
     const hp=hotspotPlayers[this.vizId];
     if(hp){try{hp.stop();hp.start();}catch(e){}}
-    if(scene===0)creatures.push(new Creature());
+    if(scene===0&&creatures.length<MAX_CREATURES)creatures.push(new Creature());
     if(sceneVisited[scene]>=sceneRequired[scene])setTimeout(()=>{ascendVisible=true;},500);
   }
 }
@@ -1323,10 +1342,10 @@ function drawEyeClimax(){
     }
   }
 }
-function startTransition(target){transitionTarget=target;transitioning=true;transitionStart=millis();transitionBuilt=false;document.getElementById('transition-overlay').classList.add('active');}
+function startTransition(target){transitionTarget=target;transitioning=true;transitionStart=millis();transitionBuilt=false;transitionOverlayEl.classList.add('active');}
 function updateTransition(){if(!transitioning)return;const t=millis()-transitionStart;
   if(t>1800&&!transitionBuilt){transitionBuilt=true;scene=transitionTarget;buildScene(scene);}
-  if(t>3500){transitioning=false;document.getElementById('transition-overlay').classList.remove('active');
+  if(t>3500){transitioning=false;transitionOverlayEl.classList.remove('active');
     if(!presMode){if(scene===1)showSub('the station.\nsystems humming. walls pressing close.',5000);
     else if(scene===2)showSub('the chamber. the altar.\nthe eye.',5000);
     else showSub('the world.\nyou wake. the air is heavy. wet.',5000);}}}
@@ -1447,7 +1466,7 @@ const PRES_STEPS=[
 function clearPresState(){
   if(activeViz){activeViz=null;vizDismissing=false;vizAlpha=0;}
   hideSub();hotspotPhase='idle';activeHotspot=null;eyeActive=false;
-  document.getElementById('dismiss-hint').classList.remove('show');
+  dismissHintEl.classList.remove('show');
 }
 
 function goToStep(idx){
@@ -1470,7 +1489,7 @@ function goToStep(idx){
     hotspotPhase='quote';activeHotspot=h;
     showSub(h.quote);
     const hp=hotspotPlayers[h.vizId];if(hp){try{hp.stop();hp.start();}catch(e){}}
-    if(scene===0)creatures.push(new Creature());
+    if(scene===0&&creatures.length<MAX_CREATURES)creatures.push(new Creature());
   }
   else if(step.type==='viz'){
     const h=hotspots[step.idx];if(!h)return;
