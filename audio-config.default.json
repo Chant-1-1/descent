@@ -1,5 +1,14 @@
 {
-  "_comment": "Original audio configuration for index-v2.html — backup before mixer integration. To restore: copy this content to audio-config.json or wipe localStorage('descent-mixer-config-v2'). vol is 0..1 (multiplier); startMs is the delay after scene activation before the layer fades in.",
+  "_comment": "Original audio + text configuration for index-v2.html — backup before mixer integration. To restore: paste the matching section back into localStorage('descent-mixer-config-v2') or use the mixer's reset button. vol is 0..1 (multiplier); startMs is the delay after scene activation before the layer fades in.",
+  "text": {
+    "intro":    { "font": "'Courier New', monospace", "size": 14, "color": "#e6f2ee", "alpha": 1.0,  "ls": 0.17, "lh": 2.2, "weight": 400, "italic": false },
+    "subtitle": { "font": "'Courier New', monospace", "size": 20, "color": "#b4e6e6", "alpha": 0.95, "ls": 0.06, "lh": 1.9, "weight": 400, "italic": false },
+    "quote":    { "font": "'Courier New', monospace", "size": 15, "color": "#dcdcdc", "alpha": 0.85, "ls": 0.06, "lh": 1.5, "weight": 400, "italic": false },
+    "nav":      { "font": "'Courier New', monospace", "size": 14, "color": "#78b4b4", "alpha": 0.65, "ls": 0.30, "lh": 1.4, "weight": 400, "italic": false },
+    "process":  { "font": "'Courier New', monospace", "size": 11, "color": "#ffffff", "alpha": 0.85, "ls": 0.18, "lh": 1.4, "weight": 400, "italic": false },
+    "viz":      { "font": "'Courier New', monospace", "size": 12, "color": "#b4e6e6", "alpha": 0.6,  "ls": 0.05, "lh": 1.5, "weight": 400, "italic": false },
+    "system":   { "font": "'Courier New', monospace", "size": 11, "color": "#78b4b4", "alpha": 0.6,  "ls": 0.20, "lh": 1.4, "weight": 400, "italic": false }
+  },
   "scenes": [
     {
       "id": "world",
