@@ -531,17 +531,52 @@ function buildHotspots() {
 }
 
 // ============================================================
-// AUDIO HELPERS
+// AUDIO HELPERS — shared buffer cache to avoid re-downloads
 // ============================================================
-function makePlayer(name, opts = {}) {
+const bufferCache = {}; // name -> Promise<Tone.ToneAudioBuffer>
+function getBuffer(name) {
+  if (!bufferCache[name]) {
+    bufferCache[name] = new Promise((resolve, reject) => {
+      const buf = new Tone.ToneAudioBuffer(
+        name + '.mp3',
+        () => resolve(buf),
+        (err) => { delete bufferCache[name]; reject(err); }
+      );
+    });
+  }
+  return bufferCache[name];
+}
+
+async function preloadAll() {
+  const names = new Set();
+  SCENES.forEach(s => s.layers.forEach(l => { if (l.def && l.def !== '__none__') names.add(l.def); }));
+  HOTSPOTS.forEach(h => { if (h.def && h.def !== '__none__') names.add(h.def); });
+  const total = names.size;
+  let done = 0;
+  setStatus('preloading audio: 0/' + total);
+  await Promise.all([...names].map(n =>
+    getBuffer(n)
+      .catch(e => { console.warn('preload failed:', n, e); })
+      .then(() => { done++; setStatus('preloading audio: ' + done + '/' + total); })
+  ));
+  setStatus('audio: ready');
+}
+
+async function makePlayer(name, opts = {}) {
   if (!name || name === '__none__') return null;
-  return new Tone.Player({
-    url: name + '.mp3',
-    loop: opts.loop !== false,
-    autostart: false,
-    fadeIn: opts.fadeIn ?? 0.6,
-    fadeOut: opts.fadeOut ?? 0.6
-  });
+  try {
+    const buf = await getBuffer(name);
+    return new Tone.Player({
+      url: buf,
+      loop: opts.loop !== false,
+      autostart: false,
+      fadeIn: opts.fadeIn ?? 0.6,
+      fadeOut: opts.fadeOut ?? 0.6
+    });
+  } catch (e) {
+    console.error('makePlayer failed:', name, e);
+    return null;
+  }
 }
 
 function setStatus(msg, warn = false) {
@@ -561,26 +596,29 @@ function requireAudio() {
 // ============================================================
 // SCENE PLAYBACK
 // ============================================================
-function playScene(sceneId) {
+async function playScene(sceneId) {
+  scenePlaying[sceneId] = true;
+  updateScenePlayBtn(sceneId, true);
   const state = layerState[sceneId];
-  state.forEach((s, idx) => {
+  await Promise.all(state.map(async (s) => {
     const name = s.sel.value;
     if (!name || name === '__none__') return;
-    const player = makePlayer(name, { loop: true });
-    if (!player) return;
+    const player = await makePlayer(name, { loop: true });
+    if (!player) {
+      setStatus('failed to load: ' + name + '.mp3', true);
+      return;
+    }
+    // Race guard: scene may have been stopped or layer changed while loading
+    if (!scenePlaying[sceneId] || s.sel.value !== name) {
+      try { player.dispose(); } catch(e) {}
+      return;
+    }
     const gain = new Tone.Gain(parseInt(s.volInput.value)/100).connect(masterGain);
     player.connect(gain);
     s.player = player;
     s.gain = gain;
-    player.load(name + '.mp3').then(() => {
-      try { player.start(); } catch(e) { console.error(e); }
-    }).catch(err => {
-      console.error('Failed to load', name, err);
-      setStatus('failed to load: ' + name + '.mp3', true);
-    });
-  });
-  scenePlaying[sceneId] = true;
-  updateScenePlayBtn(sceneId, true);
+    try { player.start(); } catch(e) { console.error(e); }
+  }));
 }
 
 function stopScene(sceneId) {
@@ -618,7 +656,7 @@ function updateScenePlayBtn(sceneId, playing) {
   }
 }
 
-function replaceLayerInScene(sceneId, idx) {
+async function replaceLayerInScene(sceneId, idx) {
   const s = layerState[sceneId][idx];
   // stop old
   if (s.player) {
@@ -630,22 +668,27 @@ function replaceLayerInScene(sceneId, idx) {
   // start new
   const name = s.sel.value;
   if (!name || name === '__none__') return;
-  const player = makePlayer(name, { loop: true });
+  const player = await makePlayer(name, { loop: true });
+  if (!player) {
+    setStatus('failed to load: ' + name + '.mp3', true);
+    return;
+  }
+  // Race guard: dropdown may have changed again, scene may have stopped
+  if (!scenePlaying[sceneId] || s.sel.value !== name) {
+    try { player.dispose(); } catch(e) {}
+    return;
+  }
   const gain = new Tone.Gain(parseInt(s.volInput.value)/100).connect(masterGain);
   player.connect(gain);
   s.player = player;
   s.gain = gain;
-  player.load(name + '.mp3').then(() => {
-    try { player.start(); } catch(e) {}
-  }).catch(err => {
-    setStatus('failed to load: ' + name + '.mp3', true);
-  });
+  try { player.start(); } catch(e) {}
 }
 
 // ============================================================
 // SOLO / TEST PER LAYER
 // ============================================================
-function toggleLayerTest(sceneId, idx) {
+async function toggleLayerTest(sceneId, idx) {
   if (!requireAudio()) return;
   const s = layerState[sceneId][idx];
 
@@ -662,27 +705,31 @@ function toggleLayerTest(sceneId, idx) {
 
   const name = s.sel.value;
   if (!name || name === '__none__') return;
-  const player = makePlayer(name, { loop: true });
+  // Bump request id so a stale load resolution can be ignored
+  const reqId = (s.testReqId || 0) + 1;
+  s.testReqId = reqId;
+  s.testBtn.classList.add('loading');
+  const player = await makePlayer(name, { loop: true });
+  if (!player || s.testReqId !== reqId) {
+    s.testBtn.classList.remove('loading');
+    if (player) { try { player.dispose(); } catch(e) {} }
+    if (!player) setStatus('failed to load: ' + name + '.mp3', true);
+    return;
+  }
   const gain = new Tone.Gain(parseInt(s.volInput.value)/100).connect(masterGain);
   player.connect(gain);
   s.testPlayer = player;
   s.testGain = gain;
-  s.testBtn.classList.add('loading');
-  player.load(name + '.mp3').then(() => {
-    s.testBtn.classList.remove('loading');
-    try { player.start(); } catch(e) {}
-    s.testBtn.textContent = '■';
-    s.testBtn.classList.add('playing');
-  }).catch(err => {
-    s.testBtn.classList.remove('loading');
-    setStatus('failed to load: ' + name + '.mp3', true);
-  });
+  s.testBtn.classList.remove('loading');
+  try { player.start(); } catch(e) {}
+  s.testBtn.textContent = '■';
+  s.testBtn.classList.add('playing');
 }
 
 // ============================================================
 // HOTSPOTS — single-shot
 // ============================================================
-function playHotspot(state) {
+async function playHotspot(state) {
   if (!requireAudio()) return;
   const name = state.sel.value;
   if (!name || name === '__none__') return;
@@ -695,27 +742,28 @@ function playHotspot(state) {
   }
   if (state.timer) { clearTimeout(state.timer); state.timer = null; }
 
-  const player = makePlayer(name, { loop: false, fadeOut: 0.5 });
+  const reqId = (state.reqId || 0) + 1;
+  state.reqId = reqId;
+  state.btn.textContent = 'loading…';
+  const player = await makePlayer(name, { loop: false, fadeOut: 0.5 });
+  if (!player || state.reqId !== reqId) {
+    if (player) { try { player.dispose(); } catch(e) {} }
+    if (!player) { state.btn.textContent = '▶ play'; setStatus('failed to load: ' + name + '.mp3', true); }
+    return;
+  }
   player.connect(masterGain);
   state.player = player;
-  state.btn.textContent = 'loading…';
-
-  player.load(name + '.mp3').then(() => {
-    state.btn.textContent = '■ stop';
-    state.btn.classList.add('playing');
-    try { player.start(); } catch(e) {}
-    // estimate duration; reset button when done
-    const dur = (player.buffer && player.buffer.duration) ? player.buffer.duration * 1000 + 500 : 30000;
-    state.timer = setTimeout(() => {
-      state.btn.textContent = '▶ play';
-      state.btn.classList.remove('playing');
-      try { player.dispose(); } catch(e) {}
-      state.player = null;
-    }, dur);
-  }).catch(err => {
+  state.btn.textContent = '■ stop';
+  state.btn.classList.add('playing');
+  try { player.start(); } catch(e) {}
+  const dur = (player.buffer && player.buffer.duration) ? player.buffer.duration * 1000 + 500 : 30000;
+  state.timer = setTimeout(() => {
+    if (state.reqId !== reqId) return; // a newer play has taken over
     state.btn.textContent = '▶ play';
-    setStatus('failed to load: ' + name + '.mp3', true);
-  });
+    state.btn.classList.remove('playing');
+    try { player.dispose(); } catch(e) {}
+    state.player = null;
+  }, dur);
 }
 
 // ============================================================
@@ -723,12 +771,15 @@ function playHotspot(state) {
 // ============================================================
 document.getElementById('start-audio').onclick = async function() {
   if (audioStarted) return;
+  this.disabled = true;
   await Tone.start();
   masterGain = new Tone.Gain(0.8).toDestination();
   audioStarted = true;
   this.textContent = '✓ audio running';
   this.classList.add('active');
-  setStatus('audio: ready');
+  this.disabled = false;
+  // Background preload — playback works while it runs, but is instant once done
+  preloadAll();
 };
 
 document.getElementById('master-vol').oninput = function() {
