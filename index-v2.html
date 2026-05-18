@@ -1406,6 +1406,7 @@ function drawVizOffering(a){
   const iceY=height*0.16;       // top of ice / boundary to surface
   const stationTopY=height*0.78; // station roof, where the cloth begins
   const moonY=height*0.08;
+  const ctx=drawingContext;     // used by moon's radial gradient below
 
   // 1) World-scene background, static — matches the scene 0 aesthetic so the
   //    offering reads as taking place in the same water column as the world.
