@@ -1662,7 +1662,7 @@ function drawVizMyth(a){
   fill(180,200,230,a*0.7);textSize(17);text('the eye of kheir',symX,symY+62);
 }
 // --- SELECTION ---
-function drawVizSelection(a){const t=millis()-vizStart;const lines=['they say my name','once','that\'s enough','something tightens inside me','i walk','too fast then slower','i could stop','but i keep walking','the path narrows','the air thins','the chamber is smaller than i expected','the altar stands in the center','the eye','two tubes','they lean toward me','too close','i kneel','the floor is cold','i am not the first','the light is not mine','i raise my gaze','slowly','toward the openings'];noStroke();textAlign(CENTER);for(let i=0;i<lines.length;i++){const ls=i*1100;if(t<ls)break;const age=t-ls;const fi6=min(age/800,1),fo6=max(0,1-(age-6000)/1500),alp=min(fi6,fo6);if(alp<=0)continue;const warmth=i/lines.length;fill(140+warmth*80,180+warmth*40,180-warmth*120,a*0.7*alp);textSize(15+warmth*5);text(lines[i],width/2,height*0.12+i*24);}}
+function drawVizSelection(a){const t=millis()-vizStart;const lines=['they say my name','once','that\'s enough','something tightens inside me','i walk','too fast then slower','i could stop','but i keep walking','the path narrows','the air thins','the chamber is smaller than i expected','the altar stands in the center','the eye','two tubes','they lean toward me','too close','i kneel','the floor is cold','i am not the first','the light is not mine','i raise my gaze','slowly','toward the openings'];noStroke();textAlign(CENTER);for(let i=0;i<lines.length;i++){const ls=i*1500;if(t<ls)break;const age=t-ls;const fi6=min(age/800,1),fo6=max(0,1-(age-7000)/1500),alp=min(fi6,fo6);if(alp<=0)continue;const warmth=i/lines.length;fill(140+warmth*80,180+warmth*40,180-warmth*120,a*0.7*alp);textSize(15+warmth*5);text(lines[i],width/2,height*0.12+i*24);}}
 // ===================== FEATURE 3: CAGE SYSTEM =====================
 function generateCageSlots(){
   const cx=width*0.5,cy=height*0.45;
@@ -1838,7 +1838,7 @@ function getSceneHotspots(s){
     {x:0.62,y:0.75,viz:'offering_to_kheir',q:"we send our first blood up to kheir, the moon.\na cloth, weighted, set to climb through the dark water.\nsome he keeps. most drift forever between the station and the ice.\nthe mothers count permits.\nthe women count tides."}];
   return[
     {x:0.35,y:0.55,viz:'mythology',q:"vahra was our first god. we lost her when we lost the surface.\nshe abandoned us — or we abandoned her. no one remembers.\nkheir mourns her. he stays above the ice, keeps watch over the deep.\nthe women send him cloths. he decides what is worth keeping.\nthe eye is built to ask vahra to look back — eight hundred years late."},
-    {x:0.65,y:0.45,viz:'selection',q:"they say my name. once.\nthat's enough.\nsomething tightens inside me."}];
+    {x:0.65,y:0.45,viz:'selection',q:""}];
 }
 function buildScene(s){
   stopVizAmbient(); // no-op if not active; covers scene change, resize, ascend
