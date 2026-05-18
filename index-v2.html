@@ -1984,19 +1984,19 @@ function drawEyeClimax(){
     noStroke();
     for(let i=8;i>=0;i--){fill(220,200,140,(4+i*3.5)*b);rect(cx-4-i*4,0,8+i*8,height);}
     for(let i=0;i<18;i++){fill(220,200,140,b*45);circle(cx+sin(frameCount*0.1+i)*map(t,0,3000,110,4),random(height),random(1,2.5));}
-    if(t<1400&&eyeLabel){
+    if(t<4000&&eyeLabel){
       showSub('the watcher mother has chosen you.\nshe has seen how you '+eyeLabel.verb+'.\nshe calls you — '+eyeLabel.label+'.',null,'rgba(210,190,130,0.75)','16px');
-    } else if(t>=1400&&t<2900){
-      hideSub(); // 1.5s gap for the first text to fully fade out
-    } else if(t>=2900){
+    } else if(t>=4000&&t<6000){
+      hideSub(); // 2s gap between the two subs
+    } else if(t>=6000){
       showSub('the tubes adjust\nnow\ni raise my gaze\nslowly',null,'rgba(220,200,140,0.85)','22px');
     }
-    if(t>=5400){eyeClimaxPhase='B';eyePhaseStart=millis();eyeLookFrames={total:0,looking:0};hideSub();}
+    if(t>=9000){eyeClimaxPhase='B';eyePhaseStart=millis();eyeLookFrames={total:0,looking:0};hideSub();}
   }
 
   // Phase B: 4.7s cursor tracking window
   else if(eyeClimaxPhase==='B'){
-    const LOOK_R=210,progress=constrain(t/HEARTBEAT_MS,0,1);
+    const DECISION_MS=10000,LOOK_R=210,progress=constrain(t/DECISION_MS,0,1);
     const inR=dist(mouseX,mouseY,cx,tubeY)<LOOK_R;
     if(inR)userBehavior.lookedAtIt=true;
     eyeLookFrames.total++;if(inR)eyeLookFrames.looking++;
@@ -2014,7 +2014,7 @@ function drawEyeClimax(){
     // progress arc
     stroke(180,165,110,55);strokeWeight(1);noFill();arc(cx,tubeY,110,110,-HALF_PI,-HALF_PI+progress*TWO_PI);
     showSub(inR?'i raise my gaze\nslowly':'do not look directly at it',null,inR?'rgba(220,200,140,0.65)':'rgba(180,220,220,0.55)','18px');
-    if(t>=HEARTBEAT_MS){
+    if(t>=DECISION_MS){
       const ratio=eyeLookFrames.looking/eyeLookFrames.total;
       eyeLookResult=ratio>0.55?'look':ratio>0.25?'undecided':'away';
       eyeClimaxPhase='C';eyePhaseStart=millis();hideSub();
