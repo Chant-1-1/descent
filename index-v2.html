@@ -1456,43 +1456,31 @@ function drawVizOffering(a){
   }
   noStroke();
 
-  // 3) Sun above the ice — same multi-layer + ray treatment as the sea_level
-  //    viz (Vahra, the lethal sun goddess). Rays scaled to the top half of
-  //    the screen so the halo radiates into the ice/water below.
-  const sunX=cx, sunY=moonY;
-  const rayMax=height*0.32;
+  // 3) Moon above the ice — Kheir, the moon goddess who keeps what is sent up.
+  //    Same layered-disc + halo approach as the sea_level sun, but in a cool
+  //    cream-blue palette and without the lethal radiation rays.
+  const moonX=cx;
   ctx.save();
-  const rg1=ctx.createRadialGradient(sunX,sunY,20,sunX,sunY,height*0.55);
-  rg1.addColorStop(0, 'rgba(255,230,80,'+(fi*0.55)+')');
-  rg1.addColorStop(0.2,'rgba(240,180,30,'+(fi*0.28)+')');
-  rg1.addColorStop(0.5,'rgba(200,120,10,'+(fi*0.12)+')');
-  rg1.addColorStop(1, 'rgba(100,50,0,0)');
-  ctx.fillStyle=rg1; ctx.fillRect(0,0,width,height*0.45);
+  // Soft atmospheric halo — cool moon scatter, much dimmer than a sun corona
+  const mg=ctx.createRadialGradient(moonX,moonY,12,moonX,moonY,height*0.42);
+  mg.addColorStop(0, 'rgba(240,238,225,'+(fi*0.35)+')');
+  mg.addColorStop(0.25,'rgba(220,225,235,'+(fi*0.18)+')');
+  mg.addColorStop(0.6, 'rgba(180,195,215,'+(fi*0.07)+')');
+  mg.addColorStop(1, 'rgba(120,140,170,0)');
+  ctx.fillStyle=mg; ctx.fillRect(0,0,width,height*0.42);
   ctx.restore();
-  // 32 long radiation rays
-  for(let i=0;i<32;i++){
-    const ang=(TWO_PI/32)*i+frameCount*0.003;
-    const len=rayMax + noise(i*0.8, frameCount*0.006)*rayMax*0.55;
-    const flick=sin(frameCount*0.05+i*1.1)*0.18+0.82;
-    const w=max(0.3, 1.6 - (i%3)*0.4);
-    stroke(255,210,50, fi*0.18*flick*255); strokeWeight(w);
-    line(sunX,sunY, sunX+cos(ang)*len, sunY+sin(ang)*len);
-  }
-  // 24 shorter brighter rays, offset
-  for(let i=0;i<24;i++){
-    const ang=(TWO_PI/24)*i + PI/24 + frameCount*0.004;
-    const len=rayMax*0.5 + noise(i*1.2, frameCount*0.009)*rayMax*0.35;
-    const flick=sin(frameCount*0.07+i*0.8)*0.2+0.8;
-    stroke(255,240,120, fi*0.28*flick*255); strokeWeight(0.5);
-    line(sunX,sunY, sunX+cos(ang)*len, sunY+sin(ang)*len);
-  }
   noStroke();
-  // Sun disc — 5 layers from soft outer orange to white-hot core
-  fill(255,160,0,  fi*0.08*255); circle(sunX,sunY,180);
-  fill(255,200,30, fi*0.18*255); circle(sunX,sunY,90);
-  fill(255,230,80, fi*0.45*255); circle(sunX,sunY,44);
-  fill(255,248,150,fi*0.75*255); circle(sunX,sunY,22);
-  fill(255,255,220,fi*0.92*255); circle(sunX,sunY,10);
+  // Disc — 4 layers from soft outer pearl to bright white core
+  fill(200,210,225, fi*0.20*255); circle(moonX,moonY,110);
+  fill(225,225,220, fi*0.45*255); circle(moonX,moonY,64);
+  fill(240,238,225, fi*0.85*255); circle(moonX,moonY,42);
+  fill(252,250,240, fi*0.95*255); circle(moonX,moonY,32);
+  // Subtle surface markings — faint craters / maria
+  fill(195,200,205, fi*0.30*255); circle(moonX-9, moonY-4, 7);
+  fill(195,200,205, fi*0.22*255); circle(moonX+8, moonY+6, 5);
+  fill(195,200,205, fi*0.18*255); circle(moonX-3, moonY+10, 3);
+  // Limb highlight (thin bright crescent along the upper-left edge)
+  fill(255,253,245, fi*0.45*255); circle(moonX-7, moonY-9, 5);
 
   // 4) Simplified station silhouette at the bottom — abstracted block + neck
   noStroke();
@@ -1564,8 +1552,8 @@ function drawVizOffering(a){
     vertex(p[0]+wob, p[1]);
   }
   endShape(CLOSE);
-  // inner highlight (where the sun catches it from above)
-  fill(195, 70, 75, 220*clothAlpha*0.65);
+  // inner highlight (where the moon catches it from above) — cooler tint
+  fill(210, 130, 130, 220*clothAlpha*0.55);
   beginShape();
   for(const p of clothShape){
     const wob=sin((p[1]+frameCount*1.5)*0.04)*1.6;
