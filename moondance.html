@@ -69,21 +69,21 @@ const DEBUG_PREVIEW_H = 150;
 // =============================================================
 // MARKER-ID → AKTION
 // Erweiterbar. Felder pro Eintrag:
-//   type:         'video' | 'sound' | 'scene'
+//   type:         'video' | 'flash' | 'sound' | 'scene'
 //   src:          Pfad zur Media-Datei (video, sound)
 //   name:         Szenen-Identifier (scene)
 //   mode:         'live'    → läuft solange Marker sichtbar, stoppt bei Verlust
 //                 'oneshot' → einmal getriggert, läuft dann durch (Stop ignoriert)
-//   flashes:      (video) Anzahl Plays pro Trigger. 1 = einmal, >1 = N Plays.
-//                 Default: VIDEO_FLASH_COUNT.
+//   flashes:      (video|flash) Anzahl Plays/Pulse pro Trigger. Default: VIDEO_FLASH_COUNT.
 //   rate:         (video) Abspielgeschwindigkeit. 1.0 = normal, 2.0 = doppelt.
-//   gap:          (video) Pause in ms zwischen zwei Flashes. Default: VIDEO_FLASH_GAP_MS.
-//   initialDelay: (video) Wartezeit in ms zwischen Marker-Erkennung und 1. Flash.
-//                 Default: 0 (sofort).
+//   gap:          (video|flash) Pause in ms zwischen zwei Flashes. Default: VIDEO_FLASH_GAP_MS.
+//   initialDelay: (video|flash) Wartezeit in ms vor dem 1. Flash. Default: 0.
+//   duration:     (flash) Sichtbare Dauer eines Screen-Pulse in ms. Default: 150.
+//   color:        (flash) Vollbildfarbe während des Pulse. Default: '#fff' (weiß).
 // =============================================================
 const MARKER_ACTIONS = {
   0:   { type: 'video', src: 'moondance.mp4', mode: 'oneshot', rate: 2.0, flashes: 1 },
-  511: { type: 'video', src: 'moondance.mp4', mode: 'oneshot', flashes: 5, initialDelay: 2000, gap: 2000 },
+  511: { type: 'flash', mode: 'oneshot', flashes: 5, initialDelay: 2000, gap: 2000, duration: 150 },
   // 1:   { type: 'video', src: 'video2.mp4', mode: 'oneshot' },
   // 2:   { type: 'sound', src: 'whale.mp3',  mode: 'live'    },
   // 3:   { type: 'scene', name: 'eye',       mode: 'oneshot' },
@@ -101,6 +101,7 @@ let offscreenCtx;
 const videoElements = {};   // Cache: src → HTMLVideoElement (preloaded, fullscreen-overlay)
 const flashTimers   = {};   // markerId → setTimeout-Handle für die laufende Flash-Pause
 const flashRemaining = {};  // markerId → verbleibende Flashes in der aktuellen Sequenz (0 = idle)
+let flashOverlayEl   = null;// Vollbild-Overlay für 'flash'-Type (lazy erzeugt beim 1. Trigger)
 
 // Pro konfigurierter Marker-ID: { isActive, lastSeen } — Quelle der Live-Kopplung.
 const markerState = {};
@@ -263,6 +264,12 @@ function startAction(id, action) {
       break;
     }
 
+    case 'flash': {
+      const el = ensureFlashOverlay();
+      startScreenFlashCycle(id, el, action);
+      break;
+    }
+
     case 'sound': {
       // TODO: z.B. Tone.js Player erzeugen/starten.
       //   - mode='live':    Player beim Stop pausieren (Drone-Sound während Karte da ist)
@@ -307,6 +314,16 @@ function stopAction(id, action) {
         vid.currentTime = 0;
         vid.style.display = 'none';
       }
+      break;
+    }
+
+    case 'flash': {
+      if (flashTimers[id]) {
+        clearTimeout(flashTimers[id]);
+        flashTimers[id] = null;
+      }
+      flashRemaining[id] = 0;
+      if (flashOverlayEl) flashOverlayEl.style.display = 'none';
       break;
     }
 
@@ -421,6 +438,78 @@ function playVideoOnce(vid) {
   const p = vid.play();
   if (p && p.catch) {
     p.catch(err => console.warn('[moondance] video.play() blockiert/fehlgeschlagen:', err));
+  }
+}
+
+// =============================================================
+// SCREEN-FLASH (Type 'flash')
+// Vollbild-Pulse einer Farbe für `duration` ms. Wiederverwendet die gleiche
+// Counter/Timer-Logik wie der Video-Zyklus (flashTimers/flashRemaining).
+// =============================================================
+
+function ensureFlashOverlay() {
+  if (flashOverlayEl) return flashOverlayEl;
+  flashOverlayEl = document.createElement('div');
+  Object.assign(flashOverlayEl.style, {
+    position: 'fixed',
+    top: '0', left: '0',
+    width: '100vw', height: '100vh',
+    background: '#fff',
+    display: 'none',
+    zIndex: '20',          // über Video (z-index 10), unter Debug-HUD (1000)
+    pointerEvents: 'none',
+  });
+  document.body.appendChild(flashOverlayEl);
+  return flashOverlayEl;
+}
+
+function startScreenFlashCycle(id, el, action) {
+  // Re-Trigger während laufender Sequenz: ignorieren.
+  if ((flashRemaining[id] || 0) > 0) {
+    console.log(`[action] marker ${id}: Sequenz läuft noch, Re-Trigger ignoriert`);
+    return;
+  }
+  if (flashTimers[id]) {
+    clearTimeout(flashTimers[id]);
+    flashTimers[id] = null;
+  }
+  el.style.display = 'none';
+
+  const flashCount = (action.flashes !== undefined ? action.flashes : VIDEO_FLASH_COUNT);
+  flashRemaining[id] = flashCount || Infinity;
+  const gap          = (action.gap !== undefined) ? action.gap : VIDEO_FLASH_GAP_MS;
+  const duration     = action.duration || 150;
+  const color        = action.color || '#fff';
+
+  // Ein einzelner Pulse: Element zeigen → nach `duration` ausblenden → Counter --
+  // → falls Rest > 0 nächsten Pulse nach `gap` einplanen, sonst Sequenz fertig.
+  const playOne = () => {
+    el.style.background = color;
+    el.style.display = 'block';
+    flashTimers[id] = setTimeout(() => {
+      el.style.display = 'none';
+      flashTimers[id] = null;
+      flashRemaining[id]--;
+      if (flashRemaining[id] > 0) {
+        flashTimers[id] = setTimeout(() => {
+          flashTimers[id] = null;
+          playOne();
+        }, gap);
+      } else {
+        flashRemaining[id] = 0;
+      }
+    }, duration);
+  };
+
+  // Optionaler initialDelay vor dem ersten Pulse.
+  const initialDelay = action.initialDelay || 0;
+  if (initialDelay > 0) {
+    flashTimers[id] = setTimeout(() => {
+      flashTimers[id] = null;
+      playOne();
+    }, initialDelay);
+  } else {
+    playOne();
   }
 }
 
