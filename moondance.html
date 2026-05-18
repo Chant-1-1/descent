@@ -69,16 +69,19 @@ const DEBUG_PREVIEW_H = 150;
 // =============================================================
 // MARKER-ID → AKTION
 // Erweiterbar. Felder pro Eintrag:
-//   type: 'video' | 'sound' | 'scene'
-//   src:  Pfad zur Media-Datei (video, sound)
-//   name: Szenen-Identifier (scene)
-//   mode: 'live'    → läuft solange Marker sichtbar, stoppt bei Verlust (default)
-//         'oneshot' → wird beim Marker-Erscheinen einmal getriggert,
-//                     läuft dann eigenständig weiter (Stop wird ignoriert)
+//   type:    'video' | 'sound' | 'scene'
+//   src:     Pfad zur Media-Datei (video, sound)
+//   name:    Szenen-Identifier (scene)
+//   mode:    'live'    → läuft solange Marker sichtbar, stoppt bei Verlust
+//            'oneshot' → einmal getriggert, läuft dann durch (Stop ignoriert)
+//   flashes: (video) Anzahl Plays pro Trigger. 1 = einmal komplett, dann Idle
+//            bis Re-Trigger. >1 = N Durchläufe mit VIDEO_FLASH_GAP_MS dazwischen.
+//            Wenn weggelassen, gilt VIDEO_FLASH_COUNT als Default.
+//   rate:    (video) Abspielgeschwindigkeit. 1.0 = normal, 2.0 = doppelt.
 // =============================================================
 const MARKER_ACTIONS = {
-  0:   { type: 'video', src: 'moondance.mp4', mode: 'oneshot', rate: 2.0 },
-  // 511: { type: 'video', src: 'szene2.mp4',  mode: 'oneshot' },
+  0:   { type: 'video', src: 'moondance.mp4', mode: 'oneshot', rate: 2.0, flashes: 1 },
+  // 511: { type: 'video', src: 'szene2.mp4',  mode: 'oneshot', flashes: 5 },
   // 1:   { type: 'video', src: 'video2.mp4', mode: 'oneshot' },
   // 2:   { type: 'sound', src: 'whale.mp3',  mode: 'live'    },
   // 3:   { type: 'scene', name: 'eye',       mode: 'oneshot' },
@@ -365,8 +368,10 @@ function startVideoFlashCycle(id, vid, action) {
   // den ganzen Zyklus stabil — vid.playbackRate ist persistent auf dem Element.
   vid.playbackRate = action.rate || 1.0;
 
-  // Sequenz initialisieren. VIDEO_FLASH_COUNT=0 → endlos (alte Logik).
-  flashRemaining[id] = VIDEO_FLASH_COUNT || Infinity;
+  // Sequenz initialisieren. Pro-Action `flashes` schlägt globalen Default
+  // VIDEO_FLASH_COUNT. Wert 0 → endlos (alte continuous-Logik).
+  const flashCount = (action.flashes !== undefined ? action.flashes : VIDEO_FLASH_COUNT);
+  flashRemaining[id] = flashCount || Infinity;
 
   // Nach jedem Play: ausblenden, Counter prüfen, ggf. nächsten Flash einplanen.
   // Läuft UNABHÄNGIG vom Marker-State weiter (mode: 'oneshot' → stopAction
@@ -487,8 +492,9 @@ function computeStatusText(detectedMarkers) {
     if (remaining > 0) {
       const action = MARKER_ACTIONS[idStr];
       const label = action.src || action.name || action.type;
-      const total = VIDEO_FLASH_COUNT || '∞';
-      const current = (VIDEO_FLASH_COUNT || 0) - remaining + 1;
+      const flashCount = (action.flashes !== undefined ? action.flashes : VIDEO_FLASH_COUNT);
+      const total = flashCount || '∞';
+      const current = (flashCount || 0) - remaining + 1;
       const phase = flashTimers[id] ? 'gap' : 'flash';
       const rate = action.rate || 1.0;
       const rateStr = rate !== 1.0 ? `, ${rate}×` : '';
