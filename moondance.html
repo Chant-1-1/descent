@@ -89,7 +89,7 @@ const DEBUG_PREVIEW_H = 150;
 // =============================================================
 // MARKER-ID → AKTION
 // Erweiterbar. Felder pro Eintrag:
-//   type: 'video' | 'sound' | 'scene'
+//   type: 'video' | 'flash' | 'sound' | 'scene'
 //   src:  Pfad zur Media-Datei (video, sound)
 //   name: Szenen-Identifier (scene)
 //   mode: 'live'    → läuft solange Marker sichtbar, stoppt bei Verlust (default)
@@ -97,7 +97,8 @@ const DEBUG_PREVIEW_H = 150;
 //                     läuft dann eigenständig weiter (Stop wird ignoriert)
 // =============================================================
 const MARKER_ACTIONS = {
-  0: { type: 'video', src: 'moondance.mp4', mode: 'live', prelude: 'flash' },
+  0: { type: 'video', src: 'moondance.mp4', mode: 'live' },
+  4: { type: 'flash', mode: 'oneshot' },
   // 1: { type: 'video', src: 'video2.mp4', mode: 'live'    },
   // 2: { type: 'sound', src: 'whale.mp3',  mode: 'live'    },
   // 3: { type: 'scene', name: 'eye',       mode: 'oneshot' },
@@ -293,6 +294,13 @@ function startAction(id, action) {
       break;
     }
 
+    case 'flash': {
+      // Standalone light flash — no media, just the white overlay sweep.
+      // The CSS animation auto-completes; nothing to clean up on stop.
+      triggerFlash();
+      break;
+    }
+
     case 'sound': {
       // TODO: z.B. Tone.js Player erzeugen/starten.
       //   - mode='live':    Player beim Stop pausieren (Drone-Sound während Karte da ist)
@@ -336,6 +344,12 @@ function stopAction(id, action) {
         vid.currentTime = 0;
         vid.style.display = 'none';
       }
+      break;
+    }
+
+    case 'flash': {
+      // Flash is a self-completing CSS animation; nothing to stop. Usually
+      // paired with mode:'oneshot' so stopAction is short-circuited anyway.
       break;
     }
 
