@@ -1984,12 +1984,14 @@ function drawEyeClimax(){
     noStroke();
     for(let i=8;i>=0;i--){fill(220,200,140,(4+i*3.5)*b);rect(cx-4-i*4,0,8+i*8,height);}
     for(let i=0;i<18;i++){fill(220,200,140,b*45);circle(cx+sin(frameCount*0.1+i)*map(t,0,3000,110,4),random(height),random(1,2.5));}
+    // Dark letterbox at the bottom so the sub text reads cleanly over the beam
+    fill(0,0,0,160*b);noStroke();rect(0,height*0.72,width,height*0.28);
     if(t<4000&&eyeLabel){
-      showSub('the watcher mother has chosen you.\nshe has seen how you '+eyeLabel.verb+'.\nshe calls you — '+eyeLabel.label+'.',null,'rgba(210,190,130,0.75)','16px');
+      showSub('the watcher mother has chosen you.\nshe has seen how you '+eyeLabel.verb+'.\nshe calls you — '+eyeLabel.label+'.',null,'rgba(250,235,195,0.98)','17px');
     } else if(t>=4000&&t<8000){
       hideSub(); // 4s gap between the two subs
     } else if(t>=8000){
-      showSub('the tubes adjust\nnow\ni raise my gaze\nslowly',null,'rgba(220,200,140,0.85)','22px');
+      showSub('the tubes adjust\nnow\ni raise my gaze\nslowly',null,'rgba(252,240,205,0.98)','22px');
     }
     if(t>=12000){eyeClimaxPhase='B';eyePhaseStart=millis();eyeLookFrames={total:0,looking:0};hideSub();}
   }
