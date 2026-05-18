@@ -129,8 +129,18 @@ An air system schematic — pressure gauges, valves, warning lights.
 > the oldest was born to someone who remembered sky.
 > we call them the mothers.
 > they have not been asked our names.
+> the watcher mother decides who walks up.
 
-Four mothers — provisioner, lawgiver, listener, sleeper — each with her glyph and her role.
+Five mothers — provisioner, engineer, memory, navigator, watcher — each with her glyph and her role. The watcher chooses who climbs to the altar.
+
+### offering to kheir
+> the third week. the first blood.
+> a cloth, weighted, set to drift upward.
+> kheir keeps what he chooses to keep.
+> the mothers count permits.
+> the women count tides.
+
+A vertical water-cut. The station crouches at the bottom of the frame, dark. The ice ceiling above; the moon over the ice, halo soft. From a tiny warm pinprick of light on the station's upper chamber, a single cloth — weighted at the hem — drifts slowly upward, breathing on the 4.7-second heartbeat. Earlier offerings hang faded at intermediate heights, previous cycles still on their way to Kheir or already kept by him.
 
 After all four signals: **ascend.**
 
@@ -150,6 +160,12 @@ This is the quiet the station keeps each cycle. A held breath. *No bug.*
 > *the eye.*
 
 A vertical light beam falls from above. Where it lands on the floor, faint concentric rings breathe on the 4.7-second heartbeat. Dust drifts in the beam. Embers rise.
+
+If the player lingers in the chamber, after fifteen seconds a single whisper arrives:
+> *those who return pause for 4.7 seconds.*
+> *before they answer.*
+
+The heartbeat names itself.
 
 Two signals.
 

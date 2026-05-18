@@ -336,7 +336,7 @@ let momentsCfg=null,hullPalette=null,vizCfg=null;
 const vizPlayers={};
 let activeVizDuck=false; // true while a viz with hasOwnSound has ducked the scene
 let activeViz=null,vizStart=0,vizAlpha=0,vizDismissing=false,vizDismissStart=0,activeVizQuote='';
-let scene=0,sceneVisited=[0,0,0],sceneRequired=[3,4,2],scenesUnlocked=[true,true,true];
+let scene=0,sceneVisited=[0,0,0],sceneRequired=[3,5,2],scenesUnlocked=[true,true,true];
 let bgBrt=0;
 let ascendVisible=false,ascendX=0,ascendY=0,ascendHovered=false;
 let transitioning=false,transitionStart=0,transitionBuilt=false,transitionTarget=0;
@@ -352,6 +352,8 @@ let hullPieces=[],hullPlayers={},hullClickTimes=[];
 let hullLastClicked=null,hullChainCount=0,hullEverTriggered=false,hullHintShown=false;
 // "Morning touch" — single soft hull tap when entering the station, reset on leave
 let morningTouchPlayer=null,scene2EntryPlayed=false;
+// Eye-scene heartbeat-anchor whisper: fires once, 15s after first entry per session
+let eyeIntroWhisperShown=false,eyeIntroWhisperTimer=null;
 // "Silence Hours" — 4s near-silence interlude on station→eye transition
 let silenceUnderwaterPlayer=null,silenceCreakPlayer=null,silenceHours=false,silenceTransition=false;
 // Process-intro drone bridge — atmospheric thread from process scene to experience
@@ -502,6 +504,7 @@ function initAudio(){
     daily_life:'metal-clanking.mp3',
     air_oxygen:'valve-relief.mp3',
     the_mothers:'pump-release.mp3',
+    offering_to_kheir:'water-pipe.mp3',
     mythology:'whale-low.mp3',
     selection:'whale-fx1.mp3'
   };
@@ -524,6 +527,9 @@ function initAudio(){
                       {def:'factory-ambience',vol:15,startMs:0}]},
     air_oxygen:    {hasOwnSound:false,sceneDuck:100,layers:[]},
     the_mothers:   {hasOwnSound:false,sceneDuck:100,layers:[]},
+    offering_to_kheir: {hasOwnSound:true, sceneDuck:60, layers:[
+                          {def:'__none__',vol:30,startMs:0},
+                          {def:'__none__',vol:20,startMs:0}]},
     mythology:     {hasOwnSound:false,sceneDuck:100,layers:[]},
     selection:     {hasOwnSound:false,sceneDuck:100,layers:[]}
   };
@@ -1056,6 +1062,7 @@ function drawVisualization(){
     if(v==='shrinking_belt')drawVizBelt(vizAlpha);else if(v==='deep_parade')drawVizParade(vizAlpha);else if(v==='sea_level')drawVizSea(vizAlpha);
     else if(v==='hierarchy')drawVizHierarchy(vizAlpha);else if(v==='daily_life')drawVizDaily(vizAlpha);
     else if(v==='air_oxygen')drawVizAir(vizAlpha);else if(v==='the_mothers')drawVizMothers(vizAlpha);
+    else if(v==='offering_to_kheir')drawVizOffering(vizAlpha);
     else if(v==='mythology')drawVizMyth(vizAlpha);else if(v==='selection')drawVizSelection(vizAlpha);
     pop();drawingContext.restore();
   }
@@ -1387,6 +1394,138 @@ function drawVizSea(a){
 function drawVizHierarchy(a){const cx=width/2,t=min((millis()-vizStart)/10000,1);const stW=width*0.3,stL=cx-stW/2,stR=cx+stW/2,stT=height*0.1,stB=height*0.85;stroke(80,140,140,a*0.4);strokeWeight(1);noFill();rect(stL,stT,stW,stB-stT,4);const levels=[{name:'UPPER LEVEL',sub:'council of mothers · filtered sunlight',y:stT,h:(stB-stT)*0.25,col:[200,180,100],la:0.25},{name:'MIDDLE LEVEL',sub:'workers · technicians · farmers',y:stT+(stB-stT)*0.28,h:(stB-stT)*0.32,col:[120,160,160],la:0.08},{name:'THE DEEPS',sub:'maintenance · outcasts · darkness',y:stT+(stB-stT)*0.63,h:(stB-stT)*0.35,col:[60,90,100],la:0}];for(let lv of levels){const fi3=constrain((t-0.1)*3,0,1);fill(lv.col[0],lv.col[1],lv.col[2],a*0.08*fi3);noStroke();rect(stL+2,lv.y+2,stW-4,lv.h-2);if(lv.la>0){for(let y2=0;y2<lv.h*0.5;y2++){stroke(220,200,120,a*lv.la*(1-y2/(lv.h*0.5))*fi3);line(stL+2,lv.y+y2,stR-2,lv.y+y2);}}noStroke();const fc=lv.name==='THE DEEPS'?2:lv.name==='UPPER LEVEL'?3:5;for(let i=0;i<fc;i++){const fx=stL+stW*0.2+i*(stW*0.6/(fc-1||1)),fy=lv.y+lv.h*0.5;stroke(lv.col[0]+40,lv.col[1]+40,lv.col[2]+40,a*0.5*fi3);strokeWeight(1);circle(fx,fy-12,6);line(fx,fy-9,fx,fy+5);line(fx,fy+5,fx-4,fy+14);line(fx,fy+5,fx+4,fy+14);}noStroke();fill(lv.col[0]+60,lv.col[1]+60,lv.col[2]+60,a*0.7*fi3);textSize(14);textAlign(CENTER);text(lv.name,cx,lv.y+lv.h*0.3);fill(lv.col[0]+30,lv.col[1]+30,lv.col[2]+30,a*0.45*fi3);textSize(11);text(lv.sub,cx,lv.y+lv.h*0.3+18);}stroke(80,140,140,a*0.25);strokeWeight(0.5);line(stL,levels[1].y,stR,levels[1].y);line(stL,levels[2].y,stR,levels[2].y);noStroke();fill(220,180,100,a*0.5*t);textSize(11);textAlign(CENTER);text('☀ light ↓',stL-60,height*0.3);text('authority ↓',stL-60,height*0.45);fill(100,180,160,a*0.5*t);text('resources ↑',stR+60,height*0.55);fill(120,180,180,a*0.5);textSize(15);text('proximity to light determines social standing',cx,stB+28);}
 // --- DAILY LIFE ---
 function drawVizDaily(a){const cx=width/2,cy=height/2,r=min(width,height)*0.3,t=min((millis()-vizStart)/10000,1);stroke(60,120,120,a*0.3);strokeWeight(0.5);noFill();ellipse(cx,cy,r*2,r*2);const segs=[{name:'rest cycle',icon:'◌',ang:0,span:0.2,col:[40,70,90]},{name:'first interval',icon:'▢',ang:0.2,span:0.15,col:[80,130,120]},{name:'work shift',icon:'⚙',ang:0.35,span:0.25,col:[140,160,140]},{name:'communal meal',icon:'◎',ang:0.6,span:0.1,col:[160,140,100]},{name:'hull songs',icon:'∿',ang:0.7,span:0.12,col:[120,180,170]},{name:'silence hours',icon:'—',ang:0.82,span:0.18,col:[50,80,100]}];for(let sg of segs){const fi4=constrain((t-(sg.ang*0.5))*4,0,1);const a1=-HALF_PI+sg.ang*TWO_PI,a2=-HALF_PI+(sg.ang+sg.span)*TWO_PI;stroke(sg.col[0],sg.col[1],sg.col[2],a*0.4*fi4);strokeWeight(r*0.15);noFill();arc(cx,cy,r*1.6,r*1.6,a1,a2);const midA=(a1+a2)/2;noStroke();fill(sg.col[0]+60,sg.col[1]+60,sg.col[2]+60,a*0.6*fi4);textSize(11);textAlign(CENTER);text(sg.name,cx+cos(midA)*(r+50),cy+sin(midA)*(r+50));textSize(16);text(sg.icon,cx+cos(midA)*(r+50),cy+sin(midA)*(r+50)-16);}fill(120,180,180,a*0.5);textSize(14);textAlign(CENTER);text('mechanical cycle',cx,cy-8);fill(80,140,140,a*0.35);textSize(11);text('no sun · no day · no night',cx,cy+10);fill(120,180,180,a*0.5);textSize(15);text('life follows the rhythm of machines',cx,cy+r+65);}
+// --- OFFERING TO KHEIR ---
+// Vertical water-cut. Station silhouette at the bottom, ice + moon at the top.
+// One opaque cloth ascends slowly from station to ice over the viz lifetime,
+// breathing on the 4.7s heartbeat. Faded earlier cloths sit at intermediate
+// heights — previous cycles. Cold blue + warm moon-cream palette.
+function drawVizOffering(a){
+  const fi=a/230;
+  const t=min((millis()-vizStart)/12000,1);
+  const cx=width/2;
+  const iceY=height*0.16;       // top of ice / boundary to surface
+  const stationTopY=height*0.78; // station roof, where the cloth begins
+  const moonY=height*0.08;
+
+  // 1) Water gradient — deep blue at bottom, lighter blue near the ice
+  const ctx=drawingContext;
+  ctx.save();
+  const wg=ctx.createLinearGradient(0,iceY,0,height);
+  wg.addColorStop(0,'rgba(35,70,100,'+(fi*0.95)+')');
+  wg.addColorStop(0.5,'rgba(20,45,75,'+(fi*0.95)+')');
+  wg.addColorStop(1,'rgba(8,22,48,'+(fi*0.95)+')');
+  ctx.fillStyle=wg; ctx.fillRect(0,iceY,width,height-iceY);
+  ctx.restore();
+
+  // 2) Ice ceiling — thin band with faint texture
+  noStroke();
+  fill(180,200,215,fi*60); rect(0,0,width,iceY);
+  fill(150,175,195,fi*40); rect(0,iceY-4,width,4);
+  // a few cracks
+  stroke(200,215,225,fi*40); strokeWeight(0.6);
+  for(let i=0;i<6;i++){
+    const x=(i+0.5)*width/6+sin(i*1.7)*40;
+    line(x, iceY-2, x+cos(i*2.3)*30, iceY-iceY*0.6);
+  }
+  noStroke();
+
+  // 3) Moon — radial gradient halo above the ice, plus disc
+  ctx.save();
+  const mg=ctx.createRadialGradient(cx,moonY,4,cx,moonY,180);
+  mg.addColorStop(0,'rgba(255,245,215,'+(fi*0.75)+')');
+  mg.addColorStop(0.3,'rgba(245,228,180,'+(fi*0.35)+')');
+  mg.addColorStop(1,'rgba(245,228,180,0)');
+  ctx.fillStyle=mg; ctx.fillRect(0,0,width,iceY*1.6);
+  ctx.restore();
+  fill(255,245,215,fi*210); circle(cx,moonY,42);
+  // subtle face/relief on moon
+  fill(220,205,170,fi*80); circle(cx-6,moonY-3,8);
+  fill(220,205,170,fi*60); circle(cx+9,moonY+4,5);
+
+  // 4) Simplified station silhouette at the bottom — abstracted block + neck
+  noStroke();
+  fill(6,12,20,fi*235);
+  const sW=width*0.42, sH=height*0.18;
+  const sX=cx-sW/2, sY=stationTopY;
+  // main body — slightly rounded trapezoid
+  beginShape();
+  vertex(sX+sW*0.05, sY+sH*0.18);
+  vertex(sX+sW*0.18, sY);
+  vertex(sX+sW*0.82, sY);
+  vertex(sX+sW*0.95, sY+sH*0.18);
+  vertex(sX+sW,      sY+sH);
+  vertex(sX,         sY+sH);
+  endShape(CLOSE);
+  // neck/tower
+  fill(10,18,28,fi*215);
+  const nW=18, nH=42;
+  rect(cx-nW/2, sY-nH, nW, nH);
+  fill(20,32,46,fi*200); rect(cx-nW/2-3, sY-nH, nW+6, 6);
+  // tiny pinprick of warm light on the neck — the offering chamber
+  fill(220,170,100,fi*150*(sin(frameCount*0.05)*0.2+0.8));
+  circle(cx, sY-nH+10, 3);
+
+  // 5) Earlier offerings — faded cloths at fixed intermediate heights
+  const earlierClothShape = [
+    [-12,-22],[ -3,-26],[  8,-22],[ 14,-12],[ 12,  4],
+    [  5, 16],[ -4, 22],[-12, 18],[-16,  4],[-15, -8]
+  ];
+  const earlier=[
+    {x:cx-width*0.18, y:stationTopY - (stationTopY-iceY)*0.30, sc:0.85, op:0.18},
+    {x:cx+width*0.13, y:stationTopY - (stationTopY-iceY)*0.55, sc:0.75, op:0.14},
+    {x:cx-width*0.08, y:stationTopY - (stationTopY-iceY)*0.78, sc:0.92, op:0.12},
+    {x:cx+width*0.21, y:stationTopY - (stationTopY-iceY)*0.92, sc:0.70, op:0.10}
+  ];
+  noStroke();
+  for(const e of earlier){
+    push(); translate(e.x, e.y); scale(e.sc);
+    fill(220,215,200, fi*255*e.op);
+    beginShape();
+    for(const p of earlierClothShape) vertex(p[0]+sin((p[1]+frameCount)*0.012)*1.4, p[1]);
+    endShape(CLOSE);
+    pop();
+  }
+
+  // 6) Current cloth — ascends from stationTopY to iceY over t=0..0.92,
+  //    then drifts the last bit. Breathes on the 4.7s heartbeat.
+  const rise = constrain(t/0.92, 0, 1);
+  const cy = stationTopY - (stationTopY - iceY - 14) * rise;
+  const beat = sin(((millis()+vizStart)%HEARTBEAT_MS)/HEARTBEAT_MS * TWO_PI);
+  const breath = 1 + beat*0.04;            // ±4% scale
+  const clothAlpha = (0.65 + beat*0.10) * fi;
+  // weighted hem — a small dark drop below the cloth
+  fill(20,28,40, fi*180);
+  ellipse(cx, cy+24*breath, 6, 3);
+  // cloth itself, asymmetric and very slightly waving
+  push(); translate(cx, cy); scale(breath);
+  noStroke(); fill(232,225,205, 255*clothAlpha);
+  beginShape();
+  const clothShape=[
+    [-18,-28],[ -6,-32],[  9,-28],[ 17,-16],[ 14,  6],
+    [ 18, 20],[  7, 28],[ -5, 26],[-14, 18],[-22,  4],[-20,-12]
+  ];
+  for(const p of clothShape){
+    const wob=sin((p[1]+frameCount*1.5)*0.04)*1.6;
+    vertex(p[0]+wob, p[1]);
+  }
+  endShape(CLOSE);
+  // inner highlight (where the moon catches it)
+  fill(255,248,228, 220*clothAlpha*0.55);
+  beginShape();
+  for(const p of clothShape){
+    const wob=sin((p[1]+frameCount*1.5)*0.04)*1.6;
+    vertex(p[0]*0.55+wob*0.6, p[1]*0.55-3);
+  }
+  endShape(CLOSE);
+  pop();
+
+  // 7) Thin vertical line from station chamber to cloth — the path
+  stroke(220,215,200, fi*30*(1-rise));
+  strokeWeight(0.4);
+  line(cx, sY-nH+14, cx, cy+22*breath);
+  noStroke();
+}
+
 // --- AIR & OXYGEN (new) ---
 function drawVizAir(a){
   const cx=width/2,cy=height/2,t=min((millis()-vizStart)/10000,1);
@@ -1647,7 +1786,8 @@ function getSceneHotspots(s){
     {x:0.2,y:0.3,viz:'hierarchy',q:"proximity to light determines everything.\nthose above decide. those below maintain.\nthose at the bottom are forgotten."},
     {x:0.5,y:0.25,viz:'daily_life',q:"we speak in borrowed words and water sounds.\nyou eat what the ocean gives.\nyou sleep when the machines quiet.\nyou strike the walls — and call it singing."},
     {x:0.75,y:0.6,viz:'air_oxygen',q:"one of the lower modules lost pressure again.\nour systems are old — some built before the great flood.\nwe keep them running with patches and prayer."},
-    {x:0.35,y:0.7,viz:'the_mothers',q:"they count their years from the surface.\nthe oldest was born to someone who remembered sky.\nwe call them the mothers.\nthey have not been asked our names."}];
+    {x:0.35,y:0.7,viz:'the_mothers',q:"they count their years from the surface.\nthe oldest was born to someone who remembered sky.\nwe call them the mothers.\nthey have not been asked our names.\nthe watcher mother decides who walks up."},
+    {x:0.62,y:0.75,viz:'offering_to_kheir',q:"the third week. the first blood.\na cloth, weighted, set to drift upward.\nkheir keeps what he chooses to keep.\nthe mothers count permits.\nthe women count tides."}];
   return[
     {x:0.35,y:0.55,viz:'mythology',q:"vahra. the sun goddess. she turned away.\nkheir. the moon. he holds the ice. he mourns.\nwe built the eye to look back at her.\nif she accepts you — you see.\nif not — you never see again."},
     {x:0.65,y:0.45,viz:'selection',q:"they say my name. once.\nthat's enough.\nsomething tightens inside me."}];
@@ -1688,7 +1828,23 @@ function buildScene(s){
   }else{
     scene2EntryPlayed=false;
   }
-  if(s===2)generateEyeElements();
+  if(s===2){
+    generateEyeElements();
+    // Heartbeat-anchor whisper — once per session, 15s after first eye entry.
+    // Skipped in pres-mode (its own pacing) and re-cancelled on any leave.
+    if(!eyeIntroWhisperShown && !presMode){
+      if(eyeIntroWhisperTimer) clearTimeout(eyeIntroWhisperTimer);
+      eyeIntroWhisperTimer=setTimeout(()=>{
+        if(scene===2 && !activeViz && !eyeActive && !eyeIntroWhisperShown){
+          eyeIntroWhisperShown=true;
+          playWhisper('those who return pause for 4.7 seconds.\nbefore they answer.');
+        }
+        eyeIntroWhisperTimer=null;
+      },15000);
+    }
+  } else if(eyeIntroWhisperTimer){
+    clearTimeout(eyeIntroWhisperTimer); eyeIntroWhisperTimer=null;
+  }
   updateSceneAudio();updateMenu();
   if(stationHtmlBgEl)stationHtmlBgEl.style.display=(s===1)?'block':'none';
 }

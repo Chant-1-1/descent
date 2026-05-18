@@ -510,6 +510,7 @@ const DEFAULT_HOTSPOTS = [
   { vizId: 'daily_life',     name: 'station · daily',     def: 'metal-clanking' },
   { vizId: 'air_oxygen',     name: 'station · air/o2',    def: 'valve-relief' },
   { vizId: 'the_mothers',    name: 'station · n°39',      def: 'pump-release' },
+  { vizId: 'offering_to_kheir', name: 'station · offering', def: 'water-pipe' },
   { vizId: 'mythology',      name: 'eye · mythology',     def: 'whale-low' },
   { vizId: 'selection',      name: 'eye · selection',     def: 'whale-fx1' }
 ];
@@ -551,6 +552,15 @@ const DEFAULT_VIZ_CONFIG = {
   },
   air_oxygen:  { hasOwnSound: false, sceneDuck: 100, layers: [] },
   the_mothers: { hasOwnSound: false, sceneDuck: 100, layers: [] },
+  // Active card so the user can configure layers immediately. Defaults start
+  // with two empty layers (def:'__none__') — fill them via the mixer UI.
+  offering_to_kheir: {
+    hasOwnSound: true, sceneDuck: 60,
+    layers: [
+      { def: '__none__', vol: 30, startMs: 0 },
+      { def: '__none__', vol: 20, startMs: 0 }
+    ]
+  },
   mythology:   { hasOwnSound: false, sceneDuck: 100, layers: [] },
   selection:   { hasOwnSound: false, sceneDuck: 100, layers: [] }
 };
