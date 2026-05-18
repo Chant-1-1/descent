@@ -1236,7 +1236,7 @@ function drawVizBelt(a){
   const stn=[{lon:-20,lat:1},{lon:35,lat:-1},{lon:90,lat:2},{lon:150,lat:-1}];
   for(let st of stn){const p=mollweide(st.lat,st.lon,cx,cy,rw,rh);
     stroke(100,200,200,a*0.35);strokeWeight(0.6);noFill();circle(p.x,p.y,10);
-    fill(130,210,210,a*0.7);noStroke();circle(p.x,p.y,3);fill(100,200,200,a*0.3);textSize(8);textAlign(LEFT);text('stn',p.x+8,p.y+3);}
+    fill(130,210,210,a*0.7);noStroke();circle(p.x,p.y,3);fill(100,200,200,a*0.3);textSize(12);textAlign(LEFT);text('station',p.x+8,p.y+3);}
   // Sun (lethal)
   const sunY=cy-rh-55;stroke(220,130,35,a*0.05);strokeWeight(0.4);
   for(let i=0;i<25;i++){const rx=cx+sin(frameCount*0.015+i*0.5)*rw*0.6;line(rx,sunY+20,rx+sin(frameCount*0.03+i)*3,cy-rh+5);}
@@ -1244,12 +1244,12 @@ function drawVizBelt(a){
   fill(220,155,45,a*0.15);circle(cx,sunY,28);fill(245,195,80,a*0.65);circle(cx,sunY,12);
   stroke(220,130,40,a*0.2);strokeWeight(0.8);for(let i=0;i<8;i++){const ang=i*PI/4+frameCount*0.008;line(cx+cos(ang)*18,sunY+sin(ang)*18,cx+cos(ang)*32,sunY+sin(ang)*32);}
   // Labels
-  noStroke();textAlign(CENTER);fill(220,130,50,a*0.5);textSize(13);
+  noStroke();textAlign(CENTER);fill(220,130,50,a*0.5);textSize(14);
   text('\u2622 lethal solar radiation \u00b7 3-4 hours = fatal dose',cx,sunY-35);
   fill(195,220,245,a*0.6);textSize(15);text('polar ice \u2014 expanding toward equator',cx,cy-rh-15);
   fill(55,175,145,a*0.6);textSize(14);text('equatorial belt \u2014 geothermally stabilized',cx,cy+rh+28);
   fill(120,180,180,a*0.4);textSize(12);text('avg temperature: 0\u00b0C \u00b7 year 3126',cx,cy+rh+48);
-  fill(195,220,245,a*0.3);textSize(9);textAlign(LEFT);
+  fill(195,220,245,a*0.3);textSize(12);textAlign(LEFT);
   const iceNy=cy-rh*(iceEdge/90),iceNhw=rw*sqrt(max(0,1-pow((iceNy-cy)/rh,2)));
   text(Math.round(iceEdge)+'\u00b0N ice edge',cx+iceNhw*0.55+8,iceNy);
   const iceSy=cy+rh*(iceEdge/90),iceShw=rw*sqrt(max(0,1-pow((iceSy-cy)/rh,2)));
@@ -1584,24 +1584,25 @@ function drawVizMyth(a){
   const symX=cx+190,symY=cy-10,symSize=95,sc=symSize/902.46;
   const ctx2=drawingContext;ctx2.save();
   ctx2.translate(symX-451.23*sc,symY-402.75*sc);ctx2.scale(sc,sc);
-  ctx2.strokeStyle='rgba(214,200,65,'+fi*0.78+')';
+  ctx2.fillStyle = `rgba(95,105,125,${a/255*0.75})`;
+  ctx2.strokeStyle = `rgba(140,150,170,${a/255*0.45})`;
   ctx2.lineWidth=9;ctx2.setLineDash([]);
   // Main body path
   ctx2.beginPath();ctx2.moveTo(451.23,155.52);
   ctx2.bezierCurveTo(97.06,150.74,7.55,661.22,334.69,780.82);
   ctx2.bezierCurveTo(267.99,691.75,338.67,553.17,451.24,556.62);
   ctx2.bezierCurveTo(563.78,553.17,634.51,691.77,567.78,780.82);
-  ctx2.bezierCurveTo(895.07,661.13,805.22,150.74,451.23,155.52);ctx2.closePath();ctx2.stroke();
+  ctx2.bezierCurveTo(895.07,661.13,805.22,150.74,451.23,155.52);ctx2.closePath();ctx2.fill();ctx2.stroke();
   // Inner ellipse
   ctx2.beginPath();ctx2.moveTo(554.65,699.04);
   ctx2.bezierCurveTo(552.33,834.99,350.1,834.97,347.8,699.04);
-  ctx2.bezierCurveTo(350.12,563.09,552.35,563.11,554.65,699.04);ctx2.closePath();ctx2.stroke();
+  ctx2.bezierCurveTo(350.12,563.09,552.35,563.11,554.65,699.04);ctx2.closePath();ctx2.fill(); ctx2.stroke();
   // Triangles
   [[360.38,97.21,451.23,6.36,542.08,97.21],[156,222.66,176.1,95.76,303,115.86],
    [64.38,444.27,6.06,329.8,120.53,271.47],[120.53,677.42,6.05,619.09,64.38,504.61],
    [746.46,222.66,726.36,95.76,599.46,115.86],[838.07,444.27,896.4,329.8,781.93,271.47],
    [781.93,677.42,896.4,619.09,838.08,504.61]].forEach(p=>{
-    ctx2.beginPath();ctx2.moveTo(p[0],p[1]);ctx2.lineTo(p[2],p[3]);ctx2.lineTo(p[4],p[5]);ctx2.closePath();ctx2.stroke();});
+    ctx2.beginPath();ctx2.moveTo(p[0],p[1]);ctx2.lineTo(p[2],p[3]);ctx2.lineTo(p[4],p[5]);ctx2.closePath();ctx2.fill();ctx2.stroke();});
   ctx2.restore();
 
   // Labels
