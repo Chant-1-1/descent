@@ -1141,17 +1141,17 @@ function drawVizMothers(a){
 
     // Title
     fill(m.col[0]+55,m.col[1]+55,m.col[2]+45,fi*fi2*220);
-    textSize(10);textAlign(CENTER);textStyle(BOLD);
-    text(m.title,mx,fy+75);textStyle(NORMAL);
+    textSize(14);textAlign(CENTER);textStyle(BOLD);
+    text(m.title,mx,fy+92);textStyle(NORMAL);
 
     // Divider
     stroke(m.col[0],m.col[1],m.col[2],fi*fi2*60);strokeWeight(0.4);
-    line(cardX+cardW*0.15,fy+85,cardX+cardW*0.85,fy+85);
+    line(cardX+cardW*0.15,fy+105,cardX+cardW*0.85,fy+105);
 
     // Role lines
     noStroke();fill(m.col[0]+25,m.col[1]+25,m.col[2]+20,fi*fi2*170);
-    textSize(9.5);textAlign(CENTER);
-    m.role.forEach((rl,ri)=>text(rl,mx,fy+102+ri*14));
+    textSize(12);textAlign(CENTER);
+    m.role.forEach((rl,ri)=>text(rl,mx,fy+128+ri*16));
   });
 
   // Bottom note
