@@ -1986,12 +1986,12 @@ function drawEyeClimax(){
     for(let i=0;i<18;i++){fill(220,200,140,b*45);circle(cx+sin(frameCount*0.1+i)*map(t,0,3000,110,4),random(height),random(1,2.5));}
     if(t<4000&&eyeLabel){
       showSub('the watcher mother has chosen you.\nshe has seen how you '+eyeLabel.verb+'.\nshe calls you — '+eyeLabel.label+'.',null,'rgba(210,190,130,0.75)','16px');
-    } else if(t>=4000&&t<6000){
-      hideSub(); // 2s gap between the two subs
-    } else if(t>=6000){
+    } else if(t>=4000&&t<8000){
+      hideSub(); // 4s gap between the two subs
+    } else if(t>=8000){
       showSub('the tubes adjust\nnow\ni raise my gaze\nslowly',null,'rgba(220,200,140,0.85)','22px');
     }
-    if(t>=9000){eyeClimaxPhase='B';eyePhaseStart=millis();eyeLookFrames={total:0,looking:0};hideSub();}
+    if(t>=12000){eyeClimaxPhase='B';eyePhaseStart=millis();eyeLookFrames={total:0,looking:0};hideSub();}
   }
 
   // Phase B: 4.7s cursor tracking window
