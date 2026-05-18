@@ -1406,16 +1406,43 @@ function drawVizOffering(a){
   const iceY=height*0.16;       // top of ice / boundary to surface
   const stationTopY=height*0.78; // station roof, where the cloth begins
   const moonY=height*0.08;
+  const ctx=drawingContext;     // used by moon's radial gradient below
 
-  // 1) Water gradient — deep blue at bottom, lighter blue near the ice
-  const ctx=drawingContext;
-  ctx.save();
-  const wg=ctx.createLinearGradient(0,iceY,0,height);
-  wg.addColorStop(0,'rgba(35,70,100,'+(fi*0.95)+')');
-  wg.addColorStop(0.5,'rgba(20,45,75,'+(fi*0.95)+')');
-  wg.addColorStop(1,'rgba(8,22,48,'+(fi*0.95)+')');
-  ctx.fillStyle=wg; ctx.fillRect(0,iceY,width,height-iceY);
-  ctx.restore();
+  // 1) World-scene background, static — matches the scene 0 aesthetic so the
+  //    offering reads as taking place in the same water column as the world.
+  //    Dark teal-blue base + faint vertical arch lines + a quiet far-station
+  //    silhouette behind the foreground station.
+  noStroke();
+  fill(2,12,18,fi*255);
+  rect(0,iceY,width,height-iceY);
+  // Vertical arch lines on both sides — same teal stroke as world's archLines
+  stroke(120,180,180,fi*30);
+  strokeWeight(0.5);
+  for(let i=0;i<6;i++){
+    line(80+i*8, iceY, 80+i*8, height);
+    line(width-80-i*8, iceY, width-80-i*8, height);
+  }
+  // Horizontal sea-level marker, deep below the surface (matches world's bottom line)
+  stroke(120,180,180,fi*22);
+  line(0, height*0.92, width, height*0.92);
+  noStroke();
+  // Far station silhouette — STATION_LAYERS at a handful of fixed positions
+  // (deterministic, not the random scatter of StationSilhouette) so the viz
+  // composes the same every time.
+  const farPieces=[
+    {x:cx*0.45, y:height*0.52, sc:0.55, rot:-0.18},
+    {x:cx*0.85, y:height*0.48, sc:0.42, rot:0.05},
+    {x:cx*1.25, y:height*0.55, sc:0.62, rot:0.12},
+    {x:cx*1.65, y:height*0.50, sc:0.38, rot:-0.06}
+  ];
+  for(const p of farPieces){
+    push(); translate(p.x,p.y); rotate(p.rot); scale(p.sc);
+    for(const l of STATION_LAYERS){
+      fill(l.col[0],l.col[1],l.col[2], l.op*255*0.08*fi);
+      beginShape(); for(const pt of l.pts) vertex(pt[0],pt[1]); endShape(CLOSE);
+    }
+    pop();
+  }
 
   // 2) Ice ceiling — thin band with faint texture
   noStroke();
@@ -1429,18 +1456,31 @@ function drawVizOffering(a){
   }
   noStroke();
 
-  // 3) Moon — radial gradient halo above the ice, plus disc
+  // 3) Moon above the ice — Kheir, the moon goddess who keeps what is sent up.
+  //    Same layered-disc + halo approach as the sea_level sun, but in a cool
+  //    cream-blue palette and without the lethal radiation rays.
+  const moonX=cx;
   ctx.save();
-  const mg=ctx.createRadialGradient(cx,moonY,4,cx,moonY,180);
-  mg.addColorStop(0,'rgba(255,245,215,'+(fi*0.75)+')');
-  mg.addColorStop(0.3,'rgba(245,228,180,'+(fi*0.35)+')');
-  mg.addColorStop(1,'rgba(245,228,180,0)');
-  ctx.fillStyle=mg; ctx.fillRect(0,0,width,iceY*1.6);
+  // Soft atmospheric halo — cool moon scatter, much dimmer than a sun corona
+  const mg=ctx.createRadialGradient(moonX,moonY,12,moonX,moonY,height*0.42);
+  mg.addColorStop(0, 'rgba(240,238,225,'+(fi*0.35)+')');
+  mg.addColorStop(0.25,'rgba(220,225,235,'+(fi*0.18)+')');
+  mg.addColorStop(0.6, 'rgba(180,195,215,'+(fi*0.07)+')');
+  mg.addColorStop(1, 'rgba(120,140,170,0)');
+  ctx.fillStyle=mg; ctx.fillRect(0,0,width,height*0.42);
   ctx.restore();
-  fill(255,245,215,fi*210); circle(cx,moonY,42);
-  // subtle face/relief on moon
-  fill(220,205,170,fi*80); circle(cx-6,moonY-3,8);
-  fill(220,205,170,fi*60); circle(cx+9,moonY+4,5);
+  noStroke();
+  // Disc — 4 layers from soft outer pearl to bright white core
+  fill(200,210,225, fi*0.20*255); circle(moonX,moonY,110);
+  fill(225,225,220, fi*0.45*255); circle(moonX,moonY,64);
+  fill(240,238,225, fi*0.85*255); circle(moonX,moonY,42);
+  fill(252,250,240, fi*0.95*255); circle(moonX,moonY,32);
+  // Subtle surface markings — faint craters / maria
+  fill(195,200,205, fi*0.30*255); circle(moonX-9, moonY-4, 7);
+  fill(195,200,205, fi*0.22*255); circle(moonX+8, moonY+6, 5);
+  fill(195,200,205, fi*0.18*255); circle(moonX-3, moonY+10, 3);
+  // Limb highlight (thin bright crescent along the upper-left edge)
+  fill(255,253,245, fi*0.45*255); circle(moonX-7, moonY-9, 5);
 
   // 4) Simplified station silhouette at the bottom — abstracted block + neck
   noStroke();
@@ -1479,7 +1519,8 @@ function drawVizOffering(a){
   noStroke();
   for(const e of earlier){
     push(); translate(e.x, e.y); scale(e.sc);
-    fill(220,215,200, fi*255*e.op);
+    // Burgundy red — same hue as the current cloth, lower opacity for the older ones
+    fill(120, 25, 35, fi*255*e.op*1.6);
     beginShape();
     for(const p of earlierClothShape) vertex(p[0]+sin((p[1]+frameCount)*0.012)*1.4, p[1]);
     endShape(CLOSE);
@@ -1498,7 +1539,9 @@ function drawVizOffering(a){
   ellipse(cx, cy+24*breath, 6, 3);
   // cloth itself, asymmetric and very slightly waving
   push(); translate(cx, cy); scale(breath);
-  noStroke(); fill(232,225,205, 255*clothAlpha);
+  noStroke();
+  // Burgundy red — first-blood cloth, weighted and ascending
+  fill(140, 30, 40, 255*clothAlpha);
   beginShape();
   const clothShape=[
     [-18,-28],[ -6,-32],[  9,-28],[ 17,-16],[ 14,  6],
@@ -1509,8 +1552,8 @@ function drawVizOffering(a){
     vertex(p[0]+wob, p[1]);
   }
   endShape(CLOSE);
-  // inner highlight (where the moon catches it)
-  fill(255,248,228, 220*clothAlpha*0.55);
+  // inner highlight (where the moon catches it from above) — cooler tint
+  fill(210, 130, 130, 220*clothAlpha*0.55);
   beginShape();
   for(const p of clothShape){
     const wob=sin((p[1]+frameCount*1.5)*0.04)*1.6;
@@ -1520,7 +1563,7 @@ function drawVizOffering(a){
   pop();
 
   // 7) Thin vertical line from station chamber to cloth — the path
-  stroke(220,215,200, fi*30*(1-rise));
+  stroke(160, 50, 60, fi*40*(1-rise));
   strokeWeight(0.4);
   line(cx, sY-nH+14, cx, cy+22*breath);
   noStroke();
@@ -1781,16 +1824,16 @@ const sceneLabels=['the world','the station','the eye'];
 function getSceneHotspots(s){
   if(s===0)return[
     {x:0.22,y:0.4,viz:'shrinking_belt',q:"the sun is lethal within hours.\nthe ice keeps expanding from both poles.\nonly a narrow belt remains —\nheld open by heat from below.\nwe've been down here for over a thousand years."},
-    {x:0.55,y:0.7,viz:'deep_parade',q:"the colder the water, the more oxygen it holds.\nthe more oxygen, the larger they grow.\nwe are no longer the largest thing in the ocean."},
+    {x:0.55,y:0.7,viz:'deep_parade',q:"the colder the water, the more oxygen it holds.\nthe more oxygen, the larger they grow.\nwe are the prey in the ocean."},
     {x:0.82,y:0.35,viz:'sea_level',q:"the seven continents no longer exist.\nonly the peaks of former mountain ranges\nrise above the surface — like bones."}];
   if(s===1)return[
     {x:0.2,y:0.3,viz:'hierarchy',q:"proximity to light determines everything.\nthose above decide. those below maintain.\nthose at the bottom are forgotten."},
-    {x:0.5,y:0.25,viz:'daily_life',q:"we speak in borrowed words and water sounds.\nyou eat what the ocean gives.\nyou sleep when the machines quiet.\nyou strike the walls — and call it singing."},
+    {x:0.5,y:0.25,viz:'daily_life',q:"no sun. no day. no night.\nthe machines decide our hours — rest, work, meal, song, silence.\nwe strike the walls in the silence. we call it singing."},
     {x:0.75,y:0.6,viz:'air_oxygen',q:"one of the lower modules lost pressure again.\nour systems are old — some built before the great flood.\nwe keep them running with patches and prayer."},
-    {x:0.35,y:0.7,viz:'the_mothers',q:"we call them the mothers.\nthey have not been asked our names.\nthe watcher mother decides who walks up."},
-    {x:0.62,y:0.75,viz:'offering_to_kheir',q:"the third week. the first blood.\na cloth, weighted, set to drift upward.\nkheir keeps what he chooses to keep.\nthe mothers count permits.\nthe women count tides."}];
+    {x:0.35,y:0.7,viz:'the_mothers',q:"five women in the upper light.\none for food. one for air. one for memory.\none for the world outside. one for the eye."},
+    {x:0.62,y:0.75,viz:'offering_to_kheir',q:"we send our first blood up to kheir, the moon.\na cloth, weighted, set to climb through the dark water.\nsome he keeps. most drift forever between the station and the ice.\nthe mothers count permits.\nthe women count tides."}];
   return[
-    {x:0.35,y:0.55,viz:'mythology',q:"vahra. the sun goddess. she turned away.\nkheir. the moon. he holds the ice. he mourns.\nwe built the eye to look back at her.\nif she accepts you — you see.\nif not — you never see again."},
+    {x:0.35,y:0.55,viz:'mythology',q:"vahra was our first god. we lost her when we lost the surface.\nshe abandoned us — or we abandoned her. no one remembers.\nkheir mourns her. he stays above the ice, keeps watch over the deep.\nthe women send him cloths. he decides what is worth keeping.\nthe eye is built to ask vahra to look back — eight hundred years late."},
     {x:0.65,y:0.45,viz:'selection',q:"they say my name. once.\nthat's enough.\nsomething tightens inside me."}];
 }
 function buildScene(s){

@@ -13,31 +13,6 @@
       overflow: hidden;
     }
     canvas { display: block; }
-
-    /* Light-flash overlay — fires before a video action begins, echoing the
-       eye-climax "look" reveal in index-v2.html. */
-    #flash-overlay {
-      position: fixed; inset: 0;
-      background: rgb(255, 255, 248);
-      opacity: 0;
-      pointer-events: none;
-      z-index: 50;            /* above video (10), below debug (1000) */
-    }
-    #flash-overlay.flashing {
-      animation: moondance-flash 1.5s ease-out forwards;
-    }
-    @keyframes moondance-flash {
-      0%   { opacity: 0; }
-      18%  { opacity: 1; }    /* ramp in over ~270ms */
-      48%  { opacity: 1; }    /* hold ~450ms */
-      100% { opacity: 0; }    /* fade out over remaining ~780ms */
-    }
-    @media (prefers-reduced-motion: reduce) {
-      #flash-overlay.flashing { animation: moondance-flash-soft 0.4s ease-out forwards; }
-      @keyframes moondance-flash-soft {
-        0% { opacity: 0; } 50% { opacity: 0.6; } 100% { opacity: 0; }
-      }
-    }
   </style>
 
   <!-- p5.js -->
@@ -57,11 +32,11 @@
 // Debug-HUD an/aus (Mini-Preview + Marker-Polygone + Status-Text).
 // Wenn false: Canvas ist absolut schwarz; sichtbar wird nur das Video,
 // wenn ein konfigurierter Marker getriggert hat.
-const DEBUG = false;
+const DEBUG = true;
 
 // ArUco-Dictionary. Drucke deine Marker mit derselben Variante:
-// 'ARUCO' (original 1024-marker set, OpenCV default — used here),
-// 'ARUCO_MIP_36h12', 'ARUCO_MIP_16h3', 'ARUCO_MIP_25h7', 'ARUCO_MIP_36h13', etc.
+// 'ARUCO_MIP_36h12' (modern, robust, default hier),
+// 'ARUCO', 'ARUCO_MIP_16h3', 'ARUCO_MIP_25h7', 'ARUCO_MIP_36h13', etc.
 // Bei Wechsel auch den passenden <script>-Tag im <head> tauschen.
 const ARUCO_DICTIONARY = 'ARUCO';
 
@@ -74,12 +49,17 @@ const CAPTURE_H = 480;
 // ohne erneute Erkennung wird der Marker als "verloren" behandelt.
 const MARKER_LOST_TOLERANCE_MS = 300;
 
-// Flash prelude: white overlay fires before a video action begins. Echoes
-// the eye-climax "look" reveal in index-v2. Set prelude:'flash' on a video
-// action to enable. Total CSS animation = FLASH_TOTAL_MS; the video starts
-// playing FLASH_VIDEO_OFFSET_MS in (so it emerges as the flash fades out).
-const FLASH_TOTAL_MS = 1500;
-const FLASH_VIDEO_OFFSET_MS = 600;
+// Pause (schwarzer Canvas) zwischen zwei aufeinanderfolgenden Video-Flashes.
+const VIDEO_FLASH_GAP_MS = 5000;
+
+// Anzahl Flashes pro Trigger. Jede Marker-Erkennung spielt EXAKT diese Sequenz
+// einmal komplett durch — auch wenn der Marker mittendrin verschwindet.
+// Für einen erneuten Trigger muss der Marker kurz weg + wieder erscheinen.
+// Setze auf 0 für endloses Loopen solange Marker sichtbar (alte Logik).
+const VIDEO_FLASH_COUNT = 5;
+
+// Abspielgeschwindigkeit pro Video → über `rate: 2.0` im Action-Eintrag in
+// MARKER_ACTIONS regeln. Ohne `rate` läuft das Video mit Normalgeschwindigkeit.
 
 // Größe des Debug-Previews (oben links). Aspect Ratio der Kamera bleibt erhalten,
 // das Bild wird in diesen Rahmen einzentriert (Letterbox).
@@ -89,19 +69,24 @@ const DEBUG_PREVIEW_H = 150;
 // =============================================================
 // MARKER-ID → AKTION
 // Erweiterbar. Felder pro Eintrag:
-//   type: 'video' | 'flash' | 'sound' | 'scene'
-//   src:  Pfad zur Media-Datei (video, sound)
-//   name: Szenen-Identifier (scene)
-//   mode: 'live'    → läuft solange Marker sichtbar, stoppt bei Verlust (default)
-//         'oneshot' → wird beim Marker-Erscheinen einmal getriggert,
-//                     läuft dann eigenständig weiter (Stop wird ignoriert)
+//   type:         'video' | 'flash' | 'sound' | 'scene'
+//   src:          Pfad zur Media-Datei (video, sound)
+//   name:         Szenen-Identifier (scene)
+//   mode:         'live'    → läuft solange Marker sichtbar, stoppt bei Verlust
+//                 'oneshot' → einmal getriggert, läuft dann durch (Stop ignoriert)
+//   flashes:      (video|flash) Anzahl Plays/Pulse pro Trigger. Default: VIDEO_FLASH_COUNT.
+//   rate:         (video) Abspielgeschwindigkeit. 1.0 = normal, 2.0 = doppelt.
+//   gap:          (video|flash) Pause in ms zwischen zwei Flashes. Default: VIDEO_FLASH_GAP_MS.
+//   initialDelay: (video|flash) Wartezeit in ms vor dem 1. Flash. Default: 0.
+//   duration:     (flash) Sichtbare Dauer eines Screen-Pulse in ms. Default: 150.
+//   color:        (flash) Vollbildfarbe während des Pulse. Default: '#fff' (weiß).
 // =============================================================
 const MARKER_ACTIONS = {
-  0: { type: 'video', src: 'moondance.mp4', mode: 'live' },
-  4: { type: 'flash', mode: 'oneshot' },
-  // 1: { type: 'video', src: 'video2.mp4', mode: 'live'    },
-  // 2: { type: 'sound', src: 'whale.mp3',  mode: 'live'    },
-  // 3: { type: 'scene', name: 'eye',       mode: 'oneshot' },
+  0:   { type: 'video', src: 'moondance.mp4', mode: 'oneshot', rate: 2.0, flashes: 1 },
+  511: { type: 'flash', mode: 'oneshot', flashes: 15, initialDelay: 2000, gap: 250, duration: 250 },
+  // 1:   { type: 'video', src: 'video2.mp4', mode: 'oneshot' },
+  // 2:   { type: 'sound', src: 'whale.mp3',  mode: 'live'    },
+  // 3:   { type: 'scene', name: 'eye',       mode: 'oneshot' },
 };
 
 // =============================================================
@@ -114,6 +99,9 @@ let offscreenCanvas;    // unsichtbares Canvas, um Frame-Pixel an Detector zu li
 let offscreenCtx;
 
 const videoElements = {};   // Cache: src → HTMLVideoElement (preloaded, fullscreen-overlay)
+const flashTimers   = {};   // markerId → setTimeout-Handle für die laufende Flash-Pause
+const flashRemaining = {};  // markerId → verbleibende Flashes in der aktuellen Sequenz (0 = idle)
+let flashOverlayEl   = null;// Vollbild-Overlay für 'flash'-Type (lazy erzeugt beim 1. Trigger)
 
 // Pro konfigurierter Marker-ID: { isActive, lastSeen } — Quelle der Live-Kopplung.
 const markerState = {};
@@ -272,32 +260,13 @@ function startAction(id, action) {
 
     case 'video': {
       const vid = ensureVideoElement(action.src);
-      vid.currentTime = 0;
-      const playVideo = () => {
-        vid.style.display = 'block';
-        const p = vid.play();
-        if (p && p.catch) {
-          p.catch(err => console.warn('[moondance] video.play() blockiert/fehlgeschlagen:', err));
-        }
-      };
-      if (action.prelude === 'flash') {
-        triggerFlash();
-        // Reveal the video partway through the flash so it emerges from the light.
-        if (pendingPlayTimers[action.src]) clearTimeout(pendingPlayTimers[action.src]);
-        pendingPlayTimers[action.src] = setTimeout(() => {
-          pendingPlayTimers[action.src] = null;
-          playVideo();
-        }, FLASH_VIDEO_OFFSET_MS);
-      } else {
-        playVideo();
-      }
+      startVideoFlashCycle(id, vid, action);
       break;
     }
 
     case 'flash': {
-      // Standalone light flash — no media, just the white overlay sweep.
-      // The CSS animation auto-completes; nothing to clean up on stop.
-      triggerFlash();
+      const el = ensureFlashOverlay();
+      startScreenFlashCycle(id, el, action);
       break;
     }
 
@@ -332,14 +301,15 @@ function stopAction(id, action) {
   switch (action.type) {
 
     case 'video': {
-      // Cancel any pending flash → play scheduled by startAction so the video
-      // doesn't fire after the marker is gone.
-      if (pendingPlayTimers[action.src]) {
-        clearTimeout(pendingPlayTimers[action.src]);
-        pendingPlayTimers[action.src] = null;
+      // laufenden Flash-Pause-Timer canceln, sonst feuert er noch nach dem Stop
+      if (flashTimers[id]) {
+        clearTimeout(flashTimers[id]);
+        flashTimers[id] = null;
       }
+      flashRemaining[id] = 0;
       const vid = videoElements[action.src];
       if (vid) {
+        vid.onended = null;      // verhindert, dass ein laufendes Play noch in den Gap-Timer rutscht
         vid.pause();
         vid.currentTime = 0;
         vid.style.display = 'none';
@@ -348,8 +318,12 @@ function stopAction(id, action) {
     }
 
     case 'flash': {
-      // Flash is a self-completing CSS animation; nothing to stop. Usually
-      // paired with mode:'oneshot' so stopAction is short-circuited anyway.
+      if (flashTimers[id]) {
+        clearTimeout(flashTimers[id]);
+        flashTimers[id] = null;
+      }
+      flashRemaining[id] = 0;
+      if (flashOverlayEl) flashOverlayEl.style.display = 'none';
       break;
     }
 
@@ -369,38 +343,12 @@ function stopAction(id, action) {
 // VIDEO-ELEMENT-FACTORY (gecached pro src)
 // Vollbild-Overlay, schwarzer Letterbox-Hintergrund, ohne Controls.
 // =============================================================
-// Flash overlay — created once, re-armed on every prelude:'flash' video start.
-let flashOverlayEl = null;
-let flashResetTimer = null;
-// Pending delayed-play timers per video src so we can cancel them if the
-// marker disappears mid-flash and the video shouldn't actually start.
-const pendingPlayTimers = {};
-function ensureFlashOverlay() {
-  if (flashOverlayEl) return flashOverlayEl;
-  flashOverlayEl = document.createElement('div');
-  flashOverlayEl.id = 'flash-overlay';
-  document.body.appendChild(flashOverlayEl);
-  return flashOverlayEl;
-}
-function triggerFlash() {
-  const el = ensureFlashOverlay();
-  el.classList.remove('flashing');
-  // Force reflow so the next class-add restarts the animation from 0.
-  void el.offsetWidth;
-  el.classList.add('flashing');
-  if (flashResetTimer) clearTimeout(flashResetTimer);
-  flashResetTimer = setTimeout(() => {
-    el.classList.remove('flashing');
-    flashResetTimer = null;
-  }, FLASH_TOTAL_MS + 50);
-}
-
 function ensureVideoElement(src) {
   if (videoElements[src]) return videoElements[src];
 
   const vid = document.createElement('video');
   vid.src = src;
-  vid.loop = true;            // Marker steuert Play/Stop; während aktiv loopt das Video.
+  vid.loop = false;           // Loop wird manuell gesteuert (play → schwarze Pause → play …)
   vid.playsInline = true;
   vid.preload = 'auto';       // im Hintergrund laden, damit Trigger instant ist
   Object.assign(vid.style, {
@@ -417,6 +365,152 @@ function ensureVideoElement(src) {
 
   videoElements[src] = vid;
   return vid;
+}
+
+// =============================================================
+// VIDEO-FLASH-ZYKLUS
+// Spielt das Video einmal durch, blendet aus, wartet VIDEO_FLASH_GAP_MS,
+// spielt wieder — solange der Marker als aktiv gilt. Endet sauber, sobald
+// stopAction den Timer cancelt und onended abräumt.
+// =============================================================
+
+function startVideoFlashCycle(id, vid, action) {
+  // Re-Trigger während laufender Sequenz: ignorieren. Die laufende Sequenz
+  // läuft sauber bis zum Ende durch, erst danach ist ein neuer Trigger möglich.
+  if ((flashRemaining[id] || 0) > 0) {
+    console.log(`[action] marker ${id}: Sequenz läuft noch, Re-Trigger ignoriert`);
+    return;
+  }
+
+  // Defensive Aufräumarbeit (falls noch Reste von einer abgeschlossenen Sequenz hängen).
+  if (flashTimers[id]) {
+    clearTimeout(flashTimers[id]);
+    flashTimers[id] = null;
+  }
+  vid.onended = null;
+  vid.pause();
+
+  // Abspielgeschwindigkeit aus Action (oder 1.0 wenn nicht gesetzt). Bleibt für
+  // den ganzen Zyklus stabil — vid.playbackRate ist persistent auf dem Element.
+  vid.playbackRate = action.rate || 1.0;
+
+  // Sequenz initialisieren. Pro-Action `flashes` schlägt globalen Default
+  // VIDEO_FLASH_COUNT. Wert 0 → endlos (alte continuous-Logik).
+  const flashCount = (action.flashes !== undefined ? action.flashes : VIDEO_FLASH_COUNT);
+  flashRemaining[id] = flashCount || Infinity;
+
+  // Pause zwischen zwei Flashes (per Action überschreibbar).
+  const gap = (action.gap !== undefined) ? action.gap : VIDEO_FLASH_GAP_MS;
+
+  // Nach jedem Play: ausblenden, Counter prüfen, ggf. nächsten Flash einplanen.
+  // Läuft UNABHÄNGIG vom Marker-State weiter (mode: 'oneshot' → stopAction
+  // greift bei Marker-Verlust nicht ein).
+  vid.onended = () => {
+    vid.style.display = 'none';
+    flashRemaining[id]--;
+    if (flashRemaining[id] > 0) {
+      flashTimers[id] = setTimeout(() => {
+        flashTimers[id] = null;
+        playVideoOnce(vid);
+      }, gap);
+    } else {
+      // Sequenz vollständig durchgelaufen — Cleanup, warte auf nächsten Trigger.
+      flashRemaining[id] = 0;
+      vid.onended = null;
+    }
+  };
+
+  // Optionale Verzögerung vor dem ersten Flash (z.B. dramatische Pause).
+  const initialDelay = action.initialDelay || 0;
+  if (initialDelay > 0) {
+    flashTimers[id] = setTimeout(() => {
+      flashTimers[id] = null;
+      playVideoOnce(vid);
+    }, initialDelay);
+  } else {
+    playVideoOnce(vid);
+  }
+}
+
+function playVideoOnce(vid) {
+  vid.currentTime = 0;
+  vid.style.display = 'block';
+  const p = vid.play();
+  if (p && p.catch) {
+    p.catch(err => console.warn('[moondance] video.play() blockiert/fehlgeschlagen:', err));
+  }
+}
+
+// =============================================================
+// SCREEN-FLASH (Type 'flash')
+// Vollbild-Pulse einer Farbe für `duration` ms. Wiederverwendet die gleiche
+// Counter/Timer-Logik wie der Video-Zyklus (flashTimers/flashRemaining).
+// =============================================================
+
+function ensureFlashOverlay() {
+  if (flashOverlayEl) return flashOverlayEl;
+  flashOverlayEl = document.createElement('div');
+  Object.assign(flashOverlayEl.style, {
+    position: 'fixed',
+    top: '0', left: '0',
+    width: '100vw', height: '100vh',
+    background: '#fff',
+    display: 'none',
+    zIndex: '20',          // über Video (z-index 10), unter Debug-HUD (1000)
+    pointerEvents: 'none',
+  });
+  document.body.appendChild(flashOverlayEl);
+  return flashOverlayEl;
+}
+
+function startScreenFlashCycle(id, el, action) {
+  // Re-Trigger während laufender Sequenz: ignorieren.
+  if ((flashRemaining[id] || 0) > 0) {
+    console.log(`[action] marker ${id}: Sequenz läuft noch, Re-Trigger ignoriert`);
+    return;
+  }
+  if (flashTimers[id]) {
+    clearTimeout(flashTimers[id]);
+    flashTimers[id] = null;
+  }
+  el.style.display = 'none';
+
+  const flashCount = (action.flashes !== undefined ? action.flashes : VIDEO_FLASH_COUNT);
+  flashRemaining[id] = flashCount || Infinity;
+  const gap          = (action.gap !== undefined) ? action.gap : VIDEO_FLASH_GAP_MS;
+  const duration     = action.duration || 150;
+  const color        = action.color || '#fff';
+
+  // Ein einzelner Pulse: Element zeigen → nach `duration` ausblenden → Counter --
+  // → falls Rest > 0 nächsten Pulse nach `gap` einplanen, sonst Sequenz fertig.
+  const playOne = () => {
+    el.style.background = color;
+    el.style.display = 'block';
+    flashTimers[id] = setTimeout(() => {
+      el.style.display = 'none';
+      flashTimers[id] = null;
+      flashRemaining[id]--;
+      if (flashRemaining[id] > 0) {
+        flashTimers[id] = setTimeout(() => {
+          flashTimers[id] = null;
+          playOne();
+        }, gap);
+      } else {
+        flashRemaining[id] = 0;
+      }
+    }, duration);
+  };
+
+  // Optionaler initialDelay vor dem ersten Pulse.
+  const initialDelay = action.initialDelay || 0;
+  if (initialDelay > 0) {
+    flashTimers[id] = setTimeout(() => {
+      flashTimers[id] = null;
+      playOne();
+    }, initialDelay);
+  } else {
+    playOne();
+  }
 }
 
 // =============================================================
@@ -501,20 +595,36 @@ function computeStatusText(detectedMarkers) {
   const visibleIds = new Set(detectedMarkers.map(m => m.id));
   const now = millis();
 
-  // Wenn irgendein Marker aktiv ist, zeige dessen Status (visible / lost-waiting).
+  // Priorität 1: läuft gerade eine Flash-Sequenz? (unabhängig von Marker-State, weil oneshot)
+  for (const idStr of Object.keys(MARKER_ACTIONS)) {
+    const id = parseInt(idStr, 10);
+    const remaining = flashRemaining[id] || 0;
+    if (remaining > 0) {
+      const action = MARKER_ACTIONS[idStr];
+      const label = action.src || action.name || action.type;
+      const flashCount = (action.flashes !== undefined ? action.flashes : VIDEO_FLASH_COUNT);
+      const total = flashCount || '∞';
+      const current = (flashCount || 0) - remaining + 1;
+      const phase = flashTimers[id] ? 'wait' : 'flash';
+      const rate = action.rate || 1.0;
+      const rateStr = rate !== 1.0 ? `, ${rate}×` : '';
+      return `marker ${id} → ${label}  [${phase} ${current}/${total}${rateStr}]`;
+    }
+  }
+
+  // Priorität 2: Marker noch sichtbar nach abgelaufener Sequenz (warte auf Re-Trigger).
   for (const idStr of Object.keys(MARKER_ACTIONS)) {
     const id = parseInt(idStr, 10);
     const state = markerState[idStr];
-    const action = MARKER_ACTIONS[idStr];
-    if (state.isActive) {
-      const label = action.src || action.name || action.type;
-      if (visibleIds.has(id)) {
-        return `marker ${id} visible — playing ${label} (loop)...`;
-      }
+    if (state.isActive && visibleIds.has(id)) {
+      return `marker ${id} visible — sequence done, kurz wegnehmen + zeigen für neuen Trigger`;
+    }
+    if (state.isActive && !visibleIds.has(id)) {
       const elapsed = Math.round(now - state.lastSeen);
-      return `marker ${id} lost — stopping... (${elapsed}/${MARKER_LOST_TOLERANCE_MS} ms)`;
+      return `marker ${id} — within tolerance (${elapsed}/${MARKER_LOST_TOLERANCE_MS} ms)`;
     }
   }
+
   return 'searching...';
 }
 </script>
