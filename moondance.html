@@ -69,19 +69,21 @@ const DEBUG_PREVIEW_H = 150;
 // =============================================================
 // MARKER-ID → AKTION
 // Erweiterbar. Felder pro Eintrag:
-//   type:    'video' | 'sound' | 'scene'
-//   src:     Pfad zur Media-Datei (video, sound)
-//   name:    Szenen-Identifier (scene)
-//   mode:    'live'    → läuft solange Marker sichtbar, stoppt bei Verlust
-//            'oneshot' → einmal getriggert, läuft dann durch (Stop ignoriert)
-//   flashes: (video) Anzahl Plays pro Trigger. 1 = einmal komplett, dann Idle
-//            bis Re-Trigger. >1 = N Durchläufe mit VIDEO_FLASH_GAP_MS dazwischen.
-//            Wenn weggelassen, gilt VIDEO_FLASH_COUNT als Default.
-//   rate:    (video) Abspielgeschwindigkeit. 1.0 = normal, 2.0 = doppelt.
+//   type:         'video' | 'sound' | 'scene'
+//   src:          Pfad zur Media-Datei (video, sound)
+//   name:         Szenen-Identifier (scene)
+//   mode:         'live'    → läuft solange Marker sichtbar, stoppt bei Verlust
+//                 'oneshot' → einmal getriggert, läuft dann durch (Stop ignoriert)
+//   flashes:      (video) Anzahl Plays pro Trigger. 1 = einmal, >1 = N Plays.
+//                 Default: VIDEO_FLASH_COUNT.
+//   rate:         (video) Abspielgeschwindigkeit. 1.0 = normal, 2.0 = doppelt.
+//   gap:          (video) Pause in ms zwischen zwei Flashes. Default: VIDEO_FLASH_GAP_MS.
+//   initialDelay: (video) Wartezeit in ms zwischen Marker-Erkennung und 1. Flash.
+//                 Default: 0 (sofort).
 // =============================================================
 const MARKER_ACTIONS = {
   0:   { type: 'video', src: 'moondance.mp4', mode: 'oneshot', rate: 2.0, flashes: 1 },
-  // 511: { type: 'video', src: 'szene2.mp4',  mode: 'oneshot', flashes: 5 },
+  511: { type: 'video', src: 'moondance.mp4', mode: 'oneshot', flashes: 5, initialDelay: 2000, gap: 2000 },
   // 1:   { type: 'video', src: 'video2.mp4', mode: 'oneshot' },
   // 2:   { type: 'sound', src: 'whale.mp3',  mode: 'live'    },
   // 3:   { type: 'scene', name: 'eye',       mode: 'oneshot' },
@@ -380,6 +382,9 @@ function startVideoFlashCycle(id, vid, action) {
   const flashCount = (action.flashes !== undefined ? action.flashes : VIDEO_FLASH_COUNT);
   flashRemaining[id] = flashCount || Infinity;
 
+  // Pause zwischen zwei Flashes (per Action überschreibbar).
+  const gap = (action.gap !== undefined) ? action.gap : VIDEO_FLASH_GAP_MS;
+
   // Nach jedem Play: ausblenden, Counter prüfen, ggf. nächsten Flash einplanen.
   // Läuft UNABHÄNGIG vom Marker-State weiter (mode: 'oneshot' → stopAction
   // greift bei Marker-Verlust nicht ein).
@@ -390,7 +395,7 @@ function startVideoFlashCycle(id, vid, action) {
       flashTimers[id] = setTimeout(() => {
         flashTimers[id] = null;
         playVideoOnce(vid);
-      }, VIDEO_FLASH_GAP_MS);
+      }, gap);
     } else {
       // Sequenz vollständig durchgelaufen — Cleanup, warte auf nächsten Trigger.
       flashRemaining[id] = 0;
@@ -398,7 +403,16 @@ function startVideoFlashCycle(id, vid, action) {
     }
   };
 
-  playVideoOnce(vid);
+  // Optionale Verzögerung vor dem ersten Flash (z.B. dramatische Pause).
+  const initialDelay = action.initialDelay || 0;
+  if (initialDelay > 0) {
+    flashTimers[id] = setTimeout(() => {
+      flashTimers[id] = null;
+      playVideoOnce(vid);
+    }, initialDelay);
+  } else {
+    playVideoOnce(vid);
+  }
 }
 
 function playVideoOnce(vid) {
@@ -502,7 +516,7 @@ function computeStatusText(detectedMarkers) {
       const flashCount = (action.flashes !== undefined ? action.flashes : VIDEO_FLASH_COUNT);
       const total = flashCount || '∞';
       const current = (flashCount || 0) - remaining + 1;
-      const phase = flashTimers[id] ? 'gap' : 'flash';
+      const phase = flashTimers[id] ? 'wait' : 'flash';
       const rate = action.rate || 1.0;
       const rateStr = rate !== 1.0 ? `, ${rate}×` : '';
       return `marker ${id} → ${label}  [${phase} ${current}/${total}${rateStr}]`;
