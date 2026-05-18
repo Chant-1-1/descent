@@ -1259,7 +1259,7 @@ function drawVizBelt(a){
 function drawVizParade(a){
   const t=min((millis()-vizStart)/12000,1);
   for(let y=height*0.1;y<height*0.9;y+=3){stroke(10+map(y,height*0.1,height*0.9,0,5),20+map(y,height*0.1,height*0.9,0,10),35+map(y,height*0.1,height*0.9,0,15),a*0.3);strokeWeight(3);line(width*0.05,y,width*0.95,y);}
-  noStroke();fill(80,140,140,a*0.4);textSize(12);textAlign(RIGHT);
+  noStroke();fill(140,200,200,a*0.75);textSize(15);textAlign(RIGHT);
   ['0m','—100m','—200m','—500m','—1000m','—2000m'].forEach((d,i)=>{text(d,width*0.05,height*0.12+i*(height*0.7/5));});
   for(let i=0;i<120;i++){const d=random(1);if(random()<d*0.6*t){fill(80,180,180,a*0.12);circle(random(width*0.08,width*0.92),height*0.12+d*(height*0.7),random(1,2.5));}}
   const scrollX=t*width*0.8;
@@ -1268,23 +1268,27 @@ function drawVizParade(a){
     {name:'icefish',cur:'1.2m',anc:'0.6m',depth:0.28,w:120,h:48,off:150},
     {name:'toothfish',cur:'2m',anc:'0.8m',depth:0.38,w:150,h:66,off:240},
     {name:'sea spider',cur:'2.5m',anc:'0.7m',depth:0.5,w:195,h:165,off:340},
-    {name:'anglerfish',cur:'3.5m',anc:'0.4m',depth:0.62,w:240,h:165,off:450},
+    {name:'sea devil',cur:'4.5m',anc:'0.9m',depth:0.62,w:240,h:165,off:450},
     {name:'giant sponge',cur:'8m',anc:'1m',depth:0.78,w:210,h:270,off:560},
-    {name:'whale',cur:'50m',anc:'25m',depth:0.42,w:540,h:195,off:680}];
+    {name:'whale',cur:'40m',anc:'20m',depth:0.42,w:540,h:195,off:680}];
   for(let m of parade){const px=width*0.08+scrollX-m.off,py=height*0.12+m.depth*(height*0.7);if(px<-120||px>width+120)continue;
     const fi2=constrain(map(px,width*0.03,width*0.18,0,1),0,1);push();translate(px,py);
     if(m.name==='human'){stroke(140,180,170,a*0.7*fi2);strokeWeight(1.5);noFill();circle(0,-m.h*0.8,9);line(0,-m.h*0.75,3,-m.h*0.4);line(3,-m.h*0.6,-6,-m.h*0.45);line(3,-m.h*0.6,9,-m.h*0.5);line(3,-m.h*0.4,-3+sin(frameCount*0.08)*3,0);line(3,-m.h*0.4,8-sin(frameCount*0.08)*3,0);
       noStroke();fill(140,180,170,a*0.6*fi2);textSize(13);textAlign(CENTER);text(m.cur,0,16);text(m.name,0,32);
-    }else if(m.name==='anglerfish'){
+    }else if(m.name==='sea devil'){
       // Use actual SEA_DEVIL_SHAPE polygon, darker
       const sdSc=m.w/142;push();scale(sdSc);
       for(let l of SEA_DEVIL_SHAPE){noStroke();fill(l.col[0]*0.5,l.col[1]*0.5,l.col[2]*0.5,a*l.op*fi2);beginShape();for(let pt of l.pts)vertex(pt[0],pt[1]);endShape(CLOSE);}
       pop();
+      noStroke();fill(120,180,180,a*0.6*fi2);textSize(14);textAlign(CENTER);text(m.name,0,m.h*0.5+22);
+      fill(100,160,160,a*0.45*fi2);textSize(12);text(m.anc+' → '+m.cur,0,m.h*0.5+40);
     }else if(m.name==='whale'){
       // Use actual WHALE_SHAPE polygon, darker
       const wSc=m.w/531;push();scale(wSc);
       for(let l of WHALE_SHAPE){noStroke();fill(l.col[0]*0.5,l.col[1]*0.5,l.col[2]*0.5,a*l.op*fi2);beginShape();for(let pt of l.pts)vertex(pt[0],pt[1]);endShape(CLOSE);}
       pop();
+      noStroke();fill(120,180,180,a*0.6*fi2);textSize(14);textAlign(CENTER);text(m.name,0,m.h*0.5+22);
+      fill(100,160,160,a*0.45*fi2);textSize(12);text(m.anc+' → '+m.cur,0,m.h*0.5+40);
     }else{noStroke();fill(15,25,35,a*0.6*fi2);ellipse(0,0,m.w,m.h);stroke(60,120,130,a*0.35*fi2);strokeWeight(1);noFill();ellipse(0,0,m.w,m.h);
       noStroke();fill(180,100,50,a*0.8*fi2);circle(-m.w*0.3,-m.h*0.15,4+m.w*0.03);circle(-m.w*0.3,m.h*0.15,4+m.w*0.03);
       if(m.name==='sea spider'){stroke(50,100,100,a*0.4*fi2);strokeWeight(1);for(let i=0;i<10;i++){const la=(TWO_PI/10)*i,ll=m.w*0.5+sin(frameCount*0.03+i)*6;line(0,0,cos(la)*ll,sin(la)*ll);}}
@@ -1292,8 +1296,8 @@ function drawVizParade(a){
       noStroke();fill(120,180,180,a*0.6*fi2);textSize(14);textAlign(CENTER);text(m.name,0,m.h*0.5+22);
       if(m.anc){fill(100,160,160,a*0.45*fi2);textSize(12);text(m.anc+' → '+m.cur,0,m.h*0.5+40);}}pop();}
   noStroke();fill(120,180,180,a*0.55);textSize(16);textAlign(CENTER);
-  text('cold water · more oxygen · unprecedented growth',width/2,height*0.93);
-  fill(80,160,160,a*0.35);textSize(13);text('whale biomass now exceeds the remaining human population',width/2,height*0.97);
+  text('cold water · more oxygen · unprecedented growth',width/2,height*0.84);
+  fill(80,160,160,a*0.35);textSize(13);text('whale biomass now exceeds the remaining human population',width/2,height*0.88);
 }
 // --- SEA LEVEL ---
 function drawVizSea(a){
