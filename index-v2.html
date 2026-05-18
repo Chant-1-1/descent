@@ -1456,18 +1456,43 @@ function drawVizOffering(a){
   }
   noStroke();
 
-  // 3) Moon — radial gradient halo above the ice, plus disc
+  // 3) Sun above the ice — same multi-layer + ray treatment as the sea_level
+  //    viz (Vahra, the lethal sun goddess). Rays scaled to the top half of
+  //    the screen so the halo radiates into the ice/water below.
+  const sunX=cx, sunY=moonY;
+  const rayMax=height*0.32;
   ctx.save();
-  const mg=ctx.createRadialGradient(cx,moonY,4,cx,moonY,180);
-  mg.addColorStop(0,'rgba(255,245,215,'+(fi*0.75)+')');
-  mg.addColorStop(0.3,'rgba(245,228,180,'+(fi*0.35)+')');
-  mg.addColorStop(1,'rgba(245,228,180,0)');
-  ctx.fillStyle=mg; ctx.fillRect(0,0,width,iceY*1.6);
+  const rg1=ctx.createRadialGradient(sunX,sunY,20,sunX,sunY,height*0.55);
+  rg1.addColorStop(0, 'rgba(255,230,80,'+(fi*0.55)+')');
+  rg1.addColorStop(0.2,'rgba(240,180,30,'+(fi*0.28)+')');
+  rg1.addColorStop(0.5,'rgba(200,120,10,'+(fi*0.12)+')');
+  rg1.addColorStop(1, 'rgba(100,50,0,0)');
+  ctx.fillStyle=rg1; ctx.fillRect(0,0,width,height*0.45);
   ctx.restore();
-  fill(255,245,215,fi*210); circle(cx,moonY,42);
-  // subtle face/relief on moon
-  fill(220,205,170,fi*80); circle(cx-6,moonY-3,8);
-  fill(220,205,170,fi*60); circle(cx+9,moonY+4,5);
+  // 32 long radiation rays
+  for(let i=0;i<32;i++){
+    const ang=(TWO_PI/32)*i+frameCount*0.003;
+    const len=rayMax + noise(i*0.8, frameCount*0.006)*rayMax*0.55;
+    const flick=sin(frameCount*0.05+i*1.1)*0.18+0.82;
+    const w=max(0.3, 1.6 - (i%3)*0.4);
+    stroke(255,210,50, fi*0.18*flick*255); strokeWeight(w);
+    line(sunX,sunY, sunX+cos(ang)*len, sunY+sin(ang)*len);
+  }
+  // 24 shorter brighter rays, offset
+  for(let i=0;i<24;i++){
+    const ang=(TWO_PI/24)*i + PI/24 + frameCount*0.004;
+    const len=rayMax*0.5 + noise(i*1.2, frameCount*0.009)*rayMax*0.35;
+    const flick=sin(frameCount*0.07+i*0.8)*0.2+0.8;
+    stroke(255,240,120, fi*0.28*flick*255); strokeWeight(0.5);
+    line(sunX,sunY, sunX+cos(ang)*len, sunY+sin(ang)*len);
+  }
+  noStroke();
+  // Sun disc — 5 layers from soft outer orange to white-hot core
+  fill(255,160,0,  fi*0.08*255); circle(sunX,sunY,180);
+  fill(255,200,30, fi*0.18*255); circle(sunX,sunY,90);
+  fill(255,230,80, fi*0.45*255); circle(sunX,sunY,44);
+  fill(255,248,150,fi*0.75*255); circle(sunX,sunY,22);
+  fill(255,255,220,fi*0.92*255); circle(sunX,sunY,10);
 
   // 4) Simplified station silhouette at the bottom — abstracted block + neck
   noStroke();
@@ -1506,7 +1531,8 @@ function drawVizOffering(a){
   noStroke();
   for(const e of earlier){
     push(); translate(e.x, e.y); scale(e.sc);
-    fill(220,215,200, fi*255*e.op);
+    // Burgundy red — same hue as the current cloth, lower opacity for the older ones
+    fill(120, 25, 35, fi*255*e.op*1.6);
     beginShape();
     for(const p of earlierClothShape) vertex(p[0]+sin((p[1]+frameCount)*0.012)*1.4, p[1]);
     endShape(CLOSE);
@@ -1525,7 +1551,9 @@ function drawVizOffering(a){
   ellipse(cx, cy+24*breath, 6, 3);
   // cloth itself, asymmetric and very slightly waving
   push(); translate(cx, cy); scale(breath);
-  noStroke(); fill(232,225,205, 255*clothAlpha);
+  noStroke();
+  // Burgundy red — first-blood cloth, weighted and ascending
+  fill(140, 30, 40, 255*clothAlpha);
   beginShape();
   const clothShape=[
     [-18,-28],[ -6,-32],[  9,-28],[ 17,-16],[ 14,  6],
@@ -1536,8 +1564,8 @@ function drawVizOffering(a){
     vertex(p[0]+wob, p[1]);
   }
   endShape(CLOSE);
-  // inner highlight (where the moon catches it)
-  fill(255,248,228, 220*clothAlpha*0.55);
+  // inner highlight (where the sun catches it from above)
+  fill(195, 70, 75, 220*clothAlpha*0.65);
   beginShape();
   for(const p of clothShape){
     const wob=sin((p[1]+frameCount*1.5)*0.04)*1.6;
@@ -1547,7 +1575,7 @@ function drawVizOffering(a){
   pop();
 
   // 7) Thin vertical line from station chamber to cloth — the path
-  stroke(220,215,200, fi*30*(1-rise));
+  stroke(160, 50, 60, fi*40*(1-rise));
   strokeWeight(0.4);
   line(cx, sY-nH+14, cx, cy+22*breath);
   noStroke();
