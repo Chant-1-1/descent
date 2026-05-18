@@ -72,7 +72,7 @@ const CAPTURE_H = 480;
 
 // Toleranz gegen kurze Erkennungs-Aussetzer. Erst nach dieser Dauer
 // ohne erneute Erkennung wird der Marker als "verloren" behandelt.
-const MARKER_LOST_TOLERANCE_MS = 300;
+const MARKER_LOST_TOLERANCE_MS = 500;
 
 // Flash prelude: white overlay fires before a video action begins. Echoes
 // the eye-climax "look" reveal in index-v2. Set prelude:'flash' on a video
@@ -98,7 +98,7 @@ const DEBUG_PREVIEW_H = 150;
 // =============================================================
 const MARKER_ACTIONS = {
   0: { type: 'video', src: 'moondance.mp4', mode: 'live' },
-  4: { type: 'flash', mode: 'oneshot' },
+  511: { type: 'flash', mode: 'oneshot' },
   // 1: { type: 'video', src: 'video2.mp4', mode: 'live'    },
   // 2: { type: 'sound', src: 'whale.mp3',  mode: 'live'    },
   // 3: { type: 'scene', name: 'eye',       mode: 'oneshot' },
