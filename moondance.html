@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>moondance — DESCENT</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+    }
+    canvas { display: block; }
+  </style>
+
+  <!-- p5.js -->
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
+
+  <!-- js-aruco2 (Reihenfolge zwingend: cv → aruco → dictionary) -->
+  <script src="https://cdn.jsdelivr.net/gh/damianofalcioni/js-aruco2@master/src/cv.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/damianofalcioni/js-aruco2@master/src/aruco.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/damianofalcioni/js-aruco2@master/src/dictionaries/ARUCO_MIP_36h12.js"></script>
+</head>
+<body>
+<script>
+// =============================================================
+// KONFIGURATION — alle Tuning-Parameter ganz oben
+// =============================================================
+
+// Debug-HUD an/aus (Mini-Preview + Marker-Polygone + Status-Text).
+// Wenn false: Canvas ist absolut schwarz; sichtbar wird nur das Video,
+// wenn ein konfigurierter Marker getriggert hat.
+const DEBUG = true;
+
+// ArUco-Dictionary. Drucke deine Marker mit derselben Variante:
+// 'ARUCO_MIP_36h12' (modern, robust, default hier),
+// 'ARUCO', 'ARUCO_MIP_16h3', 'ARUCO_MIP_25h7', 'ARUCO_MIP_36h13', etc.
+// Bei Wechsel auch den passenden <script>-Tag im <head> tauschen.
+const ARUCO_DICTIONARY = 'ARUCO_MIP_36h12';
+
+// Wunsch-Auflösung für die Webcam (Kamera wählt nächst-passende).
+// 640×480 = guter Kompromiss aus Detektor-Geschwindigkeit & Marker-Reichweite.
+const CAPTURE_W = 640;
+const CAPTURE_H = 480;
+
+// Toleranz gegen kurze Erkennungs-Aussetzer. Erst nach dieser Dauer
+// ohne erneute Erkennung wird der Marker als "verloren" behandelt.
+const MARKER_LOST_TOLERANCE_MS = 300;
+
+// Größe des Debug-Previews (oben links). Aspect Ratio der Kamera bleibt erhalten,
+// das Bild wird in diesen Rahmen einzentriert (Letterbox).
+const DEBUG_PREVIEW_W = 200;
+const DEBUG_PREVIEW_H = 150;
+
+// =============================================================
+// MARKER-ID → AKTION
+// Erweiterbar. Felder pro Eintrag:
+//   type: 'video' | 'sound' | 'scene'
+//   src:  Pfad zur Media-Datei (video, sound)
+//   name: Szenen-Identifier (scene)
+//   mode: 'live'    → läuft solange Marker sichtbar, stoppt bei Verlust (default)
+//         'oneshot' → wird beim Marker-Erscheinen einmal getriggert,
+//                     läuft dann eigenständig weiter (Stop wird ignoriert)
+// =============================================================
+const MARKER_ACTIONS = {
+  0: { type: 'video', src: 'moondance.mp4', mode: 'live' },
+  // 1: { type: 'video', src: 'video2.mp4', mode: 'live'    },
+  // 2: { type: 'sound', src: 'whale.mp3',  mode: 'live'    },
+  // 3: { type: 'scene', name: 'eye',       mode: 'oneshot' },
+};
+
+// =============================================================
+// LAUFZEIT-STATE
+// =============================================================
+
+let capture;            // p5.MediaElement → Webcam (versteckt)
+let detector;           // AR.Detector aus js-aruco2
+let offscreenCanvas;    // unsichtbares Canvas, um Frame-Pixel an Detector zu liefern
+let offscreenCtx;
+
+const videoElements = {};   // Cache: src → HTMLVideoElement (preloaded, fullscreen-overlay)
+
+// Pro konfigurierter Marker-ID: { isActive, lastSeen } — Quelle der Live-Kopplung.
+const markerState = {};
+
+// Debug-HUD-Elemente (nur wenn DEBUG=true). Als HTML mit hohem z-index,
+// damit sie auch über dem Video sichtbar bleiben.
+let debugPreviewEl, debugPreviewCtx, debugStatusEl;
+
+// Sanity-Check für die Library-Loads (sichtbar im Browser, falls CDN versagt).
+let initError = null;
+
+// =============================================================
+// SETUP
+// =============================================================
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  noStroke();
+
+  // Library-Loads validieren
+  if (typeof AR === 'undefined' || !AR.Detector) {
+    initError = 'js-aruco2 nicht geladen — prüfe die CDN-URLs im <head>.';
+    console.error(initError);
+    return;
+  }
+  if (!AR.DICTIONARIES || !AR.DICTIONARIES[ARUCO_DICTIONARY]) {
+    initError = `Dictionary "${ARUCO_DICTIONARY}" nicht geladen — passenden <script>-Tag ergänzen.`;
+    console.error(initError);
+    return;
+  }
+
+  // Webcam anfordern. .hide() blendet das DOM-<video> aus — der Stream läuft
+  // weiter, wir greifen über capture.elt direkt auf das Element zu.
+  capture = createCapture(
+    { video: { width: CAPTURE_W, height: CAPTURE_H }, audio: false },
+    () => console.log('[moondance] camera ready')
+  );
+  capture.hide();
+
+  // Offscreen-Canvas für getImageData. Größe wird im draw() bei Bedarf
+  // an die tatsächliche videoWidth/Height angepasst.
+  offscreenCanvas = document.createElement('canvas');
+  offscreenCanvas.width = CAPTURE_W;
+  offscreenCanvas.height = CAPTURE_H;
+  offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
+
+  // Detector mit Dictionary initialisieren
+  detector = new AR.Detector({ dictionaryName: ARUCO_DICTIONARY });
+
+  // Marker-State + Video-Preload für alle konfigurierten Aktionen
+  for (const idStr of Object.keys(MARKER_ACTIONS)) {
+    markerState[idStr] = { isActive: false, lastSeen: 0 };
+    const action = MARKER_ACTIONS[idStr];
+    if (action.type === 'video') {
+      ensureVideoElement(action.src);
+    }
+  }
+
+  if (DEBUG) setupDebugHUD();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+// =============================================================
+// MAIN LOOP
+// =============================================================
+
+function draw() {
+  // Canvas ist immer schwarz — vor, während und nach dem Trigger.
+  // Alles Sichtbare (Video, Debug-HUD) liegt als HTML-Overlay drüber.
+  background(0);
+
+  if (initError) {
+    fill(255, 80, 80);
+    textFont('monospace');
+    textSize(14);
+    text(initError, 20, 30);
+    return;
+  }
+
+  // Markererkennung: nur wenn Kamera-Frame bereit ist
+  let markers = [];
+  if (capture && capture.elt && capture.elt.readyState >= 2 && capture.elt.videoWidth > 0) {
+    const vw = capture.elt.videoWidth;
+    const vh = capture.elt.videoHeight;
+
+    // Offscreen-Canvas an tatsächliche Kamera-Auflösung anpassen
+    if (offscreenCanvas.width !== vw || offscreenCanvas.height !== vh) {
+      offscreenCanvas.width = vw;
+      offscreenCanvas.height = vh;
+    }
+
+    // Frame → ImageData (RGBA). Detector macht intern Graustufen, adaptive
+    // Schwellwert, Konturen, Quad-Approximation, Bit-Auslesung, Dictionary-Match.
+    offscreenCtx.drawImage(capture.elt, 0, 0, vw, vh);
+    const imageData = offscreenCtx.getImageData(0, 0, vw, vh);
+    markers = detector.detect(imageData);
+  }
+
+  // Live-Kopplung: Sichtbarkeit → Play/Stop-Befehle
+  updateMarkerState(markers);
+
+  if (DEBUG) updateDebugHUD(markers);
+}
+
+// =============================================================
+// LIVE-KOPPLUNG: Marker-Sichtbarkeit ↔ Action-Lifecycle
+// =============================================================
+//
+// sichtbar      & !isActive  → startAction, isActive=true, lastSeen=now
+// sichtbar      &  isActive  → nur lastSeen=now (Heartbeat — Toleranz reset)
+// !sichtbar     &  isActive  → wenn now-lastSeen > TOLERANZ: stopAction, isActive=false
+// !sichtbar     & !isActive  → no-op
+//
+// Damit reicht eine einzige Erkennung zum Starten (kein 0.5-Sekunden-Stabilität-Filter),
+// und kurze Aussetzer (≤ TOLERANZ) führen nicht zum Stop.
+function updateMarkerState(detectedMarkers) {
+  const now = millis();
+
+  // Welche konfigurierten IDs sind in diesem Frame sichtbar?
+  const visibleIds = new Set();
+  for (const m of detectedMarkers) {
+    if (Object.prototype.hasOwnProperty.call(MARKER_ACTIONS, m.id)) {
+      visibleIds.add(m.id);
+    }
+  }
+
+  for (const idStr of Object.keys(MARKER_ACTIONS)) {
+    const id = parseInt(idStr, 10);
+    const state = markerState[idStr];
+    const action = MARKER_ACTIONS[idStr];
+
+    if (visibleIds.has(id)) {
+      state.lastSeen = now;
+      if (!state.isActive) {
+        state.isActive = true;
+        startAction(id, action);
+      }
+    } else if (state.isActive && (now - state.lastSeen) > MARKER_LOST_TOLERANCE_MS) {
+      state.isActive = false;
+      stopAction(id, action);
+    }
+  }
+}
+
+// =============================================================
+// ACTION-DISPATCH
+// switch-Struktur, damit weitere Typen leicht ergänzt werden können.
+// =============================================================
+
+function startAction(id, action) {
+  console.log(`[action] start  marker ${id} →`, action);
+  switch (action.type) {
+
+    case 'video': {
+      const vid = ensureVideoElement(action.src);
+      vid.currentTime = 0;
+      vid.style.display = 'block';
+      const p = vid.play();
+      if (p && p.catch) {
+        p.catch(err => console.warn('[moondance] video.play() blockiert/fehlgeschlagen:', err));
+      }
+      break;
+    }
+
+    case 'sound': {
+      // TODO: z.B. Tone.js Player erzeugen/starten.
+      //   - mode='live':    Player beim Stop pausieren (Drone-Sound während Karte da ist)
+      //   - mode='oneshot': Player nach Trigger eigenständig auslaufen lassen
+      console.warn(`[moondance] action type 'sound' noch nicht implementiert (marker ${id})`);
+      break;
+    }
+
+    case 'scene': {
+      // TODO: Szenen-Transition triggern (z.B. globaler State, Funktionsaufruf).
+      //   - typischerweise mode='oneshot': nach Trigger läuft die Szene eigenständig
+      console.warn(`[moondance] action type 'scene' noch nicht implementiert (marker ${id})`);
+      break;
+    }
+
+    default:
+      console.warn(`[moondance] unbekannter action type "${action.type}" (marker ${id})`);
+  }
+}
+
+function stopAction(id, action) {
+  // Oneshot-Aktionen ignorieren den Stop und laufen unabhängig weiter.
+  if (action.mode === 'oneshot') {
+    console.log(`[action] stop   marker ${id} → ignoriert (oneshot)`);
+    return;
+  }
+
+  console.log(`[action] stop   marker ${id} →`, action);
+  switch (action.type) {
+
+    case 'video': {
+      const vid = videoElements[action.src];
+      if (vid) {
+        vid.pause();
+        vid.currentTime = 0;
+        vid.style.display = 'none';
+      }
+      break;
+    }
+
+    case 'sound': {
+      // TODO: Tone.js Player pausieren/stoppen
+      break;
+    }
+
+    case 'scene': {
+      // wird nie hier landen (oneshot oben gefiltert), aber für Vollständigkeit:
+      break;
+    }
+  }
+}
+
+// =============================================================
+// VIDEO-ELEMENT-FACTORY (gecached pro src)
+// Vollbild-Overlay, schwarzer Letterbox-Hintergrund, ohne Controls.
+// =============================================================
+function ensureVideoElement(src) {
+  if (videoElements[src]) return videoElements[src];
+
+  const vid = document.createElement('video');
+  vid.src = src;
+  vid.loop = true;            // Marker steuert Play/Stop; während aktiv loopt das Video.
+  vid.playsInline = true;
+  vid.preload = 'auto';       // im Hintergrund laden, damit Trigger instant ist
+  Object.assign(vid.style, {
+    position: 'fixed',
+    top: '0', left: '0',
+    width: '100vw', height: '100vh',
+    objectFit: 'contain',     // ändere auf 'cover', falls Video bildschirmfüllend statt letterboxed
+    background: '#000',
+    display: 'none',
+    zIndex: '10',
+    pointerEvents: 'none',
+  });
+  document.body.appendChild(vid);
+
+  videoElements[src] = vid;
+  return vid;
+}
+
+// =============================================================
+// DEBUG-HUD (nur wenn DEBUG=true)
+// HTML-Overlay mit z-index 1000 → bleibt auch über dem Video sichtbar.
+// =============================================================
+
+function setupDebugHUD() {
+  debugPreviewEl = document.createElement('canvas');
+  debugPreviewEl.width = DEBUG_PREVIEW_W;
+  debugPreviewEl.height = DEBUG_PREVIEW_H;
+  Object.assign(debugPreviewEl.style, {
+    position: 'fixed',
+    top: '10px', left: '10px',
+    border: '1px solid #333',
+    zIndex: '1000',
+    pointerEvents: 'none',
+  });
+  document.body.appendChild(debugPreviewEl);
+  debugPreviewCtx = debugPreviewEl.getContext('2d');
+
+  debugStatusEl = document.createElement('div');
+  Object.assign(debugStatusEl.style, {
+    position: 'fixed',
+    bottom: '10px', left: '10px',
+    color: '#0f0',
+    fontFamily: 'monospace',
+    fontSize: '13px',
+    background: 'rgba(0,0,0,0.6)',
+    padding: '6px 10px',
+    zIndex: '1000',
+    pointerEvents: 'none',
+    whiteSpace: 'pre',
+  });
+  debugStatusEl.textContent = 'initializing...';
+  document.body.appendChild(debugStatusEl);
+}
+
+function updateDebugHUD(detectedMarkers) {
+  // Mini-Live-Preview (Aspect-Ratio-erhaltend in den Rahmen einzentrieren)
+  debugPreviewCtx.fillStyle = '#000';
+  debugPreviewCtx.fillRect(0, 0, DEBUG_PREVIEW_W, DEBUG_PREVIEW_H);
+
+  let drawX = 0, drawY = 0, drawW = DEBUG_PREVIEW_W, drawH = DEBUG_PREVIEW_H, scale = 1;
+  if (capture && capture.elt && capture.elt.readyState >= 2 && capture.elt.videoWidth > 0) {
+    const vw = capture.elt.videoWidth;
+    const vh = capture.elt.videoHeight;
+    scale = Math.min(DEBUG_PREVIEW_W / vw, DEBUG_PREVIEW_H / vh);
+    drawW = vw * scale;
+    drawH = vh * scale;
+    drawX = (DEBUG_PREVIEW_W - drawW) / 2;
+    drawY = (DEBUG_PREVIEW_H - drawH) / 2;
+    debugPreviewCtx.drawImage(capture.elt, drawX, drawY, drawW, drawH);
+  }
+
+  // Erkannte Marker als grünes Polygon + ID einzeichnen.
+  // marker.corners sind in Original-Frame-Koordinaten; wir mappen auf Preview.
+  debugPreviewCtx.strokeStyle = '#0f0';
+  debugPreviewCtx.fillStyle = '#0f0';
+  debugPreviewCtx.lineWidth = 2;
+  debugPreviewCtx.font = 'bold 11px monospace';
+
+  for (const m of detectedMarkers) {
+    const c = m.corners;
+    debugPreviewCtx.beginPath();
+    debugPreviewCtx.moveTo(drawX + c[0].x * scale, drawY + c[0].y * scale);
+    for (let i = 1; i < c.length; i++) {
+      debugPreviewCtx.lineTo(drawX + c[i].x * scale, drawY + c[i].y * scale);
+    }
+    debugPreviewCtx.closePath();
+    debugPreviewCtx.stroke();
+
+    const cx = drawX + ((c[0].x + c[1].x + c[2].x + c[3].x) / 4) * scale;
+    const cy = drawY + ((c[0].y + c[1].y + c[2].y + c[3].y) / 4) * scale;
+    debugPreviewCtx.fillText('#' + m.id, cx - 8, cy + 4);
+  }
+
+  debugStatusEl.textContent = computeStatusText(detectedMarkers);
+}
+
+function computeStatusText(detectedMarkers) {
+  const visibleIds = new Set(detectedMarkers.map(m => m.id));
+  const now = millis();
+
+  // Wenn irgendein Marker aktiv ist, zeige dessen Status (visible / lost-waiting).
+  for (const idStr of Object.keys(MARKER_ACTIONS)) {
+    const id = parseInt(idStr, 10);
+    const state = markerState[idStr];
+    const action = MARKER_ACTIONS[idStr];
+    if (state.isActive) {
+      const label = action.src || action.name || action.type;
+      if (visibleIds.has(id)) {
+        return `marker ${id} visible — playing ${label} (loop)...`;
+      }
+      const elapsed = Math.round(now - state.lastSeen);
+      return `marker ${id} lost — stopping... (${elapsed}/${MARKER_LOST_TOLERANCE_MS} ms)`;
+    }
+  }
+  return 'searching...';
+}
+</script>
+</body>
+</html>
