@@ -1786,7 +1786,7 @@ function getSceneHotspots(s){
     {x:0.2,y:0.3,viz:'hierarchy',q:"proximity to light determines everything.\nthose above decide. those below maintain.\nthose at the bottom are forgotten."},
     {x:0.5,y:0.25,viz:'daily_life',q:"we speak in borrowed words and water sounds.\nyou eat what the ocean gives.\nyou sleep when the machines quiet.\nyou strike the walls — and call it singing."},
     {x:0.75,y:0.6,viz:'air_oxygen',q:"one of the lower modules lost pressure again.\nour systems are old — some built before the great flood.\nwe keep them running with patches and prayer."},
-    {x:0.35,y:0.7,viz:'the_mothers',q:"they count their years from the surface.\nthe oldest was born to someone who remembered sky.\nwe call them the mothers.\nthey have not been asked our names.\nthe watcher mother decides who walks up."},
+    {x:0.35,y:0.7,viz:'the_mothers',q:"we call them the mothers.\nthey have not been asked our names.\nthe watcher mother decides who walks up."},
     {x:0.62,y:0.75,viz:'offering_to_kheir',q:"the third week. the first blood.\na cloth, weighted, set to drift upward.\nkheir keeps what he chooses to keep.\nthe mothers count permits.\nthe women count tides."}];
   return[
     {x:0.35,y:0.55,viz:'mythology',q:"vahra. the sun goddess. she turned away.\nkheir. the moon. he holds the ice. he mourns.\nwe built the eye to look back at her.\nif she accepts you — you see.\nif not — you never see again."},
@@ -1837,7 +1837,7 @@ function buildScene(s){
       eyeIntroWhisperTimer=setTimeout(()=>{
         if(scene===2 && !activeViz && !eyeActive && !eyeIntroWhisperShown){
           eyeIntroWhisperShown=true;
-          playWhisper('those who return pause for 4.7 seconds.\nbefore they answer.');
+          playWhisper('the altar keeps its own pulse.\nmatch it.');
         }
         eyeIntroWhisperTimer=null;
       },15000);

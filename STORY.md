@@ -125,8 +125,6 @@ A daily cycle as a clock: rest cycle · first interval · work shift · communal
 An air system schematic — pressure gauges, valves, warning lights.
 
 ### the mothers · n°39
-> they count their years from the surface.
-> the oldest was born to someone who remembered sky.
 > we call them the mothers.
 > they have not been asked our names.
 > the watcher mother decides who walks up.
@@ -162,10 +160,10 @@ This is the quiet the station keeps each cycle. A held breath. *No bug.*
 A vertical light beam falls from above. Where it lands on the floor, faint concentric rings breathe on the 4.7-second heartbeat. Dust drifts in the beam. Embers rise.
 
 If the player lingers in the chamber, after fifteen seconds a single whisper arrives:
-> *those who return pause for 4.7 seconds.*
-> *before they answer.*
+> *the altar keeps its own pulse.*
+> *match it.*
 
-The heartbeat names itself.
+The heartbeat names itself, indirectly.
 
 Two signals.
 
