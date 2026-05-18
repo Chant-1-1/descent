@@ -13,6 +13,31 @@
       overflow: hidden;
     }
     canvas { display: block; }
+
+    /* Light-flash overlay — fires before a video action begins, echoing the
+       eye-climax "look" reveal in index-v2.html. */
+    #flash-overlay {
+      position: fixed; inset: 0;
+      background: rgb(255, 255, 248);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 50;            /* above video (10), below debug (1000) */
+    }
+    #flash-overlay.flashing {
+      animation: moondance-flash 1.5s ease-out forwards;
+    }
+    @keyframes moondance-flash {
+      0%   { opacity: 0; }
+      18%  { opacity: 1; }    /* ramp in over ~270ms */
+      48%  { opacity: 1; }    /* hold ~450ms */
+      100% { opacity: 0; }    /* fade out over remaining ~780ms */
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #flash-overlay.flashing { animation: moondance-flash-soft 0.4s ease-out forwards; }
+      @keyframes moondance-flash-soft {
+        0% { opacity: 0; } 50% { opacity: 0.6; } 100% { opacity: 0; }
+      }
+    }
   </style>
 
   <!-- p5.js -->
@@ -49,6 +74,13 @@ const CAPTURE_H = 480;
 // ohne erneute Erkennung wird der Marker als "verloren" behandelt.
 const MARKER_LOST_TOLERANCE_MS = 300;
 
+// Flash prelude: white overlay fires before a video action begins. Echoes
+// the eye-climax "look" reveal in index-v2. Set prelude:'flash' on a video
+// action to enable. Total CSS animation = FLASH_TOTAL_MS; the video starts
+// playing FLASH_VIDEO_OFFSET_MS in (so it emerges as the flash fades out).
+const FLASH_TOTAL_MS = 1500;
+const FLASH_VIDEO_OFFSET_MS = 600;
+
 // Größe des Debug-Previews (oben links). Aspect Ratio der Kamera bleibt erhalten,
 // das Bild wird in diesen Rahmen einzentriert (Letterbox).
 const DEBUG_PREVIEW_W = 200;
@@ -65,7 +97,7 @@ const DEBUG_PREVIEW_H = 150;
 //                     läuft dann eigenständig weiter (Stop wird ignoriert)
 // =============================================================
 const MARKER_ACTIONS = {
-  0: { type: 'video', src: 'moondance.mp4', mode: 'live' },
+  0: { type: 'video', src: 'moondance.mp4', mode: 'live', prelude: 'flash' },
   // 1: { type: 'video', src: 'video2.mp4', mode: 'live'    },
   // 2: { type: 'sound', src: 'whale.mp3',  mode: 'live'    },
   // 3: { type: 'scene', name: 'eye',       mode: 'oneshot' },
@@ -240,10 +272,23 @@ function startAction(id, action) {
     case 'video': {
       const vid = ensureVideoElement(action.src);
       vid.currentTime = 0;
-      vid.style.display = 'block';
-      const p = vid.play();
-      if (p && p.catch) {
-        p.catch(err => console.warn('[moondance] video.play() blockiert/fehlgeschlagen:', err));
+      const playVideo = () => {
+        vid.style.display = 'block';
+        const p = vid.play();
+        if (p && p.catch) {
+          p.catch(err => console.warn('[moondance] video.play() blockiert/fehlgeschlagen:', err));
+        }
+      };
+      if (action.prelude === 'flash') {
+        triggerFlash();
+        // Reveal the video partway through the flash so it emerges from the light.
+        if (pendingPlayTimers[action.src]) clearTimeout(pendingPlayTimers[action.src]);
+        pendingPlayTimers[action.src] = setTimeout(() => {
+          pendingPlayTimers[action.src] = null;
+          playVideo();
+        }, FLASH_VIDEO_OFFSET_MS);
+      } else {
+        playVideo();
       }
       break;
     }
@@ -279,6 +324,12 @@ function stopAction(id, action) {
   switch (action.type) {
 
     case 'video': {
+      // Cancel any pending flash → play scheduled by startAction so the video
+      // doesn't fire after the marker is gone.
+      if (pendingPlayTimers[action.src]) {
+        clearTimeout(pendingPlayTimers[action.src]);
+        pendingPlayTimers[action.src] = null;
+      }
       const vid = videoElements[action.src];
       if (vid) {
         vid.pause();
@@ -304,6 +355,32 @@ function stopAction(id, action) {
 // VIDEO-ELEMENT-FACTORY (gecached pro src)
 // Vollbild-Overlay, schwarzer Letterbox-Hintergrund, ohne Controls.
 // =============================================================
+// Flash overlay — created once, re-armed on every prelude:'flash' video start.
+let flashOverlayEl = null;
+let flashResetTimer = null;
+// Pending delayed-play timers per video src so we can cancel them if the
+// marker disappears mid-flash and the video shouldn't actually start.
+const pendingPlayTimers = {};
+function ensureFlashOverlay() {
+  if (flashOverlayEl) return flashOverlayEl;
+  flashOverlayEl = document.createElement('div');
+  flashOverlayEl.id = 'flash-overlay';
+  document.body.appendChild(flashOverlayEl);
+  return flashOverlayEl;
+}
+function triggerFlash() {
+  const el = ensureFlashOverlay();
+  el.classList.remove('flashing');
+  // Force reflow so the next class-add restarts the animation from 0.
+  void el.offsetWidth;
+  el.classList.add('flashing');
+  if (flashResetTimer) clearTimeout(flashResetTimer);
+  flashResetTimer = setTimeout(() => {
+    el.classList.remove('flashing');
+    flashResetTimer = null;
+  }, FLASH_TOTAL_MS + 50);
+}
+
 function ensureVideoElement(src) {
   if (videoElements[src]) return videoElements[src];
 
