@@ -356,7 +356,14 @@ function ensureVideoElement(src) {
 // =============================================================
 
 function startVideoFlashCycle(id, vid, action) {
-  // Re-Trigger: laufende Sequenz sauber abbrechen, frisch von vorne starten.
+  // Re-Trigger während laufender Sequenz: ignorieren. Die laufende Sequenz
+  // läuft sauber bis zum Ende durch, erst danach ist ein neuer Trigger möglich.
+  if ((flashRemaining[id] || 0) > 0) {
+    console.log(`[action] marker ${id}: Sequenz läuft noch, Re-Trigger ignoriert`);
+    return;
+  }
+
+  // Defensive Aufräumarbeit (falls noch Reste von einer abgeschlossenen Sequenz hängen).
   if (flashTimers[id]) {
     clearTimeout(flashTimers[id]);
     flashTimers[id] = null;
