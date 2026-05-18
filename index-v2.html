@@ -1631,8 +1631,8 @@ function drawVizMyth(a){
   const symX=cx+190,symY=cy-10,symSize=95,sc=symSize/902.46;
   const ctx2=drawingContext;ctx2.save();
   ctx2.translate(symX-451.23*sc,symY-402.75*sc);ctx2.scale(sc,sc);
-  ctx2.fillStyle = `rgba(95,105,125,${a/255*0.75})`;
-  ctx2.strokeStyle = `rgba(140,150,170,${a/255*0.45})`;
+  ctx2.fillStyle = `rgba(180,200,220,${a/255*0.5})`;
+  ctx2.strokeStyle = `rgba(200,215,230,${a/255*0.55})`;
   ctx2.lineWidth=9;ctx2.setLineDash([]);
   // Main body path
   ctx2.beginPath();ctx2.moveTo(451.23,155.52);
@@ -1659,7 +1659,7 @@ function drawVizMyth(a){
   fill(180,200,230,a*0.4);textSize(13);text('protector · he who mourns',cx,kY+72);
   fill(120,180,180,a*0.55);textSize(15);text('the separation',cx,cy);
   fill(100,160,160,a*0.35);textSize(13);text('humanity caught between',cx,cy+20);
-  fill(214,200,65,a*0.5*t);textSize(10);text('the eye of kheir',symX,symY+62);
+  fill(180,200,230,a*0.7);textSize(17);text('the eye of kheir',symX,symY+62);
 }
 // --- SELECTION ---
 function drawVizSelection(a){const t=millis()-vizStart;const lines=['they say my name','once','that\'s enough','something tightens inside me','i walk','too fast then slower','i could stop','but i keep walking','the path narrows','the air thins','the chamber is smaller than i expected','the altar stands in the center','the eye','two tubes','they lean toward me','too close','i kneel','the floor is cold','i am not the first','the light is not mine','i raise my gaze','slowly','toward the openings'];noStroke();textAlign(CENTER);for(let i=0;i<lines.length;i++){const ls=i*1100;if(t<ls)break;const age=t-ls;const fi6=min(age/800,1),fo6=max(0,1-(age-6000)/1500),alp=min(fi6,fo6);if(alp<=0)continue;const warmth=i/lines.length;fill(140+warmth*80,180+warmth*40,180-warmth*120,a*0.7*alp);textSize(15+warmth*5);text(lines[i],width/2,height*0.12+i*24);}}
