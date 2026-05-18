@@ -21,7 +21,7 @@
   <!-- js-aruco2 (Reihenfolge zwingend: cv → aruco → dictionary) -->
   <script src="https://cdn.jsdelivr.net/gh/damianofalcioni/js-aruco2@master/src/cv.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/damianofalcioni/js-aruco2@master/src/aruco.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/damianofalcioni/js-aruco2@master/src/dictionaries/ARUCO_MIP_36h12.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/damianofalcioni/js-aruco2@master/src/dictionaries/ARUCO.js"></script>
 </head>
 <body>
 <script>
@@ -35,10 +35,10 @@
 const DEBUG = true;
 
 // ArUco-Dictionary. Drucke deine Marker mit derselben Variante:
-// 'ARUCO_MIP_36h12' (modern, robust, default hier),
-// 'ARUCO', 'ARUCO_MIP_16h3', 'ARUCO_MIP_25h7', 'ARUCO_MIP_36h13', etc.
+// 'ARUCO' (original 1024-marker set, OpenCV default — used here),
+// 'ARUCO_MIP_36h12', 'ARUCO_MIP_16h3', 'ARUCO_MIP_25h7', 'ARUCO_MIP_36h13', etc.
 // Bei Wechsel auch den passenden <script>-Tag im <head> tauschen.
-const ARUCO_DICTIONARY = 'ARUCO_MIP_36h12';
+const ARUCO_DICTIONARY = 'ARUCO';
 
 // Wunsch-Auflösung für die Webcam (Kamera wählt nächst-passende).
 // 640×480 = guter Kompromiss aus Detektor-Geschwindigkeit & Marker-Reichweite.
