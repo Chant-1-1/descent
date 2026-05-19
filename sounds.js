@@ -29,4 +29,5 @@ window.DESCENT_SOUNDS = Object.freeze([
   'whale-fx2',
   'whale-low',
   'whale-song',
+  'metal_sound_1',
 ]);
