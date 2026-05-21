@@ -1,0 +1,18 @@
+{
+  "name": "acoustics-pavilion",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Interactive acoustic simulation of a 20x20m futuristic festival pavilion that reacts to techno music.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}

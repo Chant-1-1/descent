@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Acoustics Pavilion — Adaptive Festival Stage</title>
+    <link rel="stylesheet" href="/src/ui/styles.css" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <header id="topbar">
+      <div class="brand">
+        <span class="dot"></span>
+        ACOUSTICS / Pavilion 01
+      </div>
+      <nav id="mode-switcher">
+        <button data-mode="normal" class="active">Normal</button>
+        <button data-mode="analysis">Analysis</button>
+        <button data-mode="raytrace">Raytrace</button>
+      </nav>
+    </header>
+
+    <aside id="left-panel">
+      <section class="panel">
+        <h3>Audio</h3>
+        <div id="track-list"></div>
+        <div class="row">
+          <button id="play-btn">▶ Play</button>
+          <button id="pause-btn">❚❚ Pause</button>
+        </div>
+        <div class="row">
+          <label>Volume</label>
+          <input id="volume" type="range" min="0" max="1" step="0.01" value="0.7" />
+        </div>
+        <div class="bars">
+          <div class="bar"><span>BASS</span><div class="meter"><i id="m-bass"></i></div></div>
+          <div class="bar"><span>MID</span><div class="meter"><i id="m-mid"></i></div></div>
+          <div class="bar"><span>HIGH</span><div class="meter"><i id="m-high"></i></div></div>
+          <div class="bar"><span>LVL</span><div class="meter"><i id="m-level"></i></div></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3>Architecture Controls</h3>
+        <div class="slider">
+          <label>Adaptation intensity</label>
+          <input id="c-intensity" type="range" min="0" max="2" step="0.01" value="1" />
+        </div>
+        <div class="slider">
+          <label>Stage mobility</label>
+          <input id="c-stage" type="range" min="0" max="1" step="0.01" value="0.6" />
+        </div>
+        <div class="slider">
+          <label>Speaker mobility</label>
+          <input id="c-speaker" type="range" min="0" max="1" step="0.01" value="0.7" />
+        </div>
+        <div class="slider">
+          <label>Opening aperture</label>
+          <input id="c-aperture" type="range" min="0" max="1" step="0.01" value="0.4" />
+        </div>
+        <div class="slider">
+          <label>Roof deformation</label>
+          <input id="c-roof" type="range" min="0" max="1" step="0.01" value="0.6" />
+        </div>
+        <div class="slider">
+          <label>Floor descent</label>
+          <input id="c-floor" type="range" min="0" max="1" step="0.01" value="0.3" />
+        </div>
+        <div class="slider">
+          <label>Panel travel</label>
+          <input id="c-panels" type="range" min="0" max="1" step="0.01" value="0.6" />
+        </div>
+        <div class="slider">
+          <label>Absorption bias</label>
+          <input id="c-absorption" type="range" min="0" max="1" step="0.01" value="0.4" />
+        </div>
+        <div class="slider">
+          <label>Diffusion bias</label>
+          <input id="c-diffusion" type="range" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+        <div class="slider">
+          <label>Transformation speed</label>
+          <input id="c-speed" type="range" min="0.1" max="3" step="0.05" value="1" />
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3>Raytracing</h3>
+        <div class="slider">
+          <label>Ray density</label>
+          <input id="c-raydensity" type="range" min="8" max="256" step="1" value="64" />
+        </div>
+        <div class="slider">
+          <label>Max reflections</label>
+          <input id="c-bounces" type="range" min="1" max="8" step="1" value="4" />
+        </div>
+        <div class="row">
+          <label><input id="c-showabs" type="checkbox" checked /> Show absorption heatmap</label>
+        </div>
+      </section>
+    </aside>
+
+    <aside id="right-panel">
+      <section class="panel">
+        <h3>Acoustic Diagnostics</h3>
+        <div class="kpi"><span>RT60 (Sabine)</span><b id="kpi-rt60">— s</b></div>
+        <div class="kpi"><span>Volume V</span><b id="kpi-volume">— m³</b></div>
+        <div class="kpi"><span>Equiv. absorption A</span><b id="kpi-absorption">— m²·sa</b></div>
+        <div class="kpi"><span>Absorption avg α̅</span><b id="kpi-alpha">—</b></div>
+        <div class="kpi"><span>Diffusion idx</span><b id="kpi-diffusion">—</b></div>
+        <div class="kpi"><span>Reflection idx</span><b id="kpi-reflection">—</b></div>
+        <div class="kpi"><span>Immersion score</span><b id="kpi-immersion">—</b></div>
+      </section>
+
+      <section class="panel">
+        <h3>Stage &amp; Speakers</h3>
+        <div class="kpi"><span>Stage pos</span><b id="kpi-stage">—</b></div>
+        <div class="kpi"><span>Speakers</span><b id="kpi-speakers">—</b></div>
+        <div class="kpi"><span>Score</span><b id="kpi-score">—</b></div>
+      </section>
+
+      <section class="panel" id="surface-inspector">
+        <h3>Surface Inspector</h3>
+        <p class="muted">Click any surface in Raytrace mode.</p>
+        <div id="surface-data"></div>
+      </section>
+
+      <section class="panel">
+        <h3>Spectrum</h3>
+        <canvas id="spectrum" width="280" height="80"></canvas>
+      </section>
+    </aside>
+
+    <footer id="hint">
+      drag to orbit · scroll to zoom · right-drag to pan · press <kbd>R</kbd> to randomize
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
