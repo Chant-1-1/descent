@@ -207,7 +207,7 @@ If you touch hot draw code, these patterns are already in place — preserve the
 
 ## Known gotchas
 
-1. **Two working trees**: AI-side CI sandbox repo and user's local Windows repo at `C:\Users\lukas\Documents\GitHub\descent`. They can drift. Always check `git status` + `git log origin/main` before assuming state.
+1. **Two working trees**: AI-side CI sandbox repo and user's local Windows repo. They can drift. Always check `git status` + `git log origin/main` before assuming state.
 2. **`localStorage` is per-browser per-origin** — mixer + index-v2 live on same origin so they share. Tweaks in mixer require a refresh of index-v2 to take effect.
 3. **Browser autoplay** blocks any audio before first user gesture (the title click). Process intro must be silent.
 4. **`Tone.loaded()`** vs immediate start: scene loops start when buffers load, not when scene activates. `updateSceneAudio` only controls bus gains.
