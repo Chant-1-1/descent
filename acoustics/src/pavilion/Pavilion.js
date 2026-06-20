@@ -184,7 +184,8 @@ export class Pavilion {
     const level = this.sLevel.update(audio.level);
     const peak = this.sPeak.update(audio.peak);
 
-    const drivers = { bass, mid, high, level, peak, intensity, controls };
+    // stagePos lets the floor emit radial energy waves from under the stage.
+    const drivers = { bass, mid, high, level, peak, intensity, controls, stagePos: this.stage.currentPos };
 
     this.roof.update(dt * speed, drivers);
     this.panels.update(dt * speed, drivers);

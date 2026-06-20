@@ -70,22 +70,36 @@ export class Floor {
   }
 
   update(dt, drivers) {
-    const { bass, level, peak, intensity, controls } = drivers;
+    const { bass, mid, high, level, peak, intensity, controls, stagePos } = drivers;
     const descentCtrl = controls.floor ?? 1;
     const target = clamp((bass * 0.7 + level * 0.4) * descentCtrl * intensity, 0, 1);
+
+    const now = performance.now();
+    // Radial wave originates under the stage and travels outward on the beat.
+    const sx = stagePos ? stagePos.x : 0;
+    const sz = stagePos ? stagePos.z : 0;
+    const waveSpeed = 4.0 + bass * 6.0;   // ripples accelerate with bass
+    const waveK = 0.55;                    // spatial frequency of the ripple
+
+    // Emissive hue follows the track character (bass→magenta, treble→cyan).
+    const hue = 0.55 - bass * 0.12 + high * 0.04;
 
     let avg = 0;
     for (const t of this.tiles) {
       // Tiles closer to centre descend more strongly to form a "pit".
       const ringFalloff = 1 - clamp(t.distFromCenter / 9, 0, 1) * 0.6;
-      const localPhase = Math.sin(performance.now() * 0.001 * t.waveScale + t.phase) * 0.4 + 0.6;
+      const localPhase = Math.sin(now * 0.001 * t.waveScale + t.phase) * 0.4 + 0.6;
       const tgt = target * ringFalloff * localPhase + peak * 0.08;
       t.descent += (tgt - t.descent) * 0.08;
 
       t.mesh.position.y = t.baseY - t.descent * MAX_DESCENT;
 
-      // Emissive shimmer along seam lines.
-      t.mesh.material.emissiveIntensity = 0.05 + bass * 0.35 + peak * 0.4;
+      // Travelling radial ripple from the stage: bright crest sweeps outward.
+      const distToStage = Math.hypot(t.mesh.position.x - sx, t.mesh.position.z - sz);
+      const ripple = Math.sin(now * 0.001 * waveSpeed - distToStage * waveK) * 0.5 + 0.5;
+      const glow = 0.05 + bass * 0.3 + peak * 0.35 + ripple * level * 0.6;
+      t.mesh.material.emissiveIntensity = glow;
+      t.mesh.material.emissive.setHSL(hue, 0.85, 0.5);
       avg += t.descent;
     }
     this.descentFactor = avg / this.tiles.length;

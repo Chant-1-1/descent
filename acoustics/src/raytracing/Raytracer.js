@@ -50,8 +50,8 @@ export class Raytracer {
     this.scene.add(this.lines);
 
     // Hit markers — small spheres at reflection points coloured by material α.
+    // Each marker owns its material (set per-frame), so no shared material here.
     const sphereGeo = new THREE.SphereGeometry(0.07, 8, 8);
-    this.markerMat = new THREE.MeshBasicMaterial({ vertexColors: false, transparent: true, opacity: 0.9 });
     this.markersGroup = new THREE.Group();
     this.markersGroup.visible = false;
     this.scene.add(this.markersGroup);
@@ -68,12 +68,16 @@ export class Raytracer {
   }
 
   setRayDensity(n) {
-    this.maxRays = Math.max(4, Math.min(256, n));
+    const v = Math.max(4, Math.min(256, n));
+    if (v === this.maxRays) return; // guard: avoid per-frame buffer reallocation
+    this.maxRays = v;
     this._reallocate();
   }
 
   setMaxBounces(n) {
-    this.maxBounces = Math.max(1, Math.min(8, n));
+    const v = Math.max(1, Math.min(8, n));
+    if (v === this.maxBounces) return; // guard: avoid per-frame buffer reallocation
+    this.maxBounces = v;
     this._reallocate();
   }
 

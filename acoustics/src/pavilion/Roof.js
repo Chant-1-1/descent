@@ -20,14 +20,12 @@ export class Roof {
     this.openingFactor = 0;
 
     const petalCount = 8;
-    const halfSide = size / 2;
-    const baseRadius = Math.SQRT2 * halfSide; // corner reach
 
     // Construct a single trapezoidal petal as a triangle mesh fan.
-    // Geometry is defined locally with hinge along its z-axis at y=0.
+    // Geometry is defined locally with the hinge along its local Z axis at y=0.
     for (let i = 0; i < petalCount; i++) {
       const angle = (i / petalCount) * Math.PI * 2;
-      const petal = this._buildPetal(i, petalCount, baseRadius);
+      const petal = this._buildPetal(i, petalCount, angle);
 
       const pivot = new THREE.Group();
       pivot.rotation.y = angle;
@@ -54,17 +52,24 @@ export class Roof {
     parent.registerSurface(this.crown, MATERIALS.metalPanel, Math.PI * 3.2 * 3.2, 'Roof crown');
   }
 
-  _buildPetal(i, total, radius) {
-    // Petal: triangle from origin (hinge corner) to outer arc.
-    // Width approximates one segment of the perimeter.
+  _buildPetal(i, total, angle) {
+    // Petal: triangle from inner apex out to the rim edge. The rim endpoints
+    // are projected onto the actual SQUARE perimeter (not a circle), and each
+    // petal spans slightly more than its share so neighbours overlap and the
+    // four corners of the 20×20 footprint stay covered.
     const half = this.size / 2;
-    const arcSpan = (Math.PI * 2) / total;
+    const step = (Math.PI * 2) / total;
+    const halfSpan = (step / 2) * 1.18; // >0.5 step → petals overlap at corners
 
-    // outer points on the square's perimeter approximated by an octagon arc
-    const v0 = new THREE.Vector3(0, 0, 0); // hinge centre
-    const v1 = new THREE.Vector3(Math.cos(-arcSpan / 2) * half, 0, Math.sin(-arcSpan / 2) * half);
-    const v2 = new THREE.Vector3(Math.cos(arcSpan / 2) * half, 0, Math.sin(arcSpan / 2) * half);
-    const apex = new THREE.Vector3(half * 0.6, this.heightExtra, 0);
+    // Radius from centre to the square boundary at a given world angle.
+    const squareR = (a) => half / Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a)));
+    const r1 = squareR(angle - halfSpan);
+    const r2 = squareR(angle + halfSpan);
+
+    // Local frame: centreline along +X (pivot rotates it to `angle`).
+    const v1 = new THREE.Vector3(Math.cos(-halfSpan) * r1, 0, Math.sin(-halfSpan) * r1);
+    const v2 = new THREE.Vector3(Math.cos(halfSpan) * r2, 0, Math.sin(halfSpan) * r2);
+    const apex = new THREE.Vector3(half * 0.22, this.heightExtra, 0);
 
     // Triangulate two faces: hinge-edge to outer points to apex.
     const positions = new Float32Array([
@@ -130,13 +135,14 @@ export class Roof {
     const target = clamp(bass * 1.2 * (controls.roof ?? 1) * intensity, 0, 1);
     this.openingFactor += (target - this.openingFactor) * 0.08;
 
-    // Each petal hinges outward.
+    // Each petal folds open about its rim edge (local Z axis), lifting the
+    // inner apex upward/outward — the canopy "blooms" with bass.
     const tiltMax = 1.2; // radians
     for (let i = 0; i < this.petals.length; i++) {
       const p = this.petals[i];
       // Phase offset per petal so the roof "waves" rather than opening uniformly.
       const phase = Math.sin(performance.now() * 0.001 + i * 0.7) * 0.1;
-      p.hinge.rotation.x = lerp(p.hinge.rotation.x, -tiltMax * this.openingFactor + phase * peak, 0.08);
+      p.hinge.rotation.z = lerp(p.hinge.rotation.z, tiltMax * this.openingFactor + phase * peak, 0.08);
     }
 
     // Crown lifts up with bass; emissive pulses with peak.

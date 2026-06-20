@@ -1,4 +1,8 @@
 import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 // Central wrapper around renderer, scene, camera and an orbit-like control.
 // Kept minimal — no external controls dependency so the project stays slim.
@@ -19,7 +23,8 @@ export class SceneManager {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    // Scene exposure bumped +15% for an overall brighter look.
+    this.renderer.toneMappingExposure = 1.21;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -34,21 +39,43 @@ export class SceneManager {
     this.spherical = new THREE.Spherical(34, Math.PI / 2.6, Math.PI / 4);
     this._updateCamera();
 
+    // Cinematic auto-orbit — slowly rotates the camera for video capture.
+    // Pauses automatically for a couple of seconds after any user interaction.
+    this.cinematic = false;
+    this._lastInteract = performance.now();
+
     this._setupLights();
     this._setupOrbit();
+    this._setupComposer();
 
     this.clock = new THREE.Clock();
 
     window.addEventListener('resize', () => this._onResize());
   }
 
+  _setupComposer() {
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+
+    // Bloom — gives emissive surfaces a real glow. Threshold kept high so only
+    // bright/emissive elements bloom, not the whole scene.
+    this.bloom = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.55, // strength
+      0.4,  // radius
+      0.82, // threshold
+    );
+    this.composer.addPass(this.bloom);
+    this.composer.addPass(new OutputPass());
+  }
+
   _setupLights() {
-    // Hemisphere for soft sky/ground gradient.
-    this.hemi = new THREE.HemisphereLight(0x1a2d3f, 0x080608, 0.55);
+    // Hemisphere for soft sky/ground gradient. (+15% brightness)
+    this.hemi = new THREE.HemisphereLight(0x1a2d3f, 0x080608, 0.63);
     this.scene.add(this.hemi);
 
-    // Key directional with shadows — the architectural "sun".
-    this.key = new THREE.DirectionalLight(0xc7e6ff, 1.6);
+    // Key directional with shadows — the architectural "sun". (+15%)
+    this.key = new THREE.DirectionalLight(0xc7e6ff, 1.84);
     this.key.position.set(20, 30, 12);
     this.key.castShadow = true;
     this.key.shadow.mapSize.set(2048, 2048);
@@ -61,8 +88,8 @@ export class SceneManager {
     this.key.shadow.bias = -0.0005;
     this.scene.add(this.key);
 
-    // Rim accent — the "stage glow".
-    this.rim = new THREE.DirectionalLight(0xff5ec8, 0.45);
+    // Rim accent — the "stage glow". (+15%)
+    this.rim = new THREE.DirectionalLight(0xff5ec8, 0.52);
     this.rim.position.set(-15, 8, -20);
     this.scene.add(this.rim);
 
@@ -132,6 +159,7 @@ export class SceneManager {
     c.addEventListener('pointerdown', (e) => {
       dragging = e.button === 2 ? 'pan' : 'orbit';
       lx = e.clientX; ly = e.clientY;
+      this._lastInteract = performance.now();
       c.setPointerCapture(e.pointerId);
     });
 
@@ -166,10 +194,26 @@ export class SceneManager {
 
     c.addEventListener('wheel', (e) => {
       e.preventDefault();
+      this._lastInteract = performance.now();
       this.spherical.radius *= 1 + e.deltaY * 0.0008;
       this.spherical.radius = Math.max(8, Math.min(120, this.spherical.radius));
       this._updateCamera();
     }, { passive: false });
+  }
+
+  setCinematic(v) { this.cinematic = v; }
+  toggleCinematic() { this.cinematic = !this.cinematic; return this.cinematic; }
+
+  // Called each frame from the main loop. When cinematic mode is on and the
+  // user hasn't touched the camera for a moment, the camera slowly orbits and
+  // gently bobs in elevation — a hands-free shot for video capture.
+  tickCamera(dt) {
+    if (!this.cinematic) return;
+    if (performance.now() - this._lastInteract < 2500) return;
+    this.spherical.theta += dt * 0.06;
+    this.spherical.phi += Math.sin(performance.now() * 0.0003) * 0.0006;
+    this.spherical.phi = Math.max(0.5, Math.min(Math.PI / 2.1, this.spherical.phi));
+    this._updateCamera();
   }
 
   _updateCamera() {
@@ -183,12 +227,14 @@ export class SceneManager {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
+    this.composer.setSize(w, h);
+    this.bloom.setSize(w, h);
   }
 
   add(obj) { this.scene.add(obj); }
   remove(obj) { this.scene.remove(obj); }
 
   render() {
-    this.renderer.render(this.scene, this.camera);
+    this.composer.render();
   }
 }

@@ -36,34 +36,59 @@ export class Optimizer {
     this.audioCharacter.highDom = audio.high / total;
   }
 
-  // Generate a small candidate set for stage + 4 speaker positions.
-  candidates(now) {
-    const t = now * 0.0001;
-    const list = [];
-    const presets = [
-      // centred
-      { stage: [0, -3], spread: 5.5, rot: 0 },
-      // back-wall
-      { stage: [0, -6.5], spread: 6.5, rot: 0 },
-      // off-centre, slight rotation
-      { stage: [-3, -4], spread: 6, rot: Math.PI / 8 },
-      // forward thrust
-      { stage: [0, 0], spread: 5, rot: 0 },
+  // Build a single config (stage + 4 speakers) from a base point, ring radius
+  // and ring rotation. Speakers are clamped to the interior.
+  buildConfig(stage, spread, rot) {
+    const speakers = [];
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + Math.PI / 4 + rot;
+      const x = stage.x + Math.cos(a) * spread;
+      const z = stage.z + Math.sin(a) * spread;
+      speakers.push(new THREE.Vector3(
+        clamp(x, -PAVILION_HALF + 1, PAVILION_HALF - 1),
+        0,
+        clamp(z, -PAVILION_HALF + 1, PAVILION_HALF - 1),
+      ));
+    }
+    return { stage, speakers };
+  }
+
+  // Generate continuous candidates. A *base* configuration is derived live from
+  // the audio character (so the stage genuinely tracks the music), then we add
+  // a few small jittered variations around it and let score_() pick the best.
+  // This keeps the motion smooth and continuous instead of snapping between a
+  // handful of fixed presets.
+  candidates(now, audio) {
+    const t = now * 0.00018;
+    const c = this.audioCharacter;
+
+    // Stage placement intent (documented in pavilion/Stage.js):
+    //   bass-dominant  → centred (excites room modes evenly)
+    //   high-dominant  → toward the back wall (sprays treble across the floor)
+    //   mid-dominant   → swings off-centre laterally
+    const stageX = (c.midDom - 0.33) * 16 * Math.sin(t * 1.3);
+    const stageZ = -c.highDom * 6.5 + audio.peak * 1.5;
+    const base = new THREE.Vector3(
+      clamp(stageX, -7, 7),
+      0,
+      clamp(stageZ, -7, 7),
+    );
+
+    // Ring spread widens with overall level for more even coverage; slow spin.
+    const spread = 4.5 + audio.level * 2.5;
+    const rot = t * 0.6;
+
+    const list = [this.buildConfig(base.clone(), spread, rot)];
+    // A few nudged variants so the heuristic has something to compare against.
+    const jitters = [
+      [1.2, 0, 0.0], [-1.2, 0, 0.0], [0, 0, 1.2], [0, 0, -1.2],
     ];
-    for (const p of presets) {
-      const stage = new THREE.Vector3(p.stage[0], 0, p.stage[1]);
-      const speakers = [];
-      for (let i = 0; i < 4; i++) {
-        const a = (i / 4) * Math.PI * 2 + Math.PI / 4 + p.rot;
-        const x = stage.x + Math.cos(a) * p.spread;
-        const z = stage.z + Math.sin(a) * p.spread;
-        speakers.push(new THREE.Vector3(
-          clamp(x, -PAVILION_HALF + 1, PAVILION_HALF - 1),
-          0,
-          clamp(z, -PAVILION_HALF + 1, PAVILION_HALF - 1),
-        ));
-      }
-      list.push({ stage, speakers });
+    for (const [dx, , dz] of jitters) {
+      list.push(this.buildConfig(
+        new THREE.Vector3(clamp(base.x + dx, -7, 7), 0, clamp(base.z + dz, -7, 7)),
+        spread,
+        rot,
+      ));
     }
     return list;
   }
@@ -129,12 +154,14 @@ export class Optimizer {
 
   // Pick best of candidates and emit targets to stage + speakers.
   optimize(stage, speakers, audio, now) {
-    // throttle — 1 evaluation per second is plenty for smooth motion
-    if (now - this.lastEval < 1200) return;
+    // Re-evaluate ~3×/s. The candidate base now moves continuously with the
+    // audio, so this cadence yields smooth, music-tracking motion (the stage
+    // itself lerps toward the target every frame).
+    if (now - this.lastEval < 320) return;
     this.lastEval = now;
     this.setAudioCharacter(audio);
 
-    const cands = this.candidates(now);
+    const cands = this.candidates(now, audio);
     let bestS = -Infinity;
     let best = null;
     let bestDetails = null;

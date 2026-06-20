@@ -82,17 +82,23 @@ document.getElementById('volume').addEventListener('input', (e) => audioEngine.s
 const modeSwitcher = new ModeSwitcher((mode) => {
   raytracer.setEnabled(mode === 'raytrace');
   picker.setEnabled(mode === 'raytrace');
-  pavilion.modeShowAbsorption = (mode === 'raytrace' && controls.state.showAbsorption) ||
-                                (mode === 'analysis');
-  // Analysis mode also highlights absorption — gives a quick architectural map.
+  // Absorption visualization is driven live in the render loop (it also depends
+  // on the live "Show absorption" checkbox), so nothing else to do here.
+  // Analysis mode also highlights absorption — a quick architectural map.
 });
 
 // ────────────────────────────────────────────────────────────
-// Keyboard shortcut: R randomises optimizer seed
+// Keyboard shortcuts:
+//   R — force the optimizer to re-evaluate immediately
+//   C — toggle cinematic auto-orbit camera (for video capture)
 // ────────────────────────────────────────────────────────────
 window.addEventListener('keydown', (e) => {
   if (e.key === 'r' || e.key === 'R') {
     optimizer.lastEval = 0; // force re-eval next tick
+  } else if (e.key === 'c' || e.key === 'C') {
+    const on = sceneManager.toggleCinematic();
+    const hint = document.getElementById('hint');
+    if (hint) hint.dataset.cinematic = on ? 'Cinematic ON' : '';
   }
 });
 
@@ -139,6 +145,20 @@ function tick() {
   sceneManager.stageLightB.intensity = 2 + audio.bass * 12 + audio.peak * 14;
   sceneManager.stageLightA.position.copy(pavilion.stage.currentPos).add(new THREE.Vector3(0, 5, 0));
   sceneManager.stageLightB.position.copy(pavilion.stage.currentPos).add(new THREE.Vector3(0, 3, -1));
+
+  // Global colour theme shifts with the track character: bass-dominant tracks
+  // skew the lighting toward magenta, treble-dominant toward cyan. The lights
+  // ease toward the target hue so colour transitions stay smooth.
+  const total = audio.bass + audio.mid + audio.high + 1e-6;
+  const bassDom = audio.bass / total;
+  const highDom = audio.high / total;
+  const hueA = 0.5 + highDom * 0.06 - bassDom * 0.04; // cyan-ish key
+  const hueB = 0.9 - highDom * 0.08;                   // magenta-ish accent
+  sceneManager.stageLightA.color.setHSL(hueA, 0.85, 0.6);
+  sceneManager.stageLightB.color.setHSL(hueB, 0.85, 0.55);
+
+  // Cinematic camera (no-op unless toggled with 'C').
+  sceneManager.tickCamera(dt);
 
   // Raytracing only when its mode is active.
   raytracer.setRayDensity(controls.state.rayDensity);

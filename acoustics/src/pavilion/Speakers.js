@@ -81,11 +81,34 @@ export class Speakers {
       truss.position.y = 2;
       stackGroup.add(truss);
 
+      // Sound-pulse rings at the sub — two concentric rings that expand and
+      // fade with bass/peak, visible in ALL modes as an emission cue.
+      const pulseRings = [];
+      for (let p = 0; p < 2; p++) {
+        const pgeo = new THREE.RingGeometry(0.6, 0.78, 40, 1);
+        const pmat = new THREE.MeshBasicMaterial({
+          color: 0x5ee2ff,
+          transparent: true,
+          opacity: 0.0,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        });
+        const ring = new THREE.Mesh(pgeo, pmat);
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.y = 0.08;
+        ring.userData.noRaytrace = true;
+        ring.userData.phase = p * 0.5; // stagger the two rings
+        stackGroup.add(ring);
+        pulseRings.push(ring);
+      }
+
       const stack = {
         group: stackGroup,
         cabs,
         sub,
         truss,
+        pulseRings,
         index: i,
         baseAngle: angle,
         baseRadius: r,
@@ -147,6 +170,18 @@ export class Speakers {
       // Sub pulses with bass.
       s.sub.scale.set(1 + bass * 0.12, 1 + bass * 0.08, 1 + bass * 0.12);
       s.sub.material.emissiveIntensity = 0.3 + bass * 1.4;
+
+      // Expanding sound-pulse rings: each ring grows on a looping phase driven
+      // by bass and fades as it expands. Two staggered rings = continuous emission.
+      const drive = bass * 0.7 + peak * 0.6;
+      const tphase = performance.now() * 0.001 * (1.2 + bass * 1.5);
+      for (const ring of s.pulseRings) {
+        const cycle = (tphase + ring.userData.phase) % 1; // 0→1 expansion
+        const scale = 1 + cycle * (4 + drive * 5);
+        ring.scale.set(scale, scale, 1);
+        ring.material.opacity = (1 - cycle) * (0.15 + drive * 0.5);
+        ring.material.color.setHSL(0.55 - bass * 0.12, 0.85, 0.55);
+      }
     }
   }
 }
