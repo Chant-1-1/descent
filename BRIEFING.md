@@ -92,6 +92,15 @@ Used by: cage lure flashes (`drawCages`), altar rings (`drawEyeBackground`), eye
 - See `updateTransition` for full timing (t=0..4000ms commented inline)
 - `silenceHours` flag suppresses normal `updateSceneAudio` ramping while active
 
+## Transition cards (poetic interludes between scenes)
+
+Shown on the black `#transition-overlay` during every scene change. `transCardEl` (`#transition-card`, font `Space Mono`) gets its innerHTML set in `startTransition()`, keyed by target:
+- → station: "we ascend. into the station." (`.tc-big`)
+- → eye / silence-hours: "silence hours" (`.tc-small`) + 4.7s pulse
+- → world (descend back): "we sink back into the deep."
+
+`updateTransition()` fades the card in (~300ms), holds (until ~2500ms; ~3500ms during silence-hours), then out. Reset to opacity 0 on transition end and in `clearPresState()`. The `.tc-pulse` dot beats on the same 4.7s heartbeat (CSS `tcbeat`).
+
 ## Eye climax (`drawEyeClimax`)
 
 Three phases tracked by `eyeClimaxPhase` ∈ `'A'|'B'|'C'` and `eyePhaseStart`:
@@ -167,7 +176,11 @@ Google Fonts loaded on-demand for any non-system family. Curated list in mixer's
 
 ## Process intro (first ever screen)
 
-Pre-experience overlay (z-index 2500) over the start-overlay (z 2000). Pure CSS + JS IIFE in `<script>` block above the main inline script. 10 axes, 10 highlights paced 1/sec, auto-finish at t=13500ms or click-skips. Removes itself from DOM. **No audio** (autoplay blocked pre-gesture).
+Pre-experience overlay (z-index 2500) over the start-overlay (z 2000), radial teal-glow background. Pure CSS + JS IIFE in `<script>` block above the main inline script. 10 axes each resolve to one chosen value; these are rendered as a single large centered lowercase block (`.proc-grid` → `.pval` spans joined by ` · ` separators), lit sequentially one per second from t=2000ms. `.proc-head` sits top-left ("speculative world-making · ten axes resolved"), `.proc-hint` bottom-left. Auto-finish at t=13500ms or click-skip; removes itself from DOM. **No audio** (autoplay blocked pre-gesture).
+
+## Title / start overlay (`#start-overlay`)
+
+Shown after the process intro. Centered poem (`.so-poem`: "a world beneath ice. / a station still breathing. / an eye watching above.") with a falling line (`#so-line`) and a 4.7s heartbeat pulse dot (`#so-pulse`) above it. Footer (`.so-foot`) pinned to the bottom: large world id ("world 3324255146") with a blinking cursor (`#so-cur`), "year 3126 · v2", and "click to descend · use headphones" / "press P for guided tour". The click is the audio-unlocking gesture → `Tone.start()` + `initAudio()`.
 
 ## Robustness layer (already in)
 
