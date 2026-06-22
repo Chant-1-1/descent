@@ -8,17 +8,28 @@
   *{margin:0;padding:0;box-sizing:border-box;}
   html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:'Courier New',monospace;color:#4a8a8a;}
   @media (hover:hover){html,body{cursor:none;}}
-  canvas{display:block;}
+  canvas{display:block;background:transparent !important;}
   #cursor{position:fixed;width:12px;height:12px;border-radius:50%;background:rgba(180,230,230,0.6);box-shadow:0 0 12px rgba(180,230,230,0.8);pointer-events:none;transform:translate(-50%,-50%);z-index:1000;transition:width 0.2s,height 0.2s,background 0.2s;}
   #cursor.hover{width:24px;height:24px;background:rgba(255,220,180,0.7);box-shadow:0 0 24px rgba(255,220,180,0.9);}
-  canvas{background:transparent !important;}
-  #start-overlay{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:12%;z-index:2000;cursor:pointer;}
+  #start-overlay{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2000;cursor:pointer;}
   #start-overlay.fade{opacity:0;transition:opacity 3s ease;pointer-events:none;}
-  #start-overlay .intro{color:rgba(230,242,238,1.0);font-size:14px;letter-spacing:0.17em;line-height:2.2;text-align:center;max-width:540px;margin-bottom:44px;text-shadow:0 1px 3px rgba(0,0,0,1);}
-  #start-overlay .world{color:rgba(170,215,205,0.9);font-size:11px;letter-spacing:0.48em;text-transform:lowercase;margin-bottom:52px;}
-  #start-overlay .text{color:#4a8a8a;font-size:13px;letter-spacing:0.35em;text-transform:lowercase;opacity:0.5;animation:sp 3s ease-in-out infinite;}
+  /* hybrid title: falling line + 4.7s heartbeat */
+  #so-line{position:absolute;left:50%;top:0;width:1px;height:26%;background:linear-gradient(180deg,transparent,rgba(120,200,190,0.4));pointer-events:none;}
+  #so-pulse{position:absolute;left:50%;top:26%;width:9px;height:9px;border-radius:50%;background:rgba(180,230,230,0.9);box-shadow:0 0 16px rgba(180,230,230,0.7);transform:translate(-50%,-50%);animation:hbpulse 4.7s ease-in-out infinite;pointer-events:none;}
+  #start-overlay .so-center{text-align:center;padding:0 6%;}
+  #start-overlay .intro{color:rgba(230,242,238,1.0);font-size:14px;letter-spacing:0.17em;line-height:2.2;text-align:center;max-width:760px;text-shadow:0 1px 3px rgba(0,0,0,1);}
+  #start-overlay .intro.so-poem{font-size:28px;line-height:1.5;letter-spacing:0.01em;}
+  #start-overlay .so-find{color:rgba(140,200,195,0.72);font-size:13px;letter-spacing:0.3em;margin-top:34px;text-transform:lowercase;text-shadow:0 1px 3px rgba(0,0,0,1);}
+  #start-overlay .so-foot{position:absolute;bottom:7%;left:0;right:0;text-align:center;}
+  #start-overlay .world{color:rgba(170,215,205,0.9);font-size:11px;letter-spacing:0.48em;text-transform:lowercase;}
+  #start-overlay .world.so-id{font-size:25px;letter-spacing:0.05em;color:rgba(232,244,240,0.96);}
+  #so-cur{display:inline-block;width:12px;height:22px;background:rgba(180,230,230,0.85);margin-left:8px;vertical-align:-3px;animation:curblink 1.1s steps(1) infinite;}
+  #start-overlay .so-year{color:rgba(170,215,205,0.62);font-size:10px;letter-spacing:0.34em;text-transform:lowercase;margin-top:9px;}
+  #start-overlay .text{color:#4a8a8a;font-size:13px;letter-spacing:0.35em;text-transform:lowercase;opacity:0.5;animation:sp 3s ease-in-out infinite;margin-top:22px;}
   @keyframes sp{0%,100%{opacity:0.25;}50%{opacity:0.65;}}
   @keyframes fi{from{opacity:0;}to{opacity:1;}}
+  @keyframes hbpulse{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.45;}8%{transform:translate(-50%,-50%) scale(1.7);opacity:1;}17%{transform:translate(-50%,-50%) scale(1);opacity:.5;}24%{transform:translate(-50%,-50%) scale(1.35);opacity:.85;}33%{transform:translate(-50%,-50%) scale(1);opacity:.45;}}
+  @keyframes curblink{0%,49%{opacity:1;}50%,100%{opacity:0;}}
   #subtitle{position:fixed;bottom:12%;left:50%;transform:translateX(-50%);max-width:70%;text-align:center;color:rgba(180,230,230,0.95);font-size:20px;letter-spacing:0.06em;line-height:1.9;pointer-events:none;opacity:0;transition:opacity 1.5s ease;z-index:500;text-shadow:0 0 12px rgba(0,0,0,0.95);white-space:pre-line;}
   #subtitle.show{opacity:1;}
   /* Scene menu */
@@ -32,8 +43,6 @@
   #glitch{position:fixed;inset:0;pointer-events:none;z-index:200;}
   #glitch.active{animation:gf 0.6s steps(8);}
   @keyframes gf{0%{background:rgba(0,0,0,0);transform:translate(0,0);}12%{background:rgba(180,230,230,0.35);transform:translate(8px,-3px);filter:invert(0.3);}50%{background:rgba(255,80,80,0.18);transform:translate(-4px,-2px);}100%{background:rgba(0,0,0,0);transform:translate(0,0);filter:none;}}
-  #dismiss-hint{position:fixed;bottom:3%;left:50%;transform:translateX(-50%);color:rgba(140,200,200,0.7);font-size:11px;letter-spacing:0.4em;pointer-events:none;z-index:600;opacity:0;transition:opacity 1s;}
-  #dismiss-hint.show{opacity:1;}
   .pres-arrow{position:fixed;top:50%;transform:translateY(-50%);width:52px;height:52px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:700;opacity:0;transition:opacity 0.4s;pointer-events:none;border:1px solid rgba(80,160,160,0.2);color:rgba(120,200,200,0.5);font-size:22px;font-family:'Courier New',monospace;background:rgba(0,0,0,0.3);user-select:none;}
   .pres-arrow.show{opacity:1;pointer-events:all;}
   .pres-arrow:hover{color:rgba(180,230,230,0.95);border-color:rgba(120,200,200,0.55);background:rgba(0,0,0,0.55);}
@@ -42,6 +51,12 @@
   #pres-badge{display:none;position:fixed;top:15px;right:100px;color:#ff7755;font-size:11px;letter-spacing:0.25em;opacity:0.6;z-index:500;font-family:'Courier New',monospace;}
   #transition-overlay{position:fixed;inset:0;background:#000;pointer-events:none;opacity:0;z-index:800;transition:opacity 1.5s ease;}
   #transition-overlay.active{opacity:1;}
+  /* Poetic transition cards (shown on the black between scenes) */
+  #transition-card{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;pointer-events:none;opacity:0;z-index:850;font-family:'Space Mono','Courier New',monospace;text-align:center;padding:0 8%;}
+  #transition-card .tc-big{font-size:30px;line-height:1.6;letter-spacing:0.01em;color:rgba(232,244,240,0.96);text-shadow:0 0 22px rgba(0,0,0,0.9);}
+  #transition-card .tc-small{font-size:12px;letter-spacing:0.5em;text-transform:lowercase;color:rgba(150,205,198,0.55);}
+  #transition-card .tc-pulse{width:10px;height:10px;border-radius:50%;background:rgba(180,230,230,0.9);box-shadow:0 0 16px rgba(180,230,230,0.7);animation:tcbeat 4.7s ease-in-out infinite;}
+  @keyframes tcbeat{0%,100%{transform:scale(1);opacity:.45;}8%{transform:scale(1.7);opacity:1;}17%{transform:scale(1);opacity:.5;}24%{transform:scale(1.35);opacity:.85;}33%{transform:scale(1);opacity:.45;}}
   /* Bottom-right settings */
   #set-toggle{position:fixed;bottom:20px;right:20px;z-index:1600;background:rgba(4,10,12,0.85);border:1px solid rgba(74,138,138,0.3);color:rgba(100,170,160,0.7);font-family:'Courier New',monospace;font-size:11px;letter-spacing:0.22em;padding:7px 13px;cursor:pointer;transition:all 0.2s;}
   #set-toggle:hover{color:rgba(180,230,230,0.95);border-color:rgba(120,200,190,0.55);}
@@ -52,50 +67,59 @@
   .srow input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:1px;background:rgba(74,138,138,0.35);outline:none;cursor:pointer;}
   .srow input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:rgba(180,230,230,0.85);cursor:pointer;box-shadow:0 0 8px rgba(180,230,230,0.6);}
   /* Process intro — speculative world-making matrix, plays before title */
-  #process-overlay{position:fixed;inset:0;background:#000;z-index:2500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6vh 6vw;cursor:pointer;opacity:0;animation:proc-in 1.4s ease forwards;}
+  #process-overlay{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(18,38,38,0.4),transparent 68%),#000;z-index:2500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6vh 6vw;cursor:pointer;opacity:0;animation:proc-in 1.4s ease forwards;}
   #process-overlay.out{animation:proc-out 1.4s ease forwards;pointer-events:none;}
   @keyframes proc-in{from{opacity:0;}to{opacity:1;}}
   @keyframes proc-out{from{opacity:1;}to{opacity:0;}}
-  .proc-head{color:rgba(255,255,255,0.78);font-size:11px;letter-spacing:0.55em;text-transform:uppercase;margin-bottom:38px;}
-  .proc-sub{color:rgba(255,255,255,0.35);font-size:9px;letter-spacing:0.32em;text-transform:uppercase;margin-bottom:42px;margin-top:-26px;}
-  .proc-grid{display:grid;grid-template-columns:auto 1fr;gap:14px 32px;max-width:1180px;width:100%;font-size:11px;letter-spacing:0.18em;line-height:1.4;}
-  .proc-axis{color:rgba(255,255,255,0.45);text-transform:uppercase;white-space:nowrap;align-self:center;}
-  .proc-poles{color:rgba(255,255,255,0.28);display:flex;flex-wrap:wrap;gap:6px 18px;text-transform:uppercase;align-self:center;}
-  .proc-poles .sep{opacity:0.35;}
-  .proc-poles .pole.hl{color:rgba(255,255,255,1);text-shadow:0 0 12px rgba(255,255,255,0.55);transition:color 0.6s,text-shadow 0.6s;}
-  .proc-hint{position:absolute;bottom:5%;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.32);font-size:10px;letter-spacing:0.42em;text-transform:lowercase;opacity:0;animation:proc-hint-in 1s ease 2s forwards;}
+  .proc-head{position:absolute;top:9%;left:8%;color:rgba(180,230,230,0.5);font-size:9px;letter-spacing:0.4em;text-transform:uppercase;}
+  /* C "pressure": all resolved values as one large centered block, lit sequentially */
+  .proc-grid{max-width:1100px;width:100%;text-align:center;font-size:26px;letter-spacing:0.01em;line-height:1.62;color:rgba(70,130,130,0.4);text-transform:lowercase;}
+  .proc-grid .pval{color:rgba(70,130,130,0.32);transition:color 0.7s,text-shadow 0.7s;}
+  .proc-grid .pval.hl{color:rgba(235,245,242,0.96);text-shadow:0 0 14px rgba(180,230,230,0.4);}
+  .proc-grid .sep{color:rgba(70,130,130,0.28);}
+  .proc-hint{position:absolute;bottom:8%;left:8%;color:rgba(140,200,200,0.42);font-size:9px;letter-spacing:0.42em;text-transform:lowercase;opacity:0;animation:proc-hint-in 1s ease 2s forwards;}
   @keyframes proc-hint-in{from{opacity:0;}to{opacity:0.32;}}
   @media (prefers-reduced-motion:reduce){
     #glitch.active{animation:none!important;}
     .sh-lamp,.sh-cone,.sh-noise,.sh-drip{animation:none!important;}
     #start-overlay .text{animation:none!important;opacity:.5;}
+    #so-pulse,#so-cur{animation:none!important;}
     #process-overlay,#process-overlay.out{animation:none!important;opacity:1;}
     #process-overlay.out{display:none;}
-    .proc-poles .pole.hl{transition:none!important;}
+    .proc-grid .pval.hl{transition:none!important;}
+    #transition-card .tc-pulse{animation:none!important;}
   }
 </style>
 </head>
 <body>
 <div id="process-overlay" role="dialog" aria-label="speculative world-making matrix">
-  <div class="proc-head">speculative world-making</div>
+  <div class="proc-head">speculative world-making · ten axes resolved</div>
   
   <div class="proc-grid" id="proc-grid"></div>
   <div class="proc-hint">click anywhere to skip</div>
 </div>
 <div id="start-overlay">
-  <div class="intro">a world beneath ice.&nbsp; a station still breathing.<br>an eye watching above.<br><br>find the signals.&nbsp; listen before you ascend.</div>
-  <div class="world">world 3324255146 &nbsp;·&nbsp; year 3126 &nbsp;·&nbsp; v2</div>
-  <div class="text">click to descend</div>
-  <div class="text" style="font-size:10px;letter-spacing:0.25em;opacity:0.35;margin-top:8px;animation:none;">press P for guided tour</div>
+  <div id="so-line"></div>
+  <div id="so-pulse"></div>
+  <div class="so-center">
+    <div class="intro so-poem">a world beneath ice.<br>a station still breathing.<br>an eye watching above.</div>
+    <div class="so-find">find the signals.&nbsp; listen before you ascend.</div>
+  </div>
+  <div class="so-foot">
+    <div class="world so-id">world 3324255146<span id="so-cur"></span></div>
+    <div class="so-year">year 3126 &nbsp;·&nbsp; v2</div>
+    <div class="text">click to descend · use headphones</div>
+    <div class="text" style="font-size:10px;letter-spacing:0.25em;opacity:0.35;margin-top:8px;animation:none;">press P for guided tour</div>
+  </div>
 </div>
-<div id="cursor"></div><div id="vignette"></div><div id="glitch"></div><div id="transition-overlay"></div>
+<div id="cursor"></div><div id="vignette"></div><div id="glitch"></div><div id="transition-overlay"></div><div id="transition-card"></div>
 <div id="scene-menu" role="navigation" aria-label="scenes">
   <button class="scene-btn active" onclick="navScene(0)" aria-label="scene 1: the world">i · the world</button>
   <button class="scene-btn" onclick="navScene(1)" aria-label="scene 2: the station">ii · the station</button>
   <button class="scene-btn" onclick="navScene(2)" aria-label="scene 3: the eye">iii · the eye</button>
 </div>
 
-<div id="subtitle"></div><div id="dismiss-hint">click to return</div><div id="pres-badge">▶ auto</div>
+<div id="subtitle"></div><div id="pres-badge">▶ auto</div>
 <div id="arr-next" class="pres-arrow" onclick="navNext()">›</div>
 <div id="arr-prev" class="pres-arrow" onclick="navPrev()">‹</div>
 <button id="set-toggle" aria-expanded="false" aria-controls="set-panel" onclick="const p=document.getElementById('set-panel');p.classList.toggle('open');this.setAttribute('aria-expanded',p.classList.contains('open'));">⚙ settings</button>
@@ -201,15 +225,9 @@
   if(!grid||!overlay)return;
   const hlSpans=[];
   AXES.forEach((row,rowIdx)=>{
-    const axLabel=document.createElement('div');axLabel.className='proc-axis';axLabel.textContent=row.ax;grid.appendChild(axLabel);
-    const polesEl=document.createElement('div');polesEl.className='proc-poles';
-    row.poles.forEach((p,i)=>{
-      if(i>0){const s=document.createElement('span');s.className='sep';s.textContent='·';polesEl.appendChild(s);}
-      const ps=document.createElement('span');ps.className='pole';ps.textContent=p;
-      if(p===row.hl)hlSpans[rowIdx]=ps;
-      polesEl.appendChild(ps);
-    });
-    grid.appendChild(polesEl);
+    if(rowIdx>0){const s=document.createElement('span');s.className='sep';s.textContent=' · ';grid.appendChild(s);}
+    const v=document.createElement('span');v.className='pval';v.textContent=row.hl;grid.appendChild(v);
+    hlSpans[rowIdx]=v;
   });
   const timers=[];
   let done=false;
@@ -223,7 +241,7 @@
   hlSpans.forEach((span,i)=>{
     timers.push(setTimeout(()=>{if(span)span.classList.add('hl');},2000+i*1000));
   });
-  // After last highlight (2000 + 10*1000 = 12000), hold 1.5s, then auto-finish
+  // After last highlight (2000 + 9*1000 = 11000ms), hold ~2.5s, then auto-finish
   timers.push(setTimeout(finish,13500));
   // Click anywhere on the overlay skips to title
   overlay.addEventListener('click',finish);
@@ -277,10 +295,14 @@ try {
   });
 })();
 // Helper to convert #rrggbb + alpha → rgba()
-function __rgba(hex, a) {
+function __hexRGB(hex) {
   const m = (hex || '').match(/^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/);
-  if (!m) return hex;
-  return 'rgba(' + parseInt(m[1],16) + ',' + parseInt(m[2],16) + ',' + parseInt(m[3],16) + ',' + a + ')';
+  return m ? [parseInt(m[1],16), parseInt(m[2],16), parseInt(m[3],16)] : null;
+}
+function __rgba(hex, a) {
+  const c = __hexRGB(hex);
+  if (!c) return hex;
+  return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')';
 }
 // Inject CSS overrides that win over the inline <style> because they appear later.
 // Sub-elements within a category inherit the chosen font and re-use the chosen
@@ -296,18 +318,15 @@ function __rgba(hex, a) {
     #start-overlay .world { color: ${__rgba(t.intro.color, aIntro * 0.85)}; font-size: ${Math.max(8, Math.round(t.intro.size * 0.79))}px; letter-spacing: ${t.intro.ls + 0.3}em; }
     #start-overlay .text { color: ${__rgba(t.intro.color, aIntro * 0.55)}; font-size: ${Math.max(8, Math.round(t.intro.size * 0.93))}px; letter-spacing: ${t.intro.ls + 0.18}em; }
     #subtitle { font-family: ${t.subtitle.font}; color: ${__rgba(t.subtitle.color, t.subtitle.alpha)}; font-size: ${t.subtitle.size}px; letter-spacing: ${t.subtitle.ls}em; line-height: ${t.subtitle.lh}; font-weight: ${t.subtitle.weight}; font-style: ${t.subtitle.italic ? 'italic' : 'normal'}; }
-    .scene-btn, #set-toggle, #dismiss-hint, .srow { font-family: ${t.nav.font}; font-weight: ${t.nav.weight}; font-style: ${t.nav.italic ? 'italic' : 'normal'}; }
+    .scene-btn, #set-toggle, .srow { font-family: ${t.nav.font}; font-weight: ${t.nav.weight}; font-style: ${t.nav.italic ? 'italic' : 'normal'}; }
     .scene-btn { color: ${__rgba(t.nav.color, t.nav.alpha)}; font-size: ${t.nav.size}px; letter-spacing: ${t.nav.ls}em; }
     #set-toggle { color: ${__rgba(t.nav.color, t.nav.alpha * 1.1)}; }
-    #dismiss-hint { color: ${__rgba(t.nav.color, t.nav.alpha * 0.7)}; }
-    /* Process matrix — title + subtitle + axes + poles + skip hint */
-    #process-overlay, .proc-head, .proc-sub, .proc-axis, .proc-poles, .proc-hint { font-family: ${t.process.font}; font-weight: ${t.process.weight}; font-style: ${t.process.italic ? 'italic' : 'normal'}; }
+    /* Process matrix — title + resolved-value grid + skip hint */
+    #process-overlay, .proc-head, .proc-hint { font-family: ${t.process.font}; font-weight: ${t.process.weight}; font-style: ${t.process.italic ? 'italic' : 'normal'}; }
     .proc-head { color: ${__rgba(t.process.color, aProc)}; font-size: ${Math.max(9, Math.round(t.process.size * 1.0))}px; letter-spacing: ${Math.max(0.3, t.process.ls + 0.37)}em; }
-    .proc-sub  { color: ${__rgba(t.process.color, aProc * 0.4)}; font-size: ${Math.max(8, Math.round(t.process.size * 0.82))}px; letter-spacing: ${Math.max(0.2, t.process.ls + 0.14)}em; }
-    .proc-grid { font-size: ${t.process.size}px; letter-spacing: ${t.process.ls}em; line-height: ${t.process.lh}; }
-    .proc-axis { color: ${__rgba(t.process.color, aProc * 0.55)}; }
-    .proc-poles { color: ${__rgba(t.process.color, aProc * 0.33)}; }
-    .proc-poles .pole.hl { color: ${__rgba(t.process.color, aProc)}; }
+    .proc-grid { font-size: ${Math.max(20, Math.round(t.process.size * 2.2))}px; letter-spacing: 0.01em; line-height: 1.62; }
+    .proc-grid .pval { color: ${__rgba(t.process.color, aProc * 0.3)}; }
+    .proc-grid .pval.hl { color: ${__rgba(t.process.color, aProc)}; text-shadow: 0 0 14px ${__rgba(t.process.color, aProc * 0.4)}; }
     .proc-hint { color: ${__rgba(t.process.color, aProc * 0.38)}; font-size: ${Math.max(8, Math.round(t.process.size * 0.91))}px; letter-spacing: ${Math.max(0.25, t.process.ls + 0.24)}em; }
     #pres-badge { font-family: ${t.system.font}; font-size: ${t.system.size}px; letter-spacing: ${t.system.ls}em; font-weight: ${t.system.weight}; font-style: ${t.system.italic ? 'italic' : 'normal'}; color: ${__rgba(t.system.color, t.system.alpha)}; }
   `;
@@ -318,12 +337,15 @@ function __rgba(hex, a) {
 
 const MAX_CREATURES=24;
 const HEARTBEAT_MS=4700; // global 4.7s pulse used in audio + viz
+const SCENE_NAMES=['world','station','eye']; // scene index 0/1/2 -> bus name
+let audioInited=false; // guards initAudio() against a double build (start-overlay click + togglePres)
 // Toggle in console: window.DEBUG=true; — surfaces silent retrigger errors etc.
 function __dbg(e){if(window.DEBUG)console.warn(e);}
+function __retrigger(p){if(!p)return;try{p.stop();p.start();}catch(e){__dbg(e);}} // restart a Tone.Player, swallow errors
 let started=false,particles=[],hotspots=[],creatures=[],stationElements=[],fishSwarms=[],deepCreatures=[],stationBG=null,archLines=[];
 let pulse47Phase=0; // global 4.7s heartbeat, 0..1
 // Per-resize caches for things that depend only on width/height
-const __resizeCache={vizSeaPts:null,vizBeltCont:null,gradients:null,w:0,h:0};
+const __resizeCache={vizSeaPts:null,vizBeltCont:null,gradients:{},w:0,h:0};
 let camDX=0,camDY=0,lastGlitch=0,lastInteract=0,idleWPlayed=false;
 let glitchFX,whisperN,whisperF,whisperG,hoverPing;
 let sceneBuses={},layerPlayers={},layerGains={},hotspotPlayers={},hotspotRev;
@@ -341,8 +363,6 @@ let bgBrt=0;
 let ascendVisible=false,ascendX=0,ascendY=0,ascendHovered=false;
 let transitioning=false,transitionStart=0,transitionBuilt=false,transitionTarget=0;
 let eyeActive=false;
-let hotspotPhase='idle'; // idle -> quote -> ready (click again for viz)
-let activeHotspot=null;
 // Feature 2: Y-depth filter
 let depthFilter=null,depthFilterFreq=4000;
 // Feature 3: sea devil cage system
@@ -369,7 +389,7 @@ function startVizAmbient(vizId){
   if(activeVizAmbient===vizId)return;
   activeVizAmbient=vizId;
   // Duck the active scene bus to sceneDuck% (0..1 multiplier)
-  const map=['world','station','eye'];
+  const map=SCENE_NAMES;
   const targetScene=map[scene];
   const bus=sceneBuses[targetScene];
   if(bus){activeVizDuck=true;bus.gain.rampTo((cfg.sceneDuck||0)/100,0.4);}
@@ -395,14 +415,14 @@ function stopVizAmbient(){
   // properly on next call; here we just unduck immediately).
   if(activeVizDuck){
     activeVizDuck=false;
-    const map=['world','station','eye'];
+    const map=SCENE_NAMES;
     const bus=sceneBuses[map[scene]];
     if(bus)bus.gain.rampTo(1,0.4);
   }
 }
 // Feature 5: behavior tracking
 let userBehavior={hotspotsVisited:{},timeInScenes:{0:0,1:0,2:0},seaDevilsCaptured:0,hullSongClicks:0,cursorStillness:0,lookedAtIt:false};
-let lastCursorX=0,lastCursorY=0,stillTimer=0;
+let lastCursorX=0,lastCursorY=0,stillTimer=0,pointerX=0,pointerY=0; // pointerX/Y track mouse AND touch (mouseX freezes on touch)
 // Feature 6: the count
 let countActive=false,countNum=0,countDone=false,countStart=0,countTriggered=false,countTriggerHovered=false;
 // Feature 7: eye climax v2
@@ -412,10 +432,10 @@ const curEl=document.getElementById('cursor');
 const subEl=document.getElementById('subtitle');
 const vignetteEl=document.getElementById('vignette');
 const glitchEl=document.getElementById('glitch');
-const dismissHintEl=document.getElementById('dismiss-hint');
 const transitionOverlayEl=document.getElementById('transition-overlay');
+const transCardEl=document.getElementById('transition-card');
 const stationHtmlBgEl=document.getElementById('station-html-bg');
-function __moveCursor(x,y){curEl.style.left=x+'px';curEl.style.top=y+'px';if(typeof millis==='function'){lastInteract=millis();idleWPlayed=false;}}
+function __moveCursor(x,y){curEl.style.left=x+'px';curEl.style.top=y+'px';pointerX=x;pointerY=y;if(typeof millis==='function'){lastInteract=millis();idleWPlayed=false;}}
 document.addEventListener('mousemove',e=>__moveCursor(e.clientX,e.clientY));
 document.addEventListener('touchmove',e=>{const t=e.touches[0];if(t)__moveCursor(t.clientX,t.clientY);},{passive:true});
 document.addEventListener('touchstart',e=>{const t=e.touches[0];if(t)__moveCursor(t.clientX,t.clientY);},{passive:true});
@@ -462,6 +482,7 @@ function updateMenu(){
 }
 // ===================== AUDIO (MP3 SAMPLES) =====================
 function initAudio(){
+  if(audioInited)return;audioInited=true; // never rebuild the audio graph twice (e.g. P pressed during start fade)
   Tone.Destination.volume.value=parseFloat(document.getElementById('volume-slider').value);
   // Glitch FX — routes all scene audio, activated briefly during glitch events
   glitchFX=new Tone.BitCrusher(8).toDestination();glitchFX.wet.value=0;
@@ -579,7 +600,7 @@ function initAudio(){
   // Create a gain bus per scene, routed through glitchFX. Layers with startMs > 0
   // start at gain 0 — their target volume is ramped in after the offset elapses
   // (handled in updateSceneAudio when the scene becomes active).
-  ['world','station','eye'].forEach((name,idx)=>{
+  SCENE_NAMES.forEach((name,idx)=>{
     const bus=new Tone.Gain(idx===0?1:0).connect(depthFilter);
     sceneBuses[name]=bus;
     layerPlayers[name]=[];
@@ -661,7 +682,7 @@ function initAudio(){
   if(progressEl&&loaded<total)progressEl.textContent='loading '+loaded+'/'+total;
   // Start all looping layers once buffers are loaded
   Tone.loaded().then(()=>{
-    ['world','station','eye'].forEach(name=>{
+    SCENE_NAMES.forEach(name=>{
       layerPlayers[name].forEach(p=>{try{p.start();}catch(e){console.warn('start failed:',e);}});
     });
   }).catch(err=>{
@@ -679,7 +700,7 @@ function initAudio(){
 // Also schedules per-layer staggered starts: layers with startMs > 0 are kept
 // at gain 0 until startMs after their scene becomes active, then fade in.
 function updateSceneAudio(){
-  const map=['world','station','eye'];
+  const map=SCENE_NAMES;
   if(silenceHours){
     map.forEach(name=>{const b=sceneBuses[name];if(b)b.gain.rampTo(0,1.5);});
     return;
@@ -880,10 +901,10 @@ function drawStationInterior(){
   // Downward light cone — gradient depends on lx,ly only; flicker varies only the alpha,
   // so use globalAlpha for the per-frame flicker and cache the gradient shape itself.
   const ctx=drawingContext;ctx.save();
-  let g=__resizeCache.gradients&&__resizeCache.gradients.stationLamp;
+  let g=__resizeCache.gradients.stationLamp;
   if(!g){g=ctx.createRadialGradient(lx,ly,5,lx,ly+60,120);
     g.addColorStop(0,'rgba(200,55,35,1)');g.addColorStop(1,'rgba(200,55,35,0)');
-    (__resizeCache.gradients=__resizeCache.gradients||{}).stationLamp=g;}
+    __resizeCache.gradients.stationLamp=g;}
   ctx.globalAlpha=0.08*flicker;
   ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(lx-8,ly);ctx.lineTo(lx-70,ly+140);ctx.lineTo(lx+70,ly+140);ctx.lineTo(lx+8,ly);ctx.fill();ctx.restore();
   for(let el of stationElements){
@@ -913,7 +934,7 @@ function drawFlashlight(mx,my){
   const ctx=drawingContext;
   const lx=width/2,ly=height*0.11;
   // Cached gradients: darkness cuts (g2, gc) + a fixed red lamp wash (lampR)
-  let gr=__resizeCache.gradients&&__resizeCache.gradients.flashlight;
+  let gr=__resizeCache.gradients.flashlight;
   if(!gr){
     const g2=ctx.createRadialGradient(lx,ly,10,lx,ly,190);
     g2.addColorStop(0,'rgba(0,0,0,1)');g2.addColorStop(0.45,'rgba(0,0,0,0.65)');
@@ -926,7 +947,7 @@ function drawFlashlight(mx,my){
     lampR.addColorStop(0,'rgba(255,90,65,0.62)');
     lampR.addColorStop(0.5,'rgba(220,55,40,0.30)');
     lampR.addColorStop(1,'rgba(0,0,0,0)');
-    gr={g2,gc,lampR};(__resizeCache.gradients=__resizeCache.gradients||{}).flashlight=gr;
+    gr={g2,gc,lampR};__resizeCache.gradients.flashlight=gr;
   }
   // 1) Pitch-black room
   ctx.save();
@@ -1024,11 +1045,11 @@ function drawEyeBackground(){
 
   // Subtle vignette — depends only on cx/height — cache
   const ctx=drawingContext;ctx.save();
-  let g=__resizeCache.gradients&&__resizeCache.gradients.eyeVignette;
+  let g=__resizeCache.gradients.eyeVignette;
   if(!g){g=ctx.createRadialGradient(cx,height*0.4,min(width,height)*0.1,cx,height*0.4,max(width,height)*0.6);
     g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(0.5,'rgba(0,0,0,0.3)');
     g.addColorStop(0.8,'rgba(0,0,0,0.7)');g.addColorStop(1,'rgba(0,0,0,0.92)');
-    (__resizeCache.gradients=__resizeCache.gradients||{}).eyeVignette=g;}
+    __resizeCache.gradients.eyeVignette=g;}
   ctx.fillStyle=g;ctx.fillRect(0,0,width,height);ctx.restore();
 }
 // ===================== VISUALIZATIONS =====================
@@ -1044,8 +1065,7 @@ function drawVisualization(){
 
   if(vizDismissing&&millis()-vizDismissStart>700){
     activeViz=null;vizDismissing=false;vizAlpha=0;
-    dismissHintEl.classList.remove('show');
-    hotspotPhase='idle';updateNavBtn();return;
+    updateNavBtn();return;
   }
 
   const VZ=0.76,splitY=height*VZ;
@@ -1078,8 +1098,8 @@ function drawVisualization(){
     const qSize=textCfg.quote.size+2;
     const lh=Math.round(qSize*textCfg.quote.lh*1.02),totalH=lines.length*lh;
     const zoneH=height-splitY,textY=splitY+zoneH/2-totalH/2+lh*0.5;
-    const qHex=textCfg.quote.color.match(/^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/);
-    const qR=qHex?parseInt(qHex[1],16):170,qG=qHex?parseInt(qHex[2],16):215,qB=qHex?parseInt(qHex[3],16):205;
+    const qC=__hexRGB(textCfg.quote.color)||[170,215,205];
+    const qR=qC[0],qG=qC[1],qB=qC[2];
     lines.forEach((ln,i)=>{
       fill(qR,qG,qB,textA*255*textCfg.quote.alpha);textSize(qSize);text(ln,width/2,textY+i*lh);
     });
@@ -1605,7 +1625,7 @@ function drawVizAir(a){
 // --- MYTHOLOGY ---
 function drawVizMyth(a){
   const cx=width/2,cy=height/2,t=min((millis()-vizStart)/12000,1);
-  const vY=cy-60-t*80,kY=cy+60+t*80,fi=a/255;
+  const vY=cy-60-t*80,kY=cy+60+t*80;
 
   // Sun Vahra
   fill(220,170,60,a*0.12);noStroke();circle(cx,vY,120);
@@ -1694,7 +1714,7 @@ function captureSd(sd){
   const slot=cageSlots.find(c=>!c.occ);
   if(slot)slot.occ=true;
   // drawCages() handles rendering — no separate DeepCreature needed
-  if(hullPlayers['valve-relief']){try{hullPlayers['valve-relief'].stop();hullPlayers['valve-relief'].start();}catch(e){__dbg(e);}}
+  __retrigger(hullPlayers['valve-relief']);
   userBehavior.seaDevilsCaptured++;
 }
 // ===================== FEATURE 4: HULL SONG =====================
@@ -1712,15 +1732,12 @@ function generateHullPieces(){
     hullPieces.push({x,y,soundKey:(k&&k!=='__none__')?k:null,flashT:0,cooldown:0,hovered:false,phase:(x+y)*0.001});}
 }
 function updateHullPieces(){
-  let anyH=false;
   for(let p of hullPieces){
     p.hovered=dist(mouseX-camDX,mouseY-camDY,p.x,p.y)<26;
-    if(p.hovered&&p.cooldown<=0)anyH=true;
     if(p.cooldown>0)p.cooldown-=deltaTime||16.67;
     if(p.flashT>0)p.flashT-=deltaTime||16.67;
   }
-  if(anyH)curEl.classList.add('hover');
-}
+} // cursor 'hover' class centralized in draw()
 function drawHullPieces(){
   // Baseline shimmer — peripheral cue that the walls are tappable.
   // Each piece breathes on its own phase so they don't all blink in sync.
@@ -1753,7 +1770,7 @@ function drawHullPieces(){
 }
 function triggerHullPiece(p){
   p.flashT=350;p.cooldown=1500;
-  if(hullPlayers[p.soundKey]){try{hullPlayers[p.soundKey].stop();hullPlayers[p.soundKey].start();}catch(e){__dbg(e);}}
+  __retrigger(hullPlayers[p.soundKey]);
   userBehavior.hullSongClicks++;
   hullLastClicked=p;
   if(!hullEverTriggered){hullEverTriggered=true;setTimeout(()=>playWhisper('the workers know this language.'),900);}
@@ -1763,14 +1780,14 @@ function triggerHullPiece(p){
   if(Math.random()<0.3){
     const others=hullPieces.filter(q=>q!==p&&q.cooldown<=0);
     if(others.length){const rep=others[Math.floor(Math.random()*others.length)];
-      setTimeout(()=>{rep.flashT=200;rep.cooldown=1500;if(hullPlayers[rep.soundKey]){try{hullPlayers[rep.soundKey].stop();hullPlayers[rep.soundKey].start();}catch(e){__dbg(e);};}},800+Math.random()*700);}
+      setTimeout(()=>{if(scene!==1)return;rep.flashT=200;rep.cooldown=1500;__retrigger(hullPlayers[rep.soundKey]);},800+Math.random()*700);}
   }
 }
 function triggerHullChain(){
   hullChainCount++;
   hullLastClicked=null; // glow vanishes — the song answered
   const sorted=[...hullPieces].sort((a,b)=>a.y-b.y);
-  sorted.forEach((p,i)=>setTimeout(()=>{p.flashT=280;if(hullPlayers[p.soundKey]){try{hullPlayers[p.soundKey].stop();hullPlayers[p.soundKey].start();}catch(e){__dbg(e);};}},i*145));
+  sorted.forEach((p,i)=>setTimeout(()=>{if(scene!==1)return;p.flashT=280;__retrigger(hullPlayers[p.soundKey]);},i*145));
   // Narrative payoff — distinct text for first vs. repeat chains so players who
   // discover it again get something new rather than the same line.
   const line=hullChainCount===1?'the station sings back.':hullChainCount===2?"they're listening below.":'the deep answers.';
@@ -1820,7 +1837,6 @@ function drawCount(){
 // ===================== FEATURE 7: SEEN LIGHT OVERLAY =====================
 function drawSeenLightOverlay(){if(!seenLight)return;noStroke();fill(255,252,245,16);rect(0,0,width,height);}
 // ===================== SCENE CONFIG =====================
-const sceneLabels=['the world','the station','the eye'];
 function getSceneHotspots(s){
   if(s===0)return[
     {x:0.22,y:0.4,viz:'shrinking_belt',q:"the sun is lethal within hours.\nthe ice keeps expanding from both poles.\nonly a narrow belt remains —\nheld open by heat from below.\nwe've been down here for over a thousand years."},
@@ -1839,7 +1855,7 @@ function getSceneHotspots(s){
 function buildScene(s){
   stopVizAmbient(); // no-op if not active; covers scene change, resize, ascend
   hotspots=[];particles=[];stationElements=[];creatures=[];fishSwarms=[];deepCreatures=[];stationBG=null;
-  ascendVisible=false;sceneVisited[s]=0;activeViz=null;vizDismissing=false;hotspotPhase='idle';activeHotspot=null;
+  ascendVisible=false;sceneVisited[s]=0;activeViz=null;vizDismissing=false;
   vignetteEl.style.display=s===0?'block':'none';
   const cfg=getSceneHotspots(s);
   for(let c of cfg)hotspots.push(new Hotspot(c.x*width,c.y*height,c.viz,c.q,s));
@@ -1914,7 +1930,7 @@ class Hotspot{
   constructor(x,y,vizId,quote,scn){this.x=x;this.y=y;this.vizId=vizId;this.quote=quote;this.scn=scn;this.hovered=false;this.visited=false;this.lastAct=0;
     this.sats=[];for(let i=0;i<12;i++)this.sats.push({a:random(TWO_PI),r:random(20,40),s:random(0.005,0.015),sz:random(1,2.5)});}
   update(){const d=dist(mouseX-camDX,mouseY-camDY,this.x,this.y);const w=this.hovered;this.hovered=d<45;
-    if(this.hovered&&!w){curEl.classList.add('hover');playHoverPing();}else if(!this.hovered&&w)curEl.classList.remove('hover');}
+    if(this.hovered&&!w)playHoverPing();} // cursor 'hover' class centralized in draw() (single source of truth)
   display(isFirst=false){
     // Visited = muted teal-grey, unvisited = scene color
     const col=this.visited?[55,80,75]:this.scn===2?[170,240,240]:this.scn===1?[240,200,120]:[180,230,230];
@@ -1936,13 +1952,12 @@ class Hotspot{
     if(!this.visited){this.visited=true;sceneVisited[scene]++;}
     userBehavior.hotspotsVisited[this.vizId]=(userBehavior.hotspotsVisited[this.vizId]||0)+1;
     // Single click: text + viz start together
-    activeHotspot=this;hotspotPhase='viz';
     activeViz=this.vizId;activeVizQuote=this.quote;
     vizStart=millis();vizDismissing=false;
     updateNavBtn();
     // Trigger hotspot MP3 sound
     const hp=hotspotPlayers[this.vizId];
-    if(hp){try{hp.stop();hp.start();}catch(e){__dbg(e);}}
+    __retrigger(hp);
     startVizAmbient(this.vizId);
     if(scene===0&&creatures.length<MAX_CREATURES)creatures.push(new Creature());
     if(sceneVisited[scene]>=sceneRequired[scene])setTimeout(()=>{ascendVisible=true;},500);
@@ -1968,7 +1983,7 @@ function drawAscend(){
   fill(col[0],col[1],col[2],120*pulse);textSize(10);
   text(scene===2?'·  the ritual awaits  ·':'·  all signals found  ·',ascendX,ascendY-15);
   ascendHovered=dist(mouseX-camDX,mouseY-camDY,ascendX,ascendY)<45;
-  if(ascendHovered){fill(255,240,200,90);noStroke();circle(ascendX,ascendY,36);curEl.classList.add('hover');}
+  if(ascendHovered){fill(255,240,200,90);noStroke();circle(ascendX,ascendY,36);}
 }
 function drawEyeClimax(){
   if(!eyeActive)return;
@@ -2018,7 +2033,7 @@ function drawEyeClimax(){
   // Phase C: branching outcome
   else if(eyeClimaxPhase==='C'){
     if(eyeLookResult==='look'){
-      if(t<4000){const f=constrain(t/600,0,1),fo=constrain((4000-t)/800,0,1);fill(255,255,248,f*fo*255+constrain(t/600,0,1)*200);noStroke();rect(0,0,width,height);}
+      if(t<4000){const f=constrain(t/600,0,1),fo=constrain((4000-t)/800,0,1);fill(255,255,248,f*fo*255+f*200);noStroke();rect(0,0,width,height);}
       else if(t<6500){fill(0);noStroke();rect(0,0,width,height);const tf=constrain((t-4800)/900,0,1);fill(220,238,242,tf*215);textSize(28);textAlign(CENTER);text('light.',cx,height/2);}
       else if(t<6900&&!seenLight){seenLight=true;}
       else if(t>8000){eyeActive=false;eyeClimaxPhase='A';}
@@ -2041,15 +2056,25 @@ function startTransition(target){
     silenceHours=true;
     if(sceneBuses.station)sceneBuses.station.gain.rampTo(0,1.5);
   }
+  // Poetic transition card shown on the black during the fade
+  if(silenceTransition){transCardEl.innerHTML='<div class=\'tc-small\'>silence hours</div><div class=\'tc-pulse\'></div>';}
+  else if(target===1){transCardEl.innerHTML='<div class=\'tc-big\'>we ascend.<br>into the station.</div><div class=\'tc-pulse\'></div>';}
+  else if(target===2){transCardEl.innerHTML='';} // non-silence jump to the eye (menu/pres): no card; real station->eye silence interlude handled above
+  else if(target===0){transCardEl.innerHTML='<div class=\'tc-big\'>we sink back into the deep.</div><div class=\'tc-pulse\'></div>';}
+  else{transCardEl.innerHTML='';}
   transitionTarget=target;transitioning=true;transitionStart=millis();transitionBuilt=false;transitionOverlayEl.classList.add('active');
 }
 function updateTransition(){
   if(!transitioning)return;
   const t=millis()-transitionStart;
+  // Fade the poetic card in, hold, then out (longer hold during silence-hours)
+  { const _ci=300,_cf=1000,_ch=(silenceTransition?3500:2500),_co=(silenceTransition?3950:3300); let _op=0;
+    if(t>=_cf&&t<_ch)_op=1; else if(t>=_ci&&t<_cf)_op=(t-_ci)/(_cf-_ci); else if(t>=_ch&&t<_co)_op=1-(t-_ch)/(_co-_ch);
+    transCardEl.style.opacity=Math.max(0,Math.min(1,_op)); }
   if(t>1800&&!transitionBuilt){
     transitionBuilt=true;scene=transitionTarget;buildScene(scene);
     if(silenceTransition){
-      try{silenceUnderwaterPlayer.start();}catch(e){__dbg(e);}
+      if(silenceUnderwaterPlayer){try{silenceUnderwaterPlayer.start();}catch(e){__dbg(e);}}
       // One creak somewhere in t=2400..3600 (i.e. ~0.6–1.8s into the held silence)
       const creakDelay=600+Math.random()*1200;
       setTimeout(()=>{if(silenceHours&&silenceCreakPlayer){try{silenceCreakPlayer.start();}catch(e){__dbg(e);}}},creakDelay);
@@ -2062,15 +2087,15 @@ function updateTransition(){
     if(silenceHours&&t>4000){
       // End of silence: kill the bed, ramp eye bus in normally (2s)
       silenceHours=false;
-      try{silenceUnderwaterPlayer.stop();}catch(e){__dbg(e);}
+      if(silenceUnderwaterPlayer){try{silenceUnderwaterPlayer.stop();}catch(e){__dbg(e);}}
       updateSceneAudio();
     }
     if(t>4000){
-      silenceTransition=false;transitioning=false;
+      silenceTransition=false;transitioning=false;transCardEl.style.opacity=0;
       if(!presMode)showSub('the chamber. the altar.\nthe eye.',5000);
     }
   }else if(t>3500){
-    transitioning=false;
+    transitioning=false;transCardEl.style.opacity=0;
     if(!presMode){if(scene===1)showSub('the station.\nsystems humming. walls pressing close.',5000);
     else if(scene===2)showSub('the chamber. the altar.\nthe eye.',5000);
     else showSub('the world.\nyou wake. the air is heavy. wet.',5000);}
@@ -2082,7 +2107,16 @@ function setup(){createCanvas(windowWidth,windowHeight).parent(document.body);no
   const bSlider=document.getElementById('brightness-slider');
   if(bSlider)document.querySelector('canvas').style.filter='brightness('+bSlider.value+'%)';
 }
-function windowResized(){resizeCanvas(windowWidth,windowHeight);__resizeCache.vizSeaPts=null;__resizeCache.vizBeltCont=null;__resizeCache.gradients=null;buildScene(scene);}
+function windowResized(){
+  resizeCanvas(windowWidth,windowHeight);
+  __resizeCache.vizSeaPts=null;__resizeCache.vizBeltCont=null;__resizeCache.gradients={};
+  // Preserve hotspot progress across resize (mobile URL-bar / keyboard / orientation all rebuild the scene)
+  const visitedIds=new Set(hotspots.filter(h=>h.visited).map(h=>h.vizId));
+  buildScene(scene);
+  hotspots.forEach(h=>{if(visitedIds.has(h.vizId))h.visited=true;});
+  sceneVisited[scene]=hotspots.filter(h=>h.visited).length;
+  if(sceneVisited[scene]>=sceneRequired[scene])ascendVisible=true;
+}
 function draw(){
   if(!started){background(0);return;}
   pulse47Phase=(millis()%HEARTBEAT_MS)/HEARTBEAT_MS; // global heartbeat
@@ -2091,11 +2125,11 @@ function draw(){
   // Feature 5: time-in-scene tracking (every second)
   if(frameCount%60===0)userBehavior.timeInScenes[scene]=(userBehavior.timeInScenes[scene]||0)+1;
   // Feature 5: cursor stillness
-  if(dist(mouseX,mouseY,lastCursorX,lastCursorY)<3){stillTimer+=deltaTime||16.67;if(stillTimer>5000){userBehavior.cursorStillness++;stillTimer=0;}}else{stillTimer=0;lastCursorX=mouseX;lastCursorY=mouseY;}
+  if(dist(pointerX,pointerY,lastCursorX,lastCursorY)<3){stillTimer+=deltaTime||16.67;if(stillTimer>5000){userBehavior.cursorStillness++;stillTimer=0;}}else{stillTimer=0;lastCursorX=pointerX;lastCursorY=pointerY;}
   const bgAdd=bgBrt*80;
   if(scene===1){clear();}
   else{background(bgAdd*0.3,bgAdd*0.4+scene*0.5,bgAdd*0.5+(scene===0?6:2));}
-  camDX=sin(frameCount*0.003)*(scene===2?3:8);camDY=cos(frameCount*0.0025)*(scene===2?2:6);
+  const shake=__reducedMotion?0:1;camDX=sin(frameCount*0.003)*(scene===2?3:8)*shake;camDY=cos(frameCount*0.0025)*(scene===2?2:6)*shake;
   push();translate(camDX,camDY);
   const ac=scene===0?[120,180,180]:scene===1?[70,65,55]:[35,35,30];
   strokeWeight(0.5);
@@ -2120,6 +2154,8 @@ function draw(){
     if(scene===1){updateHullPieces();drawHullPieces();} // Feature 4
     drawCountTrigger(); // Feature 6
     drawAscend();
+    // Single source of truth for the warm cursor cue — prevents stale 'hover' after leaving a hull piece/ascend
+    curEl.classList.toggle('hover', hotspots.some(h=>h.hovered)||(scene===1&&hullPieces.some(p=>p.hovered&&p.cooldown<=0))||(ascendVisible&&ascendHovered));
   }
   pop();
   drawSeenLightOverlay(); // Feature 7
@@ -2202,8 +2238,7 @@ function clearPresState(){
   if(activeViz){activeViz=null;vizDismissing=false;vizAlpha=0;}
   stopVizAmbient();
   if(silenceHours){silenceHours=false;silenceTransition=false;try{silenceUnderwaterPlayer&&silenceUnderwaterPlayer.stop();}catch(e){__dbg(e);}}
-  hideSub();hotspotPhase='idle';activeHotspot=null;eyeActive=false;
-  dismissHintEl.classList.remove('show');
+  transCardEl.style.opacity=0;hideSub();eyeActive=false;
 }
 
 function goToStep(idx){
@@ -2223,14 +2258,12 @@ function goToStep(idx){
   else if(step.type==='quote'){
     const h=hotspots[step.idx];if(!h)return;
     h.lastAct=0;if(!h.visited){h.visited=true;sceneVisited[scene]++;}
-    hotspotPhase='quote';activeHotspot=h;
     showSub(h.quote);
-    const hp=hotspotPlayers[h.vizId];if(hp){try{hp.stop();hp.start();}catch(e){__dbg(e);}}
+    const hp=hotspotPlayers[h.vizId];__retrigger(hp);
     if(scene===0&&creatures.length<MAX_CREATURES)creatures.push(new Creature());
   }
   else if(step.type==='viz'){
     const h=hotspots[step.idx];if(!h)return;
-    hotspotPhase='viz';activeHotspot=h;
     activeViz=h.vizId;
     vizStart=millis()-4000; // skip 3.5s fade delay — show immediately
     vizDismissing=false;
@@ -2240,13 +2273,13 @@ function goToStep(idx){
     startTransition(step.target);
   }
   else if(step.type==='climax'){
-    eyeActive=true;ascendVisible=false;
+    eyeActive=true;ascendVisible=false;eyeClimaxPhase='A';eyePhaseStart=millis();eyeLookResult=null;eyeLookFrames=null;eyeLabel=computeLabel();
   }
   updatePresUI();
 }
 
-function presNext(){if(presStep<PRES_STEPS.length-1)goToStep(presStep+1);}
-function presBack(){if(presStep>0)goToStep(presStep-1);}
+function presNext(){if(transitioning)return;if(presStep<PRES_STEPS.length-1)goToStep(presStep+1);}
+function presBack(){if(transitioning)return;if(presStep>0)goToStep(presStep-1);}
 
 function togglePres(){
   if(presMode){
