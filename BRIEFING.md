@@ -25,6 +25,17 @@ Compact, structured briefing for another AI picking up work on this project. All
 | `Solar Speculation Story line.canvas` | Obsidian canvas of the full story map |
 | `*.mp3` | 26 audio files in repo root |
 
+## Story: V04 (2026-06-24)
+
+The world is **V04** (source of truth: `STORY_V04.md`). Five facts that override older drafts:
+1. **No ice — a pure waterworld.** One global ocean + bare mountain-peaks; the industrial smog never cleared.
+2. **Vertical, but no classes.** Nearness to the light is practical + sacred (health/ceremony), not rank. No upper/middle/deeps, no outcasts.
+3. **The Eye = the Solar Space: healthcare & wellbeing through measured light.** Danger = *too much* sun (overdose), not test/punishment. "do not look directly at it" = a safety rule (don't take more than your share). Selection = an honourable/healing invitation.
+4. **Offering = gentle, voluntary moon-devotion** (woven cloths/tokens on the high tides). No blood, no permits.
+5. **Material = grown Biorock/Seacrete**; the Solar Space itself = floating pumice.
+
+Names Vahra/Kheir stay.
+
 ## Story arc
 
 ```
@@ -55,9 +66,9 @@ Scene index uses `scene = 0|1|2` for world/station/eye. UI labels: `i · the wor
 
 ## Scene 1 · the station
 
-- `getSceneHotspots(1)` returns 4: `hierarchy`, `daily_life`, `air_oxygen`, `the_mothers`
+- `getSceneHotspots(1)` returns **5**: `hierarchy`, `daily_life`, `air_oxygen`, `the_mothers`, `offering_to_kheir`
 - HTML diorama `#station-html-bg` shown under the canvas
-- **No flashlight overlay** (was removed); scene is normally lit
+- **Flashlight darkness**: the room is mostly black; `drawFlashlight(mouseX,mouseY)` cuts light only around the fixed ceiling lamp + the mouse-torch (gated `if(scene===1)`). *(Earlier drafts wrongly said this was removed — it is active.)*
 - `drawStationInterior()` draws red lamp glow + downward cone + station elements (lights/drips/gauges/mist)
 - Red multiply blend overlay at `globalAlpha=0.4` over the room (in draw loop, gated `if(scene===1)`)
 - **Hull song system** (`generateHullPieces`, `drawHullPieces`, `triggerHullPiece`, `triggerHullChain`):
@@ -70,7 +81,7 @@ Scene index uses `scene = 0|1|2` for world/station/eye. UI labels: `i · the wor
   - First-entry whisper after 6.5s: `"the walls answer when struck."`
   - First-click whisper: `"the workers know this language."`
 - **Morning touch**: 300ms after `buildScene(1)`, plays `morningTouchPlayer` (default `metal-creak-short @ −12dB`). Flag `scene2EntryPlayed` resets on scene change.
-- `sceneRequired[1]=4` → ascend after 4 hotspots
+- `sceneRequired[1]=5` → ascend after all 5 hotspots
 
 ## Scene 2 · the eye
 
@@ -180,7 +191,7 @@ Pre-experience overlay (z-index 2500) over the start-overlay (z 2000), radial te
 
 ## Title / start overlay (`#start-overlay`)
 
-Shown after the process intro. Centered poem (`.so-poem`: "a world beneath ice. / a station still breathing. / an eye watching above.") with a falling line (`#so-line`) and a 4.7s heartbeat pulse dot (`#so-pulse`) above it. Footer (`.so-foot`) pinned to the bottom: large world id ("world 3324255146") with a blinking cursor (`#so-cur`), "year 3126 · v2", and "click to descend · use headphones" / "press P for guided tour". The click is the audio-unlocking gesture → `Tone.start()` + `initAudio()`.
+Shown after the process intro. Centered poem (`.so-poem`: "a world beneath the waves. / a station still breathing. / an eye watching above.") with a falling line (`#so-line`) and a 4.7s heartbeat pulse dot (`#so-pulse`) above it. Footer (`.so-foot`) pinned to the bottom: large world id ("world 3324255146") with a blinking cursor (`#so-cur`), "year 3126 · v2", and "click to descend · use headphones" / "press P for guided tour". The click is the audio-unlocking gesture → `Tone.start()` + `initAudio()`.
 
 ## Robustness layer (already in)
 
