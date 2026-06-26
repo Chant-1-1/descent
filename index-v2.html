@@ -102,7 +102,7 @@
   <div id="so-line"></div>
   <div id="so-pulse"></div>
   <div class="so-center">
-    <div class="intro so-poem">a world beneath ice.<br>a station still breathing.<br>an eye watching above.</div>
+    <div class="intro so-poem">a world beneath the waves.<br>a station still breathing.<br>an eye watching above.</div>
     <div class="so-find">find the signals.&nbsp; listen before you ascend.</div>
   </div>
   <div class="so-foot">
@@ -1178,9 +1178,9 @@ function drawVizMothers(a){
   const fi3=constrain((t-0.85)*5,0,1);
   if(fi3>0){
     noStroke();fill(180,190,170,fi*fi3*140);textSize(11);textAlign(CENTER);
-    text('the watcher mother holds both political and sacred authority',width/2,height*0.88);
+    text('the watcher mother tends the light — care as much as authority',width/2,height*0.88);
     fill(130,150,130,fi*fi3*90);textSize(10);
-    text('council of mothers · upper level · decisions made in assembly',width/2,height*0.88+16);
+    text('council of mothers · decisions made in assembly',width/2,height*0.88+16);
   }
 }
 function mollweide(lat,lon,cx,cy,rw,rh){
@@ -1190,7 +1190,6 @@ function mollweide(lat,lon,cx,cy,rw,rh){
 }
 function drawVizBelt(a){
   const cx=width/2,cy=height/2,rw=min(width*0.42,height*0.7),rh=rw*0.5;
-  const t=min((millis()-vizStart)/15000,1);
   // Mollweide outline
   stroke(50,110,110,a*0.3);strokeWeight(1);noFill();ellipse(cx,cy,rw*2,rh*2);
   // Grid
@@ -1210,38 +1209,17 @@ function drawVizBelt(a){
     __resizeCache.vizBeltCont={w:width,h:height,proj};
   }
   const contProj=__resizeCache.vizBeltCont.proj;
+  // The old continents are gone — only their highest ranges still break the surface.
+  // Faint drowned outlines, with a few bright peaks rising above the water.
   for(const name in contProj){const pts=contProj[name];
-    noStroke();fill(35,75,65,a*0.2);beginShape();for(let p of pts)vertex(p.x,p.y);endShape(CLOSE);
-    stroke(45,95,85,a*0.25);strokeWeight(0.7);noFill();beginShape();for(let p of pts)vertex(p.x,p.y);endShape(CLOSE);}
-  // Ice caps — ellipse-based
-  const iceEdge=65-t*35;noStroke();
-  // North
-  for(let lat=89;lat>=iceEdge;lat-=1.5){const fade=constrain(map(lat-iceEdge,0,12,0.05,0.55),0.05,0.55);
-    const y1=cy-rh*(lat/90),y2=cy-rh*(min(lat+1.5,90)/90);
-    const hw1=rw*sqrt(max(0,1-pow((y1-cy)/rh,2)));
-    const hw2=rw*sqrt(max(0,1-pow((y2-cy)/rh,2)));
-    fill(195,220,245,a*fade);
-    beginShape();vertex(cx-hw1,y1);vertex(cx+hw1,y1);vertex(cx+hw2,y2);vertex(cx-hw2,y2);endShape(CLOSE);}
-  // South
-  for(let lat=-89;lat<=-iceEdge;lat+=1.5){const fade=constrain(map(-lat-iceEdge,0,12,0.05,0.55),0.05,0.55);
-    const y1=cy-rh*(lat/90),y2=cy-rh*(max(lat-1.5,-90)/90);
-    const hw1=rw*sqrt(max(0,1-pow((y1-cy)/rh,2)));
-    const hw2=rw*sqrt(max(0,1-pow((y2-cy)/rh,2)));
-    fill(195,220,245,a*fade);
-    beginShape();vertex(cx-hw1,y1);vertex(cx+hw1,y1);vertex(cx+hw2,y2);vertex(cx-hw2,y2);endShape(CLOSE);}
-  // Ice edge frost (ellipse-based)
-  for(let i=0;i<80;i++){const side=random()>0.5?1:-1;
-    const lat=(iceEdge+random(-4,6))*side;
-    const yf=cy-rh*(lat/90);const hw=rw*sqrt(max(0,1-pow((yf-cy)/rh,2)));
-    const xf=cx+random(-hw,hw);
-    fill(210,230,250,a*random(0.1,0.3));noStroke();circle(xf,yf,random(1,3.5));}
-  // Equatorial belt
-  const beltHalf=12*(1-t*0.45);noStroke();
-  for(let lat=-beltHalf;lat<=beltHalf;lat+=1.5){const ef=1-abs(lat)/beltHalf;fill(50,155,125,a*ef*ef*0.12);
-    beginShape();for(let lon=-180;lon<=180;lon+=4){const p=mollweide(lat,lon,cx,cy,rw,rh);const ex=(p.x-cx)/rw,ey=(p.y-cy)/rh;if(ex*ex+ey*ey<=1)vertex(p.x,p.y);}
-    for(let lon=180;lon>=-180;lon-=4){const p=mollweide(min(lat+1.5,beltHalf),lon,cx,cy,rw,rh);const ex=(p.x-cx)/rw,ey=(p.y-cy)/rh;if(ex*ex+ey*ey<=1)vertex(p.x,p.y);}endShape(CLOSE);}
-  stroke(55,170,140,a*0.3);strokeWeight(0.7);noFill();
-  for(let s of[1,-1]){beginShape();for(let lon=-180;lon<=180;lon+=4){const p=mollweide(beltHalf*s,lon,cx,cy,rw,rh);const ex=(p.x-cx)/rw,ey=(p.y-cy)/rh;if(ex*ex+ey*ey<=1)vertex(p.x,p.y);}endShape();}
+    noStroke();fill(30,60,72,a*0.10);beginShape();for(let p of pts)vertex(p.x,p.y);endShape(CLOSE);
+    stroke(45,90,100,a*0.12);strokeWeight(0.5);noFill();beginShape();for(let p of pts)vertex(p.x,p.y);endShape(CLOSE);
+    noStroke();for(let i=0;i<pts.length;i+=7){const p=pts[i];fill(150,140,120,a*0.5);circle(p.x,p.y,2.2);fill(215,208,190,a*0.35);circle(p.x,p.y,1);}}
+  // No ice — a single global ocean. A faint hint of the warm currents that link the vents.
+  noStroke();
+  for(let lat=-18;lat<=18;lat+=2){const ef=1-abs(lat)/18;fill(45,120,120,a*ef*0.045);
+    beginShape();for(let lon=-180;lon<=180;lon+=6){const p=mollweide(lat,lon,cx,cy,rw,rh);const ex=(p.x-cx)/rw,ey=(p.y-cy)/rh;if(ex*ex+ey*ey<=1)vertex(p.x,p.y);}
+    for(let lon=180;lon>=-180;lon-=6){const p=mollweide(min(lat+2,18),lon,cx,cy,rw,rh);const ex=(p.x-cx)/rw,ey=(p.y-cy)/rh;if(ex*ex+ey*ey<=1)vertex(p.x,p.y);}endShape(CLOSE);}
   // Geothermal sources (irregular, clustered, with Y variation)
   noStroke();const geo=[{lon:-155,lat:3,s:4},{lon:-140,lat:-4,s:3},{lon:-118,lat:6,s:5},
     {lon:-95,lat:-2,s:3},{lon:-72,lat:5,s:4},{lon:-50,lat:-3,s:3.5},{lon:-28,lat:7,s:5},
@@ -1266,14 +1244,11 @@ function drawVizBelt(a){
   // Labels
   noStroke();textAlign(CENTER);fill(220,130,50,a*0.5);textSize(14);
   text('\u2622 lethal solar radiation \u00b7 3-4 hours = fatal dose',cx,sunY-35);
-  fill(195,220,245,a*0.6);textSize(15);text('polar ice \u2014 expanding toward equator',cx,cy-rh-15);
-  fill(55,175,145,a*0.6);textSize(14);text('equatorial belt \u2014 geothermally stabilized',cx,cy+rh+28);
-  fill(120,180,180,a*0.4);textSize(12);text('avg temperature: 0\u00b0C \u00b7 year 3126',cx,cy+rh+48);
-  fill(195,220,245,a*0.3);textSize(12);textAlign(LEFT);
-  const iceNy=cy-rh*(iceEdge/90),iceNhw=rw*sqrt(max(0,1-pow((iceNy-cy)/rh,2)));
-  text(Math.round(iceEdge)+'\u00b0N ice edge',cx+iceNhw*0.55+8,iceNy);
-  const iceSy=cy+rh*(iceEdge/90),iceShw=rw*sqrt(max(0,1-pow((iceSy-cy)/rh,2)));
-  text(Math.round(iceEdge)+'\u00b0S ice edge',cx+iceShw*0.55+8,iceSy);
+  fill(150,165,180,a*0.45);textSize(12);text('industrial smog \u2014 never cleared',cx,sunY+90);
+  fill(120,180,200,a*0.6);textSize(15);text('a single global ocean',cx,cy-rh-15);
+  fill(150,140,120,a*0.55);textSize(13);text('only the old mountain peaks still break the surface',cx,cy+rh+28);
+  fill(245,165,50,a*0.55);textSize(13);text('warm vents below \u00b7 stations cluster here',cx,cy+rh+48);
+  fill(120,180,180,a*0.4);textSize(12);text('cold deep \u00b7 warm surface \u00b7 year 3126',cx,cy+rh+66);
 }
 // --- DEEP PARADE (bigger, more creatures) ---
 function drawVizParade(a){
@@ -1408,22 +1383,22 @@ function drawVizSea(a){
   fill(140,200,200,a*0.55);textSize(15);textAlign(CENTER);
   text('the seven continents no longer exist',width/2,height*0.87);
   text('only mountain peaks remain as scattered islands',width/2,height*0.87+22);
-  fill(100,170,170,a*0.38);textSize(12);text('global ocean · tidal ice · geothermal equatorial belt',width/2,height*0.87+42);
+  fill(100,170,170,a*0.38);textSize(12);text('a single global ocean · scattered island-peaks · warm vents below',width/2,height*0.87+42);
 }
 // --- HIERARCHY ---
-function drawVizHierarchy(a){const cx=width/2,t=min((millis()-vizStart)/10000,1);const stW=width*0.3,stL=cx-stW/2,stR=cx+stW/2,stT=height*0.1,stB=height*0.85;stroke(80,140,140,a*0.4);strokeWeight(1);noFill();rect(stL,stT,stW,stB-stT,4);const levels=[{name:'UPPER LEVEL',sub:'council of mothers · filtered sunlight',y:stT,h:(stB-stT)*0.25,col:[200,180,100],la:0.25},{name:'MIDDLE LEVEL',sub:'workers · technicians · farmers',y:stT+(stB-stT)*0.28,h:(stB-stT)*0.32,col:[120,160,160],la:0.08},{name:'THE DEEPS',sub:'maintenance · outcasts · darkness',y:stT+(stB-stT)*0.63,h:(stB-stT)*0.35,col:[60,90,100],la:0}];for(let lv of levels){const fi3=constrain((t-0.1)*3,0,1);fill(lv.col[0],lv.col[1],lv.col[2],a*0.08*fi3);noStroke();rect(stL+2,lv.y+2,stW-4,lv.h-2);if(lv.la>0){for(let y2=0;y2<lv.h*0.5;y2++){stroke(220,200,120,a*lv.la*(1-y2/(lv.h*0.5))*fi3);line(stL+2,lv.y+y2,stR-2,lv.y+y2);}}noStroke();const fc=lv.name==='THE DEEPS'?2:lv.name==='UPPER LEVEL'?3:5;for(let i=0;i<fc;i++){const fx=stL+stW*0.2+i*(stW*0.6/(fc-1||1)),fy=lv.y+lv.h*0.5;stroke(lv.col[0]+40,lv.col[1]+40,lv.col[2]+40,a*0.5*fi3);strokeWeight(1);circle(fx,fy-12,6);line(fx,fy-9,fx,fy+5);line(fx,fy+5,fx-4,fy+14);line(fx,fy+5,fx+4,fy+14);}noStroke();fill(lv.col[0]+60,lv.col[1]+60,lv.col[2]+60,a*0.7*fi3);textSize(14);textAlign(CENTER);text(lv.name,cx,lv.y+lv.h*0.3);fill(lv.col[0]+30,lv.col[1]+30,lv.col[2]+30,a*0.45*fi3);textSize(11);text(lv.sub,cx,lv.y+lv.h*0.3+18);}stroke(80,140,140,a*0.25);strokeWeight(0.5);line(stL,levels[1].y,stR,levels[1].y);line(stL,levels[2].y,stR,levels[2].y);noStroke();fill(220,180,100,a*0.5*t);textSize(11);textAlign(CENTER);text('☀ light ↓',stL-60,height*0.3);text('authority ↓',stL-60,height*0.45);fill(100,180,160,a*0.5*t);text('resources ↑',stR+60,height*0.55);fill(120,180,180,a*0.5);textSize(15);text('proximity to light determines social standing',cx,stB+28);}
+function drawVizHierarchy(a){const cx=width/2,t=min((millis()-vizStart)/10000,1);const stW=width*0.3,stL=cx-stW/2,stR=cx+stW/2,stT=height*0.1,stB=height*0.85;stroke(80,140,140,a*0.4);strokeWeight(1);noFill();rect(stL,stT,stW,stB-stT,4);const levels=[{name:'NEAR THE LIGHT',sub:'closest to the surface · the solar space',y:stT,h:(stB-stT)*0.25,col:[200,180,100],la:0.25},{name:'THE MIDDLE MODULES',sub:'work · cultivation · each place its song',y:stT+(stB-stT)*0.28,h:(stB-stT)*0.32,col:[120,160,160],la:0.08},{name:'THE DEEP MODULES',sub:'dark and cold · songs and lures guide the way',y:stT+(stB-stT)*0.63,h:(stB-stT)*0.35,col:[60,90,100],la:0}];for(let lv of levels){const fi3=constrain((t-0.1)*3,0,1);fill(lv.col[0],lv.col[1],lv.col[2],a*0.08*fi3);noStroke();rect(stL+2,lv.y+2,stW-4,lv.h-2);if(lv.la>0){for(let y2=0;y2<lv.h*0.5;y2++){stroke(220,200,120,a*lv.la*(1-y2/(lv.h*0.5))*fi3);line(stL+2,lv.y+y2,stR-2,lv.y+y2);}}noStroke();const fc=lv.name==='THE DEEP MODULES'?2:lv.name==='NEAR THE LIGHT'?3:5;for(let i=0;i<fc;i++){const fx=stL+stW*0.2+i*(stW*0.6/(fc-1||1)),fy=lv.y+lv.h*0.5;stroke(lv.col[0]+40,lv.col[1]+40,lv.col[2]+40,a*0.5*fi3);strokeWeight(1);circle(fx,fy-12,6);line(fx,fy-9,fx,fy+5);line(fx,fy+5,fx-4,fy+14);line(fx,fy+5,fx+4,fy+14);}noStroke();fill(lv.col[0]+60,lv.col[1]+60,lv.col[2]+60,a*0.7*fi3);textSize(14);textAlign(CENTER);text(lv.name,cx,lv.y+lv.h*0.3);fill(lv.col[0]+30,lv.col[1]+30,lv.col[2]+30,a*0.45*fi3);textSize(11);text(lv.sub,cx,lv.y+lv.h*0.3+18);}stroke(80,140,140,a*0.25);strokeWeight(0.5);line(stL,levels[1].y,stR,levels[1].y);line(stL,levels[2].y,stR,levels[2].y);noStroke();fill(220,180,100,a*0.5*t);textSize(11);textAlign(CENTER);text('☀ light ↓',stL-60,height*0.3);text('warmth ↓',stL-60,height*0.45);fill(120,180,180,a*0.5);textSize(15);text('nearness to light is practical and sacred — not rank',cx,stB+28);}
 // --- DAILY LIFE ---
 function drawVizDaily(a){const cx=width/2,cy=height/2,r=min(width,height)*0.3,t=min((millis()-vizStart)/10000,1);stroke(60,120,120,a*0.3);strokeWeight(0.5);noFill();ellipse(cx,cy,r*2,r*2);const segs=[{name:'rest cycle',icon:'◌',ang:0,span:0.2,col:[40,70,90]},{name:'first interval',icon:'▢',ang:0.2,span:0.15,col:[80,130,120]},{name:'work shift',icon:'⚙',ang:0.35,span:0.25,col:[140,160,140]},{name:'communal meal',icon:'◎',ang:0.6,span:0.1,col:[160,140,100]},{name:'hull songs',icon:'∿',ang:0.7,span:0.12,col:[120,180,170]},{name:'silence hours',icon:'—',ang:0.82,span:0.18,col:[50,80,100]}];for(let sg of segs){const fi4=constrain((t-(sg.ang*0.5))*4,0,1);const a1=-HALF_PI+sg.ang*TWO_PI,a2=-HALF_PI+(sg.ang+sg.span)*TWO_PI;stroke(sg.col[0],sg.col[1],sg.col[2],a*0.4*fi4);strokeWeight(r*0.15);noFill();arc(cx,cy,r*1.6,r*1.6,a1,a2);const midA=(a1+a2)/2;noStroke();fill(sg.col[0]+60,sg.col[1]+60,sg.col[2]+60,a*0.6*fi4);textSize(11);textAlign(CENTER);text(sg.name,cx+cos(midA)*(r+50),cy+sin(midA)*(r+50));textSize(16);text(sg.icon,cx+cos(midA)*(r+50),cy+sin(midA)*(r+50)-16);}fill(120,180,180,a*0.5);textSize(14);textAlign(CENTER);text('mechanical cycle',cx,cy-8);fill(80,140,140,a*0.35);textSize(11);text('no sun · no day · no night',cx,cy+10);fill(120,180,180,a*0.5);textSize(15);text('life follows the rhythm of machines',cx,cy+r+65);}
 // --- OFFERING TO KHEIR ---
-// Vertical water-cut. Station silhouette at the bottom, ice + moon at the top.
-// One opaque cloth ascends slowly from station to ice over the viz lifetime,
+// Vertical water-cut. Station silhouette at the bottom, the surface + moon at the top.
+// One opaque cloth ascends slowly from station toward the surface over the viz lifetime,
 // breathing on the 4.7s heartbeat. Faded earlier cloths sit at intermediate
 // heights — previous cycles. Cold blue + warm moon-cream palette.
 function drawVizOffering(a){
   const fi=a/230;
   const t=min((millis()-vizStart)/12000,1);
   const cx=width/2;
-  const iceY=height*0.16;       // top of ice / boundary to surface
+  const iceY=height*0.16;       // the surface — water meets the toxic sky
   const stationTopY=height*0.78; // station roof, where the cloth begins
   const moonY=height*0.08;
   const ctx=drawingContext;     // used by moon's radial gradient below
@@ -1464,19 +1439,20 @@ function drawVizOffering(a){
     pop();
   }
 
-  // 2) Ice ceiling — thin band with faint texture
+  // 2) The surface — water meets the toxic sky (no ice in this world)
   noStroke();
-  fill(180,200,215,fi*60); rect(0,0,width,iceY);
-  fill(150,175,195,fi*40); rect(0,iceY-4,width,4);
-  // a few cracks
-  stroke(200,215,225,fi*40); strokeWeight(0.6);
+  fill(40,55,70,fi*55); rect(0,0,width,iceY);            // dim water just below the surface
+  fill(150,130,95,fi*22); rect(0,0,width,iceY*0.5);      // faint warm smog haze above the waterline
+  fill(170,195,205,fi*55); rect(0,iceY-3,width,3);       // the bright waterline itself
+  // surface ripples catching the light
+  stroke(190,210,220,fi*35); strokeWeight(0.6);
   for(let i=0;i<6;i++){
     const x=(i+0.5)*width/6+sin(i*1.7)*40;
-    line(x, iceY-2, x+cos(i*2.3)*30, iceY-iceY*0.6);
+    line(x-14, iceY-2+sin(i*2.3)*2, x+14, iceY-2+cos(i*1.9)*2);
   }
   noStroke();
 
-  // 3) Moon above the ice — Kheir, the moon goddess who keeps what is sent up.
+  // 3) Moon above the surface — Kheir, the moon who tempers the sun and receives our thanks.
   //    Same layered-disc + halo approach as the sea_level sun, but in a cool
   //    cream-blue palette and without the lethal radiation rays.
   const moonX=cx;
@@ -1539,8 +1515,8 @@ function drawVizOffering(a){
   noStroke();
   for(const e of earlier){
     push(); translate(e.x, e.y); scale(e.sc);
-    // Burgundy red — same hue as the current cloth, lower opacity for the older ones
-    fill(120, 25, 35, fi*255*e.op*1.6);
+    // Woven cloth — earlier offerings, more faded
+    fill(150, 120, 75, fi*255*e.op*1.6);
     beginShape();
     for(const p of earlierClothShape) vertex(p[0]+sin((p[1]+frameCount)*0.012)*1.4, p[1]);
     endShape(CLOSE);
@@ -1560,8 +1536,8 @@ function drawVizOffering(a){
   // cloth itself, asymmetric and very slightly waving
   push(); translate(cx, cy); scale(breath);
   noStroke();
-  // Burgundy red — first-blood cloth, weighted and ascending
-  fill(140, 30, 40, 255*clothAlpha);
+  // Woven cloth — a small thing made by hand, weighted and ascending
+  fill(165, 135, 85, 255*clothAlpha);
   beginShape();
   const clothShape=[
     [-18,-28],[ -6,-32],[  9,-28],[ 17,-16],[ 14,  6],
@@ -1573,7 +1549,7 @@ function drawVizOffering(a){
   }
   endShape(CLOSE);
   // inner highlight (where the moon catches it from above) — cooler tint
-  fill(210, 130, 130, 220*clothAlpha*0.55);
+  fill(225, 205, 155, 220*clothAlpha*0.55);
   beginShape();
   for(const p of clothShape){
     const wob=sin((p[1]+frameCount*1.5)*0.04)*1.6;
@@ -1583,7 +1559,7 @@ function drawVizOffering(a){
   pop();
 
   // 7) Thin vertical line from station chamber to cloth — the path
-  stroke(160, 50, 60, fi*40*(1-rise));
+  stroke(150, 125, 80, fi*40*(1-rise));
   strokeWeight(0.4);
   line(cx, sY-nH+14, cx, cy+22*breath);
   noStroke();
@@ -1670,15 +1646,15 @@ function drawVizMyth(a){
 
   // Labels
   noStroke();fill(220,180,80,a*0.7);textSize(17);textAlign(CENTER);text('vahra',cx,vY-48);
-  fill(220,180,80,a*0.4);textSize(13);text('she who turned away',cx,vY-30);
+  fill(220,180,80,a*0.4);textSize(13);text('life-giver, who turned away',cx,vY-30);
   fill(180,200,230,a*0.7);textSize(17);text('kheir',cx,kY+55);
-  fill(180,200,230,a*0.4);textSize(13);text('protector · he who mourns',cx,kY+72);
+  fill(180,200,230,a*0.4);textSize(13);text('protector · who softens the sun',cx,kY+72);
   fill(120,180,180,a*0.55);textSize(15);text('the separation',cx,cy);
   fill(100,160,160,a*0.35);textSize(13);text('humanity caught between',cx,cy+20);
   fill(214,200,65,a*0.5*t);textSize(10);text('the eye of kheir',symX,symY+62);
 }
 // --- SELECTION ---
-function drawVizSelection(a){const t=millis()-vizStart;const lines=['they say my name','once','that\'s enough','something tightens inside me','i walk','too fast then slower','i could stop','but i keep walking','the path narrows','the air thins','the chamber is smaller than i expected','the altar stands in the center','the eye','two tubes','they lean toward me','too close','i kneel','the floor is cold','i am not the first','the light is not mine','i raise my gaze','slowly','toward the openings'];noStroke();textAlign(CENTER);for(let i=0;i<lines.length;i++){const ls=i*1100;if(t<ls)break;const age=t-ls;const fi6=min(age/800,1),fo6=max(0,1-(age-6000)/1500),alp=min(fi6,fo6);if(alp<=0)continue;const warmth=i/lines.length;fill(140+warmth*80,180+warmth*40,180-warmth*120,a*0.7*alp);textSize(15+warmth*5);text(lines[i],width/2,height*0.12+i*24);}}
+function drawVizSelection(a){const t=millis()-vizStart;const lines=['they say my name','once','that\'s enough','something tightens inside me','i stand','it is my turn to go up','to the solar space','to sit in the full light','they say it makes you well','they say you come back changed','i walk upward','through narrowing shafts','toward where the light comes from','the keeper waits there','and the light waits','i lean in','slowly','do not look directly at it','they always said','so i almost don\'t','and then','warmth','on my face','for the first time','light that is mine','just my share'];noStroke();textAlign(CENTER);for(let i=0;i<lines.length;i++){const ls=i*1100;if(t<ls)break;const age=t-ls;const fi6=min(age/800,1),fo6=max(0,1-(age-6000)/1500),alp=min(fi6,fo6);if(alp<=0)continue;const warmth=i/lines.length;fill(140+warmth*80,180+warmth*40,180-warmth*120,a*0.7*alp);textSize(15+warmth*5);text(lines[i],width/2,height*0.12+i*24);}}
 // ===================== FEATURE 3: CAGE SYSTEM =====================
 function generateCageSlots(){
   const cx=width*0.5,cy=height*0.45;
@@ -1841,18 +1817,18 @@ function drawSeenLightOverlay(){if(!seenLight)return;noStroke();fill(255,252,245
 // ===================== SCENE CONFIG =====================
 function getSceneHotspots(s){
   if(s===0)return[
-    {x:0.22,y:0.4,viz:'shrinking_belt',q:"the sun is lethal within hours.\nthe ice keeps expanding from both poles.\nonly a narrow belt remains —\nheld open by heat from below.\nwe've been down here for over a thousand years."},
+    {x:0.22,y:0.4,viz:'shrinking_belt',q:"the sun is lethal within hours.\nthe ice is gone — all of it.\nthere is only ocean now,\nand the old mountain peaks, like bones.\nwe live around the warm vents below."},
     {x:0.55,y:0.7,viz:'deep_parade',q:"the colder the water, the more oxygen it holds.\nthe more oxygen, the larger they grow.\nwe are the prey in the ocean."},
     {x:0.82,y:0.35,viz:'sea_level',q:"the seven continents no longer exist.\nonly the peaks of former mountain ranges\nrise above the surface — like bones."}];
   if(s===1)return[
-    {x:0.2,y:0.3,viz:'hierarchy',q:"proximity to light determines everything.\nthose above decide. those below maintain.\nthose at the bottom are forgotten."},
-    {x:0.5,y:0.25,viz:'daily_life',q:"no sun. no day. no night.\nthe machines decide our hours — rest, work, meal, song, silence.\nwe strike the walls in the silence. we call it singing."},
+    {x:0.2,y:0.3,viz:'hierarchy',q:"the closer to the surface, the closer to the light.\nnot a ladder. not a rank.\nthe light is medicine, and we share it.\ndown here it is dark — so we sing to find each other."},
+    {x:0.5,y:0.25,viz:'daily_life',q:"no sun. no day. no night.\nthe machines keep our hours.\neach place has its own song — we hum it always,\nso even in the dark we know where we are."},
     {x:0.75,y:0.6,viz:'air_oxygen',q:"one of the lower modules lost pressure again.\nour systems are old — some built before the great flood.\nwe keep them running with patches and prayer."},
-    {x:0.35,y:0.7,viz:'the_mothers',q:"five women in the upper light.\none for food. one for air. one for memory.\none for the world outside. one for the eye."},
-    {x:0.62,y:0.75,viz:'offering_to_kheir',q:"we send our first blood up to kheir, the moon.\na cloth, weighted, set to climb through the dark water.\nsome he keeps. most drift forever between the station and the ice.\nthe mothers count permits.\nthe women count tides."}];
+    {x:0.35,y:0.7,viz:'the_mothers',q:"five mothers hold the station.\none for food. one for air. one for memory.\none for the world outside. one for the light."},
+    {x:0.62,y:0.75,viz:'offering_to_kheir',q:"on the high tides we send the moon our thanks.\na cloth. a small thing, made by hand.\nwe ask him to keep the sun gentle,\nto carry her light back to us, a little longer."}];
   return[
-    {x:0.35,y:0.55,viz:'mythology',q:"vahra was our first god. we lost her when we lost the surface.\nshe abandoned us — or we abandoned her. no one remembers.\nkheir mourns her. he stays above the ice, keeps watch over the deep.\nthe women send him cloths. he decides what is worth keeping.\nthe eye is built to ask vahra to look back — eight hundred years late."},
-    {x:0.65,y:0.45,viz:'selection',q:"they say my name. once.\nthat's enough.\nsomething tightens inside me."}];
+    {x:0.35,y:0.55,viz:'mythology',q:"the sun gave us life, then turned away.\nher light still keeps us alive — and still could kill us.\nthe moon stays close, and softens her.\nthe eye is how we take her light in measure,\nand ask her, slowly, to look back."},
+    {x:0.65,y:0.45,viz:'selection',q:"they say my name. once.\nthat's enough.\nit is my turn to go up — to the light.\nthey say it makes you well.\nthey say you come back changed."}];
 }
 function buildScene(s){
   stopVizAmbient(); // no-op if not active; covers scene change, resize, ascend
@@ -1998,7 +1974,7 @@ function drawEyeClimax(){
     for(let i=8;i>=0;i--){fill(220,200,140,(4+i*3.5)*b);rect(cx-4-i*4,0,8+i*8,height);}
     for(let i=0;i<18;i++){fill(220,200,140,b*45);circle(cx+sin(frameCount*0.1+i)*map(t,0,3000,110,4),random(height),random(1,2.5));}
     if(t<1400&&eyeLabel){
-      showSub('the watcher mother has chosen you.\nshe has seen how you '+eyeLabel.verb+'.\nshe calls you — '+eyeLabel.label+'.',null,'rgba(210,190,130,0.75)','16px');
+      showSub('the watcher mother calls you up to the light.\nshe has seen how you '+eyeLabel.verb+'.\nshe calls you — '+eyeLabel.label+'.',null,'rgba(210,190,130,0.75)','16px');
     } else if(t>=1400){
       showSub('the tubes adjust\nnow\ni raise my gaze\nslowly',null,'rgba(220,200,140,0.85)','22px');
     }
@@ -2041,11 +2017,11 @@ function drawEyeClimax(){
       else if(t>8000){eyeActive=false;eyeClimaxPhase='A';}
     } else if(eyeLookResult==='away'){
       if(t<2200){const fd=1-constrain(t/2200,0,1);fill(0,0,0,fd*175);noStroke();rect(0,0,width,height);}
-      if(t>900){const tf=constrain((t-900)/700,0,1);fill(180,222,222,tf*185);textSize(22);textAlign(CENTER);text('i looked away.',cx,height/2);}
+      if(t>900){const tf=constrain((t-900)/700,0,1);fill(180,222,222,tf*185);textSize(22);textAlign(CENTER);text('not yet.\nanother tide.',cx,height/2);}
       if(t>4800){eyeActive=false;eyeClimaxPhase='A';}
     } else {
       if(t<2000){fill(0);noStroke();rect(0,0,width,height);}
-      if(t>700){const tf=constrain((t-700)/700,0,1);fill(160,200,200,tf*162);textSize(20);textAlign(CENTER);text("i didn't decide.",cx,height/2);}
+      if(t>700){const tf=constrain((t-700)/700,0,1);fill(160,200,200,tf*162);textSize(20);textAlign(CENTER);text('just my share.',cx,height/2);}
       if(t>4800){eyeActive=false;eyeClimaxPhase='A';}
     }
   }
@@ -2206,15 +2182,15 @@ let presMode=false,presStep=-1;
 const PRES_STEPS=[
   // — Scene 1: The World —
   {type:'text',text:'i have never seen the surface.\nno one i know has.\nwe\'ve been down here for over a thousand years.',scene:0,label:'intro'},
-  {type:'quote',idx:0,scene:0,label:'belt · quote'},
-  {type:'viz',idx:0,scene:0,label:'belt · viz'},
+  {type:'quote',idx:0,scene:0,label:'waterworld · quote'},
+  {type:'viz',idx:0,scene:0,label:'waterworld · viz'},
   {type:'quote',idx:1,scene:0,label:'parade · quote'},
   {type:'viz',idx:1,scene:0,label:'parade · viz'},
   {type:'quote',idx:2,scene:0,label:'sea level · quote'},
   {type:'viz',idx:2,scene:0,label:'sea level · viz'},
   // — Transition to Scene 2 —
   {type:'transition',target:1,text:'we ascend.\ninto the station.',label:'transition'},
-  {type:'text',text:'module 7656. the deeps.\nthis is where i sleep. eat. breathe.',scene:1,label:'station · intro'},
+  {type:'text',text:'module 7656. the deep modules.\nthis is where i sleep. eat. breathe.',scene:1,label:'station · intro'},
   // — Scene 2: The Station —
   {type:'quote',idx:0,scene:1,label:'hierarchy · quote'},
   {type:'viz',idx:0,scene:1,label:'hierarchy · viz'},
