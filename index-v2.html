@@ -1745,7 +1745,9 @@ function drawHullPieces(){
   noStroke();
   for(let p of hullPieces){
     const bp=sin(fc+p.phase)*0.4+0.6;
-    fill(150,195,185,14*bp);circle(p.x,p.y,4);
+    // Faint always-on ring so the tappable hull points stay discoverable (subtle, breathes)
+    noFill();stroke(120,180,170,16*bp);strokeWeight(0.6);circle(p.x,p.y,19);noStroke();
+    fill(150,195,185,20*bp);circle(p.x,p.y,4);
     if(p.flashT>0){const fi=min(p.flashT/350,1);fill(180,220,200,fi*72);circle(p.x,p.y,50);fill(220,242,232,fi*140);circle(p.x,p.y,13);}
     if(p.hovered&&p.cooldown<=0){stroke(120,180,170,110);strokeWeight(0.7);noFill();circle(p.x,p.y,23);noStroke();}
   }
